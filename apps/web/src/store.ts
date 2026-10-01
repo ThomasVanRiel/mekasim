@@ -27,6 +27,12 @@ export type Tool =
   | "trace"
   | "reshape"
   | "measure"
+  | "crank"
+  | "rod"
+  | "slot"
+  | "tie"
+  | "gear"
+  | "cam"
   /** Moving the underlay, and picking the two points that set its scale. */
   | "place"
   | "calibrate";

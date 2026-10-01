@@ -7,50 +7,103 @@ const base = "border border-ink px-2.5 py-1 text-sm";
 const on = "bg-ink text-sheet";
 const off = "bg-sheet hover:bg-paper";
 
-export const TOOLS: { id: Tool; label: string; key: string; hint: string }[] = [
+type Group = "Move" | "Draw" | "Join" | "Drive and measure";
+
+export const TOOLS: { id: Tool; group: Group; label: string; key: string; hint: string }[] = [
   {
     id: "select",
+    group: "Move",
     label: "Select",
     key: "v",
     hint: "Click a part to select it. Drag a part to move the mechanism.",
   },
   {
+    id: "reshape",
+    group: "Move",
+    label: "Reshape",
+    key: "r",
+    hint: "Drag a point to change the shape of its link. Points pinned to it move along.",
+  },
+  {
     id: "link",
+    group: "Draw",
     label: "Link",
     key: "l",
     hint: "Click to place the points of a new link. Click the last point again, or press Enter, to finish. Points placed on existing points are pinned to them.",
   },
   {
+    id: "crank",
+    group: "Draw",
+    label: "Crank",
+    key: "c",
+    hint: "Click where the crank pivots, then where its arm ends. A pivot placed on an existing point turns about that point; an arm end placed on one is pinned to it.",
+  },
+  {
+    id: "rod",
+    group: "Draw",
+    label: "Rod",
+    key: "o",
+    hint: "Click two existing points to join them with a rod of that length.",
+  },
+  {
     id: "pin",
+    group: "Join",
     label: "Pin",
     key: "p",
     hint: "Click where two links have a point in common to pin them together, or click a single point to pin it to the ground.",
   },
   {
+    id: "slot",
+    group: "Join",
+    label: "Slot",
+    key: "s",
+    hint: "Click the point that should slide, then a second place to give the direction of its line.",
+  },
+  {
+    id: "tie",
+    group: "Join",
+    label: "Tie",
+    key: "i",
+    hint: "Click two points to hold them a fixed distance apart.",
+  },
+  {
+    id: "gear",
+    group: "Join",
+    label: "Gear",
+    key: "g",
+    hint: "Click the centre each of two bodies turns about to gear them together. Set the sizes, or make it a belt, in the inspector.",
+  },
+  {
+    id: "cam",
+    group: "Join",
+    label: "Cam",
+    key: "a",
+    hint: "Click the centre of the cam on its body, then the point of the follower that rides on it. Shape the lift in the inspector.",
+  },
+  {
     id: "motor",
+    group: "Drive and measure",
     label: "Motor",
     key: "m",
     hint: "Click a pin to drive it. Click a driven pin to remove its motor.",
   },
   {
     id: "trace",
+    group: "Drive and measure",
     label: "Trace",
     key: "t",
     hint: "Click a point to record its path. Click it again to stop.",
   },
   {
-    id: "reshape",
-    label: "Reshape",
-    key: "r",
-    hint: "Drag a point to change the shape of its link. Points pinned to it move along.",
-  },
-  {
     id: "measure",
+    group: "Drive and measure",
     label: "Measure",
     key: "d",
     hint: "Click two points to measure the distance between them, or click a link to measure its angle. The result is added to the measures.",
   },
 ];
+
+const GROUPS: Group[] = ["Move", "Draw", "Join", "Drive and measure"];
 
 const UNDERLAY_HINTS: Partial<Record<Tool, string>> = {
   place: "Drag the picture to where it belongs.",
@@ -237,22 +290,27 @@ export function ViewportTools() {
       </div>
 
       <div className="pointer-events-auto flex flex-wrap gap-2">
-        <fieldset className="flex">
-          <legend className="sr-only">Tool</legend>
-          {TOOLS.map((option, i) => (
-            <button
-              key={option.id}
-              type="button"
-              aria-pressed={tool === option.id}
-              aria-keyshortcuts={option.key}
-              title={`${option.label} (${option.key.toUpperCase()})`}
-              onClick={() => setTool(option.id)}
-              className={`${base} ${segment(i, TOOLS.length)} ${tool === option.id ? on : off}`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </fieldset>
+        {GROUPS.map((group) => {
+          const options = TOOLS.filter((option) => option.group === group);
+          return (
+            <fieldset key={group} className="flex">
+              <legend className="sr-only">{group}</legend>
+              {options.map((option, i) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  aria-pressed={tool === option.id}
+                  aria-keyshortcuts={option.key}
+                  title={`${option.label} (${option.key.toUpperCase()})`}
+                  onClick={() => setTool(option.id)}
+                  className={`${base} ${segment(i, options.length)} ${tool === option.id ? on : off}`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </fieldset>
+          );
+        })}
         <div className="flex">
           <button
             type="button"

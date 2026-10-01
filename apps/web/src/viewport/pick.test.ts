@@ -1,7 +1,17 @@
 import { readFileSync } from "node:fs";
 import { simulate } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
-import { nearestStep, pick, pinNear, pointsNear, toLocal, toWorld, worldPoints } from "./pick.ts";
+import {
+  beltRuns,
+  drawnJointNear,
+  nearestStep,
+  pick,
+  pinNear,
+  pointsNear,
+  toLocal,
+  toWorld,
+  worldPoints,
+} from "./pick.ts";
 import { buildScene, type Scene } from "./scene.ts";
 
 function example(name: string): Scene {
@@ -90,5 +100,38 @@ describe("nearestStep", () => {
   it("stays near the current step rather than jumping across the cycle", () => {
     // The cursor is nearest sample 180, but that is half a cycle away.
     expect(nearestStep(xs, ys, -1, 0, 10, true)).toBe(70);
+  });
+});
+
+describe("gears, belts, cams and ties", () => {
+  it("finds a gear by the rim of either wheel", () => {
+    const geared = example("geared-five-bar");
+    // The pinion is at the origin with a 20 mm radius; the wheel at 60 mm with 40 mm.
+    expect(drawnJointNear(geared, 0, 0, -0.02, 0.002)).toBe("mesh");
+    expect(drawnJointNear(geared, 0, 0.06, -0.04, 0.002)).toBe("mesh");
+    expect(drawnJointNear(geared, 0, 0.06, -0.02, 0.002)).toBeUndefined();
+    expect(pick(geared, 0, 0, -0.02, 0.002)).toEqual({ kind: "joint", id: "mesh" });
+  });
+
+  it("finds a cam by its edge and by the follower's roller", () => {
+    const cam = example("cam-follower");
+    // The roller is 8 mm round the follower point, which starts above the cam centre.
+    const follower = worldPoints(cam, 0).find((p) => p.ref === "lifter.P");
+    expect(drawnJointNear(cam, 0, 0.005, (follower?.y ?? 0) + 0.004, 0.001)).toBe("contact");
+    // Straight down from the centre the cam is at its base: 30 mm less the roller.
+    expect(drawnJointNear(cam, 0, 0, -0.022, 0.001)).toBe("contact");
+    expect(drawnJointNear(cam, 0, 0.1, 0.1, 0.001)).toBeUndefined();
+  });
+
+  it("gives the two runs of a belt as the lines touching both wheels", () => {
+    const [upper, lower] = beltRuns([0, 0], 0.03, [0.2, 0], 0.01);
+    // Each end is on its wheel, and the run is square to the radius there.
+    for (const [from, to] of [upper, lower] as [[number, number], [number, number]][]) {
+      expect(Math.hypot(...from)).toBeCloseTo(0.03, 12);
+      expect(Math.hypot(to[0] - 0.2, to[1])).toBeCloseTo(0.01, 12);
+      expect(from[0] * (to[0] - from[0]) + from[1] * (to[1] - from[1])).toBeCloseTo(0, 12);
+    }
+    expect(upper?.[0][1]).toBeGreaterThan(0);
+    expect(lower?.[0][1]).toBeLessThan(0);
   });
 });

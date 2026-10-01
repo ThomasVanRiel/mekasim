@@ -65,6 +65,8 @@ export interface DrawAxis {
 /** A gear or pulley: a circle on a body, with marks on its rim to show it turning. */
 export interface DrawWheel {
   id: string;
+  /** The gear or belt joint it belongs to. */
+  joint: string;
   body: number;
   u: number;
   v: number;
@@ -361,6 +363,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
           const radius = radii[i] as number;
           wheels.push({
             id: `${joint.id}/${i}`,
+            joint: joint.id,
             body: wheel.index,
             u: wheel.u,
             v: wheel.v,

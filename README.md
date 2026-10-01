@@ -24,7 +24,13 @@ keeping its comments and layout.
 |---|---|---|
 | Select | V | Click to select; drag a part to move the mechanism |
 | Link | L | Click points for a new link; Enter or a second click on the last point finishes |
+| Crank | C | Click the pivot, then the end of the arm: a crank by radius and angle |
+| Rod | O | Click two points to join them with a rod of that length |
 | Pin | P | Pin overlapping points together, or a lone point to the ground |
+| Slot | S | Click a point, then a direction: the point slides along that line |
+| Tie | I | Hold two points a fixed distance apart |
+| Gear | G | Gear two turning bodies together by their centres; a belt is one click away in the inspector |
+| Cam | A | Click a cam's centre, then its follower's point; shape the lift in the inspector |
 | Motor | M | Drive a pin, or remove its motor |
 | Trace | T | Record the path of a point |
 | Reshape | R | Drag a point to change its link; pinned points move along |

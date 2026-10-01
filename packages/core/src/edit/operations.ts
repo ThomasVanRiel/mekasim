@@ -1,5 +1,5 @@
 import { type Document, GROUND } from "../schema/document.ts";
-import { applyEdits, type Edit } from "./patch.ts";
+import { applyEdits, type Edit, type Value } from "./patch.ts";
 
 /** The usual order of the top-level sections of a model. */
 export const SECTION_ORDER = [
@@ -226,4 +226,31 @@ export function addPlot(
   const taken = Object.keys(doc.plots ?? {});
   const id = taken.includes(base) ? freeName(taken, `${base}_`) : base;
   return { id, edits: [{ op: "set", path: ["plots", id], value: series }] };
+}
+
+/** Add a joint of any kind under a free name starting with `base`. */
+export function addJoint(
+  doc: Document,
+  base: string,
+  joint: NonNullable<Document["joints"]>[string],
+): { id: string; edits: Edit[] } {
+  const id = freeName(Object.keys(doc.joints ?? {}), base);
+  return { id, edits: [{ op: "set", path: ["joints", id], value: joint as unknown as Value }] };
+}
+
+/** Add a crank or a rod under a free name starting with `base`. */
+export function addComponent(
+  doc: Document,
+  base: string,
+  component: NonNullable<Document["components"]>[string],
+): { id: string; edits: Edit[] } {
+  // A component stands for a body of the same name, so it must not clash with one.
+  const taken = [...Object.keys(doc.bodies), ...Object.keys(doc.components ?? {})];
+  const id = freeName(taken, base);
+  return {
+    id,
+    edits: [
+      { op: "set", path: ["components", id], value: component as unknown as Value, block: 1 },
+    ],
+  };
 }

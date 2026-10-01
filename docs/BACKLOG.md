@@ -63,11 +63,11 @@ Done so far:
 
 Left out of the phases built so far, noted as each was handed over.
 
-- **Drawing tools:** sliders, welds, pin-slots, gears, belts, cams, ties, cranks and
-  rods cannot be drawn, only written in the source. Links, points and joints cannot
-  be renamed from the drawing.
-- **Gears, belts, cams and ties cannot be selected** on the sheet, so they have no
-  inspector; change them in the source.
+- **Renaming:** links, points and joints cannot be renamed from the drawing, only
+  in the source.
+- **Drawing tools** place a slot's line on the ground only; a slot along a moving
+  body is written in the source. A belt is made by drawing a gear and switching it
+  in the inspector. A cam's follower still needs its own pin or slot.
 - **A wheel or cam on the ground body** (a fixed sun gear, a fixed cam) works in the
   solver but is not drawn.
 - **Gear teeth are not drawn,** only the pitch circle with marks on it. A belt is

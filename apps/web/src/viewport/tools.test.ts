@@ -3,10 +3,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { useStore } from "../store.ts";
 import type { Scene } from "./scene.ts";
 import {
+  clickCam,
+  clickCrank,
+  clickGear,
   clickLink,
   clickMeasure,
   clickMotor,
   clickPin,
+  clickRod,
+  clickSlot,
+  clickTie,
   clickTrace,
   deleteSelection,
   finishLink,
@@ -290,5 +296,141 @@ components:
     expect(
       useStore.getState().simulation.diagnostics.filter((d) => d.severity === "error"),
     ).toEqual([]);
+  });
+});
+
+describe("drawing cranks, rods and joints", () => {
+  /** Click with the crank tool at a position in millimetres. */
+  function crankAt(x: number, y: number): void {
+    clickCrank(snap(scene(), x / 1000, y / 1000, TOL), TOL);
+  }
+
+  function errors(): string[] {
+    return useStore
+      .getState()
+      .simulation.diagnostics.filter((d) => d.severity === "error")
+      .map((d) => d.message);
+  }
+
+  it("draws a four-bar from two cranks and a rod, with no coordinates but the pivots", () => {
+    crankAt(0, 0);
+    crankAt(0, 40);
+    crankAt(180, 0);
+    crankAt(140, 100);
+    clickRod(scene(), 0, 0.04, TOL);
+    clickRod(scene(), 0.14, 0.1, TOL);
+    clickMotor(scene(), 0, 0, TOL);
+
+    expect(text()).toBe(`mekasim: 1
+meta:
+  name: Untitled model
+
+bodies: {}
+
+components:
+  crank1:
+    type: crank
+    at: [0, 0]
+    arms: { A: [40, 90] }
+  crank2:
+    type: crank
+    at: [180, 0]
+    arms: { A: [107.703, 111.801] }
+  rod1:
+    type: rod
+    length: 152.316
+    connect: [crank1.A, crank2.A]
+
+drivers:
+  motor: { joint: crank1, speed: 60 }
+`);
+    expect(errors()).toEqual([]);
+    expect(useStore.getState().simulation.mobility).toMatchObject({ mobility: 1, free: 0 });
+    expect(useStore.getState().simulation.cycle?.count).toBe(360);
+  });
+
+  it("mounts a crank on an existing point and pins its arm to another", () => {
+    link([0, 0], [100, 0]);
+    link([0, 60], [100, 60]);
+    crankAt(100, 0);
+    crankAt(100, 60);
+    expect(text()).toContain("    at: link1.B\n    arms: { A: [60, 90] }");
+    expect(text()).toContain("connect: [link2.B, crank1.A]");
+  });
+
+  it("asks for an arm with some length", () => {
+    crankAt(0, 0);
+    crankAt(0, 0);
+    expect(useStore.getState().notice).toContain("away from the pivot");
+    expect(text()).toBe(NEW_MODEL);
+  });
+
+  it("runs a rod only between points of different bodies", () => {
+    link([0, 0], [100, 0]);
+    clickRod(scene(), 0, 0, TOL);
+    clickRod(scene(), 0.1, 0, TOL);
+    expect(useStore.getState().notice).toContain("same body");
+    clickRod(scene(), 0.05, 0.05, TOL);
+    expect(useStore.getState().notice).toContain("Click on a point");
+  });
+
+  it("guides a point along a line fixed to the ground", () => {
+    link([0, 0], [0, 30]);
+    link([0, 30], [100, 30]);
+    clickPin(scene(), 0, 0, TOL);
+    clickSlot(scene(), snap(scene(), 0.1, 0.03, TOL), TOL);
+    clickSlot(scene(), snap(scene(), 0.16, 0.03, TOL), TOL);
+    expect(text()).toContain("points: { G1: [0, 0], G2: [100, 30], G3: [160, 30] }");
+    expect(text()).toContain(
+      "slot1: { type: pin-slot, axis: [ground.G2, ground.G3], point: link2.B }",
+    );
+    clickMotor(scene(), 0, 0, TOL);
+    // A slider-crank: one freedom, taken by the motor.
+    expect(errors()).toEqual([]);
+    expect(useStore.getState().simulation.mobility).toMatchObject({ mobility: 1, free: 0 });
+  });
+
+  it("starts a slot only on a point of a link", () => {
+    clickSlot(scene(), snap(scene(), 0.05, 0.05, TOL), TOL);
+    expect(useStore.getState().notice).toContain("should slide");
+    expect(useStore.getState().draft).toEqual([]);
+  });
+
+  it("ties two points at the distance they are", () => {
+    link([0, 0], [0, 40]);
+    link([140, 100], [180, 0]);
+    clickTie(scene(), 0, 0.04, TOL);
+    clickTie(scene(), 0.14, 0.1, TOL);
+    expect(text()).toContain(
+      "tie1: { type: distance, connect: [link1.B, link2.A], length: 152.315 }",
+    );
+    expect(errors()).toEqual([]);
+  });
+
+  it("gears two cranks by their centres", () => {
+    crankAt(0, 0);
+    crankAt(20, 0);
+    crankAt(60, 0);
+    crankAt(60, 40);
+    clickGear(scene(), 0, 0, TOL);
+    clickGear(scene(), 0.06, 0, TOL);
+    expect(text()).toContain(
+      "gear1: { type: gear, connect: [crank1.O, crank2.O], sizes: [20, 20] }",
+    );
+    expect(errors()).toEqual([]);
+    expect(scene().wheels).toHaveLength(2);
+  });
+
+  it("puts a cam between a turning body and a follower, with a first lift diagram", () => {
+    crankAt(0, 0);
+    crankAt(20, 0);
+    link([0, 30], [0, 90]);
+    clickCam(scene(), 0, 0, TOL);
+    clickCam(scene(), 0, 0.03, TOL);
+    expect(text()).toContain(
+      "cam1: { type: cam, cam: crank1.O, follower: link1.A, base: 30, profile: [[0, 0], [120, 9], [180, 9], [300, 0]] }",
+    );
+    expect(errors()).toEqual([]);
+    expect(scene().cams).toHaveLength(1);
   });
 });

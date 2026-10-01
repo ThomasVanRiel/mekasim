@@ -345,17 +345,28 @@ function Mechanism({ scene }: { scene: Scene }) {
           {scene.wheels
             .filter((wheel) => wheel.body === body.index)
             .map((wheel) => (
-              <Wheel key={wheel.id} wheel={wheel} />
+              <Wheel key={wheel.id} wheel={wheel} selected={wheel.joint === selectedJoint} />
             ))}
           {scene.cams
             .filter((cam) => cam.body === body.index)
             .map((cam) => (
-              <CamPlate key={cam.id} cam={cam} sizes={scene.sizes} color={body.color} />
+              <CamPlate
+                key={cam.id}
+                cam={cam}
+                sizes={scene.sizes}
+                color={body.color}
+                selected={cam.id === selectedJoint}
+              />
             ))}
           {scene.rollers
             .filter((roller) => roller.body === body.index)
             .map((roller) => (
-              <Roller key={roller.id} roller={roller} sizes={scene.sizes} />
+              <Roller
+                key={roller.id}
+                roller={roller}
+                sizes={scene.sizes}
+                selected={roller.id === selectedJoint}
+              />
             ))}
           {scene.axes
             .filter((axis) => axis.body === body.index)
@@ -365,7 +376,7 @@ function Mechanism({ scene }: { scene: Scene }) {
         </group>
       ))}
       {scene.ties.map((tie) => (
-        <Tie key={tie.id} scene={scene} tie={tie} />
+        <Tie key={tie.id} scene={scene} tie={tie} selected={tie.id === selectedJoint} />
       ))}
       {scene.traces.map((trace) => (
         <Line key={trace.ref} points={trace.points} color={COLORS.dye} lineWidth={1.8} />

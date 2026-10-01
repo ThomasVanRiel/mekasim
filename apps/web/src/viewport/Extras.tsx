@@ -5,7 +5,7 @@ import { Shape, Vector2 } from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
-import { toWorld } from "./pick.ts";
+import { beltRuns, toWorld } from "./pick.ts";
 import type { DrawCam, DrawRoller, DrawTie, DrawWheel, Scene, Sizes } from "./scene.ts";
 
 type Vec3 = [number, number, number];
@@ -18,7 +18,8 @@ function circle(radius: number, z: number, segments = 64): Vec3[] {
 }
 
 /** A gear or pulley on its body: the pitch circle, and marks round it that show it turning. */
-export function Wheel({ wheel }: { wheel: DrawWheel }) {
+export function Wheel({ wheel, selected }: { wheel: DrawWheel; selected: boolean }) {
+  const color = selected ? COLORS.dye : COLORS.ink;
   const marks = useMemo(() => {
     const count = Math.max(8, Math.min(48, Math.round(wheel.radius * 400)));
     const points: Vec3[] = [];
@@ -34,8 +35,8 @@ export function Wheel({ wheel }: { wheel: DrawWheel }) {
 
   return (
     <group position={[wheel.u, wheel.v, 0]}>
-      <Line points={circle(wheel.radius, wheel.z)} color={COLORS.ink} lineWidth={1.4} />
-      <Line points={marks} segments color={COLORS.ink} lineWidth={1} />
+      <Line points={circle(wheel.radius, wheel.z)} color={color} lineWidth={selected ? 3 : 1.4} />
+      <Line points={marks} segments color={color} lineWidth={1} />
       {/* One longer mark makes a full turn easy to count. */}
       <Line
         points={[
@@ -50,7 +51,17 @@ export function Wheel({ wheel }: { wheel: DrawWheel }) {
 }
 
 /** A cam plate on its body. */
-export function CamPlate({ cam, sizes, color }: { cam: DrawCam; sizes: Sizes; color: string }) {
+export function CamPlate({
+  cam,
+  sizes,
+  color,
+  selected,
+}: {
+  cam: DrawCam;
+  sizes: Sizes;
+  color: string;
+  selected: boolean;
+}) {
   const shape = useMemo(
     () => new Shape(cam.outline.map(([x, y]) => new Vector2(x, y))),
     [cam.outline],
@@ -66,13 +77,25 @@ export function CamPlate({ cam, sizes, color }: { cam: DrawCam; sizes: Sizes; co
         <extrudeGeometry args={[shape, { depth: sizes.thickness, bevelEnabled: false }]} />
         <meshLambertMaterial color={color} />
       </mesh>
-      <Line points={edge} color={COLORS.ink} lineWidth={1.4} />
+      <Line
+        points={edge}
+        color={selected ? COLORS.dye : COLORS.ink}
+        lineWidth={selected ? 3 : 1.4}
+      />
     </>
   );
 }
 
 /** The roller of a cam follower, on the follower's body. */
-export function Roller({ roller, sizes }: { roller: DrawRoller; sizes: Sizes }) {
+export function Roller({
+  roller,
+  sizes,
+  selected,
+}: {
+  roller: DrawRoller;
+  sizes: Sizes;
+  selected: boolean;
+}) {
   // A follower without a roller is a point; show it as a small one.
   const radius = roller.radius > 0 ? roller.radius : sizes.half * 0.3;
   return (
@@ -81,7 +104,11 @@ export function Roller({ roller, sizes }: { roller: DrawRoller; sizes: Sizes }) 
         <circleGeometry args={[radius, 48]} />
         <meshBasicMaterial color={COLORS.paper} />
       </mesh>
-      <Line points={circle(radius, roller.z)} color={COLORS.ink} lineWidth={1.4} />
+      <Line
+        points={circle(radius, roller.z)}
+        color={selected ? COLORS.dye : COLORS.ink}
+        lineWidth={selected ? 3 : 1.4}
+      />
     </group>
   );
 }
@@ -90,7 +117,7 @@ export function Roller({ roller, sizes }: { roller: DrawRoller; sizes: Sizes }) 
  * A line between two moving bodies, redrawn every frame: a dashed line for a fixed
  * distance, the two straight runs of a belt for a belt.
  */
-export function Tie({ scene, tie }: { scene: Scene; tie: DrawTie }) {
+export function Tie({ scene, tie, selected }: { scene: Scene; tie: DrawTie; selected: boolean }) {
   const line = useRef<Line2 | LineSegments2>(null);
 
   useFrame(() => {
@@ -105,18 +132,9 @@ export function Tie({ scene, tie }: { scene: Scene; tie: DrawTie }) {
       target.computeLineDistances();
       return;
     }
-    // The belt leaves each wheel where a line touching both wheels meets it.
-    const d = Math.hypot(bx - ax, by - ay) || 1;
-    const ex = (bx - ax) / d;
-    const ey = (by - ay) / d;
-    const along = (tie.a.radius - tie.b.radius) / d;
-    const across = Math.sqrt(Math.max(0, 1 - along * along));
     const positions: number[] = [];
-    for (const side of [1, -1]) {
-      const mx = along * ex - side * across * ey;
-      const my = along * ey + side * across * ex;
-      positions.push(ax + tie.a.radius * mx, ay + tie.a.radius * my, z);
-      positions.push(bx + tie.b.radius * mx, by + tie.b.radius * my, z);
+    for (const [from, to] of beltRuns([ax, ay], tie.a.radius, [bx, by], tie.b.radius)) {
+      positions.push(from[0], from[1], z, to[0], to[1], z);
     }
     target.geometry.setPositions(positions);
   });
@@ -129,8 +147,8 @@ export function Tie({ scene, tie }: { scene: Scene; tie: DrawTie }) {
         [0, 0, 0],
         [1, 0, 0],
       ]}
-      color={COLORS.inkSoft}
-      lineWidth={1.6}
+      color={selected ? COLORS.dye : COLORS.inkSoft}
+      lineWidth={selected ? 3 : 1.6}
       dashed
       dashSize={scene.sizes.half * 1.2}
       gapSize={scene.sizes.half * 0.8}
@@ -145,8 +163,8 @@ export function Tie({ scene, tie }: { scene: Scene; tie: DrawTie }) {
         [1, 1, 0],
       ]}
       segments
-      color={COLORS.ink}
-      lineWidth={1.6}
+      color={selected ? COLORS.dye : COLORS.ink}
+      lineWidth={selected ? 3 : 1.6}
     />
   );
 }

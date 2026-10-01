@@ -112,6 +112,77 @@ export function pinNear(scene: Scene, step: number, x: number, y: number, tolera
   return best?.pin;
 }
 
+function toSegment(x: number, y: number, a: [number, number], b: [number, number]): number {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const length = dx * dx + dy * dy;
+  const along =
+    length === 0 ? 0 : Math.min(Math.max(((x - a[0]) * dx + (y - a[1]) * dy) / length, 0), 1);
+  return Math.hypot(x - a[0] - along * dx, y - a[1] - along * dy);
+}
+
+/**
+ * The two straight runs of a belt round two wheels: the lines that touch both
+ * wheels on the outside. Each run is given by its two ends.
+ */
+export function beltRuns(
+  a: [number, number],
+  ra: number,
+  b: [number, number],
+  rb: number,
+): [[number, number], [number, number]][] {
+  const d = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+  const ex = (b[0] - a[0]) / d;
+  const ey = (b[1] - a[1]) / d;
+  const along = (ra - rb) / d;
+  const across = Math.sqrt(Math.max(0, 1 - along * along));
+  return [1, -1].map((side) => {
+    const mx = along * ex - side * across * ey;
+    const my = along * ey + side * across * ex;
+    return [
+      [a[0] + ra * mx, a[1] + ra * my],
+      [b[0] + rb * mx, b[1] + rb * my],
+    ];
+  });
+}
+
+/**
+ * The gear, belt, cam or tie drawn at a position: the rim of a wheel, a run of a
+ * belt, the line of a tie, the edge of a cam or its follower's roller.
+ */
+export function drawnJointNear(
+  scene: Scene,
+  step: number,
+  x: number,
+  y: number,
+  tolerance: number,
+): string | undefined {
+  for (const wheel of scene.wheels) {
+    const [cx, cy] = toWorld(scene, wheel.body, step, wheel.u, wheel.v);
+    if (Math.abs(Math.hypot(x - cx, y - cy) - wheel.radius) <= tolerance) return wheel.joint;
+  }
+  for (const tie of scene.ties) {
+    const a = toWorld(scene, tie.a.body, step, tie.a.u, tie.a.v);
+    const b = toWorld(scene, tie.b.body, step, tie.b.u, tie.b.v);
+    const runs =
+      tie.kind === "belt" ? beltRuns(a, tie.a.radius, b, tie.b.radius) : [[a, b] as const];
+    if (runs.some(([from, to]) => toSegment(x, y, from, to) <= tolerance)) return tie.id;
+  }
+  for (const roller of scene.rollers) {
+    const [cx, cy] = toWorld(scene, roller.body, step, roller.u, roller.v);
+    if (Math.hypot(x - cx, y - cy) <= Math.max(roller.radius, tolerance)) return roller.id;
+  }
+  for (const cam of scene.cams) {
+    const [u, v] = toLocal(scene, cam.body, step, x, y);
+    const near = cam.outline.some((corner, i) => {
+      const next = cam.outline[(i + 1) % cam.outline.length] as [number, number];
+      return toSegment(u, v, corner, next) <= tolerance;
+    });
+    if (near) return cam.id;
+  }
+  return undefined;
+}
+
 /**
  * What is under a position: a joint before a point before a body, since the smaller
  * things sit on top of the larger. Among bodies the frontmost wins.
@@ -128,6 +199,9 @@ export function pick(
 
   const point = pointsNear(worldPoints(scene, step), x, y, tolerance)[0];
   if (point) return { kind: "point", ref: point.ref };
+
+  const drawn = drawnJointNear(scene, step, x, y, tolerance);
+  if (drawn) return { kind: "joint", id: drawn };
 
   const front = [...scene.bodies].sort((a, b) => b.z - a.z);
   for (const body of front) {

@@ -1,4 +1,12 @@
-import { addDriver, addPlot, driversOf, GROUND, jointRefs, toggleTrace } from "@mekasim/core";
+import {
+  addDriver,
+  addPlot,
+  driversOf,
+  type Edit,
+  GROUND,
+  jointRefs,
+  toggleTrace,
+} from "@mekasim/core";
 import type { ReactNode } from "react";
 import { label, refLabel, titled } from "../names.ts";
 import { useStore } from "../store.ts";
@@ -53,6 +61,54 @@ function PointRow({
       <Field label="x" path={["bodies", body, "points", name, 0]} value={point[0]} />
       <Field label="y" path={["bodies", body, "points", name, 1]} value={point[1]} />
     </div>
+  );
+}
+
+/** What each kind of joint is called. */
+const JOINT_NAMES = {
+  revolute: "Pin",
+  weld: "Weld",
+  slider: "Slot",
+  "pin-slot": "Slot",
+  distance: "Tie",
+  gear: "Gear",
+  belt: "Belt",
+  cam: "Cam",
+} as const;
+
+/** A choice between a few named options, shown as buttons side by side. */
+function Choice<T extends string>({
+  label,
+  current,
+  options,
+  onPick,
+}: {
+  label: string;
+  current: T;
+  options: { value: T; label: string }[];
+  onPick(value: T): void;
+}) {
+  return (
+    <fieldset className="flex flex-col gap-1">
+      <legend className="text-ink-soft text-sm">{label}</legend>
+      <div className="flex flex-wrap">
+        {options.map((option, i) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={option.value === current}
+            onClick={() => option.value !== current && onPick(option.value)}
+            className={`border px-2 py-0.5 text-sm ${i > 0 ? "-ml-px" : ""} ${
+              option.value === current
+                ? "border-ink bg-ink text-sheet"
+                : "border-rule bg-sheet hover:border-ink-soft"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -283,23 +339,140 @@ export function Inspector() {
   }
   const named = jointRefs(joint).map(refLabel);
   const drivers = driversOf(doc, selection.id);
+  const path = ["joints", selection.id];
+  /** Change the kind of joint, dropping what the new kind has no use for. */
+  const retype = (type: string, drop: Edit[] = []): void => {
+    apply([{ op: "set", path: [...path, "type"], value: type }, ...drop]);
+  };
   return (
-    <Section title={titled(joint.type === "revolute" ? "Pin" : "Joint", selection.id)} removable>
+    <Section title={titled(JOINT_NAMES[joint.type], selection.id)} removable>
       <p className="text-sm">
         {joint.type === "revolute" || joint.type === "weld"
           ? `${joint.type === "weld" ? "Welds" : "Pins"} ${named[0]} to ${named[1]}.`
           : joint.type === "slider" || joint.type === "pin-slot"
             ? `Keeps ${named[2]} on the line through ${named[0]} and ${named[1]}.`
-            : `Connects ${named[0]} and ${named[1]}.`}
+            : joint.type === "cam"
+              ? `${named[1]} rides on a cam centred on ${named[0]}.`
+              : joint.type === "distance"
+                ? `Holds ${named[0]} and ${named[1]} a fixed distance apart.`
+                : `Ties the turning of the bodies centred on ${named[0]} and ${named[1]}.`}
       </p>
-      {"angle" in joint && (
-        <Field
-          label="Angle"
-          path={["joints", selection.id, "angle"]}
-          value={joint.angle}
-          optional
-          hint="0"
+
+      {(joint.type === "revolute" || joint.type === "weld") && (
+        <Choice
+          label="The two bodies"
+          current={joint.type}
+          options={[
+            { value: "revolute", label: "Turn freely" },
+            { value: "weld", label: "Are fixed together" },
+          ]}
+          onPick={(type) =>
+            retype(
+              type,
+              type === "weld"
+                ? drivers.map((id): Edit => ({ op: "delete", path: ["drivers", id] }))
+                : [{ op: "delete", path: [...path, "angle"] }],
+            )
+          }
         />
+      )}
+      {(joint.type === "slider" || joint.type === "pin-slot") && (
+        <Choice
+          label="The sliding body"
+          current={joint.type}
+          options={[
+            { value: "pin-slot", label: "Turns freely" },
+            { value: "slider", label: "Stays square" },
+          ]}
+          onPick={(type) =>
+            retype(type, type === "pin-slot" ? [{ op: "delete", path: [...path, "angle"] }] : [])
+          }
+        />
+      )}
+      {(joint.type === "gear" || joint.type === "belt") && (
+        <>
+          <Choice
+            label="The two wheels"
+            current={joint.type}
+            options={[
+              { value: "gear", label: "Mesh as gears" },
+              { value: "belt", label: "Share a belt" },
+            ]}
+            onPick={(type) => retype(type)}
+          />
+          <div className="flex items-baseline gap-2">
+            <Field label="Size" path={[...path, "sizes", 0]} value={joint.sizes[0]} />
+            <Field label="and" path={[...path, "sizes", 1]} value={joint.sizes[1]} />
+          </div>
+          <p className="text-ink-soft text-sm">
+            Tooth counts or diameters; only their ratio matters. Gears turn against each other,
+            belted wheels the same way.
+          </p>
+        </>
+      )}
+      {joint.type === "distance" && (
+        <Field label="Distance" path={[...path, "length"]} value={joint.length} />
+      )}
+      {joint.type === "cam" && (
+        <>
+          <Field label="Base radius" path={[...path, "base"]} value={joint.base} />
+          <Field
+            label="Roller radius"
+            path={[...path, "roller"]}
+            value={joint.roller}
+            optional
+            hint="0"
+          />
+          <Choice
+            label="Between points the lift moves"
+            current={joint.law ?? "cycloidal"}
+            options={[
+              { value: "cycloidal", label: "Cycloidal" },
+              { value: "polynomial", label: "3-4-5" },
+              { value: "harmonic", label: "Harmonic" },
+            ]}
+            onPick={(law) => apply([{ op: "set", path: [...path, "law"], value: law }])}
+          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-ink-soft text-sm">Lift at angles round the cam</span>
+            {joint.profile.map(([angle, lift], i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: the points of a lift diagram are known by their place
+              <div key={i} className="flex items-baseline gap-2">
+                <Field label="at" path={[...path, "profile", i, 0]} value={angle} />
+                <Field label="lift" path={[...path, "profile", i, 1]} value={lift} />
+                <button
+                  type="button"
+                  aria-label={`Remove lift point ${i + 1}`}
+                  className="shrink-0 px-1 text-ink-soft hover:text-red"
+                  onClick={() => apply([{ op: "delete", path: [...path, "profile", i] }])}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className={`${button} self-start`}
+              onClick={() => {
+                const last = joint.profile.at(-1);
+                const angle = typeof last?.[0] === "number" ? Math.min(last[0] + 30, 359) : 0;
+                apply([
+                  {
+                    op: "set",
+                    path: [...path, "profile", joint.profile.length],
+                    value: [angle, last?.[1] ?? 0],
+                  },
+                ]);
+              }}
+            >
+              Add a lift point
+            </button>
+          </div>
+        </>
+      )}
+
+      {"angle" in joint && (
+        <Field label="Angle" path={[...path, "angle"]} value={joint.angle} optional hint="0" />
       )}
       {drivers.map((id) => (
         <div key={id} className="flex flex-col gap-1.5 border-rule border-t pt-2">

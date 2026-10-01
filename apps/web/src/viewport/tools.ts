@@ -1,6 +1,8 @@
 import {
   addBody,
+  addComponent,
   addDriver,
+  addJoint,
   addMeasure,
   addPoint,
   addRevolute,
@@ -16,6 +18,7 @@ import {
   removeJoint,
   removePoint,
   setPose,
+  tidy,
   toggleTrace,
 } from "@mekasim/core";
 import { type DraftPoint, LIVE, useStore } from "../store.ts";
@@ -168,6 +171,233 @@ export function clickTrace(scene: Scene, x: number, y: number, tolerance: number
     return;
   }
   state.transact((tx) => tx.run(toggleTrace(tx.doc, point.ref)));
+}
+
+/** The link point at a place, leaving out the ground's own points. */
+function linkPointAt(
+  scene: Scene,
+  x: number,
+  y: number,
+  tolerance: number,
+): WorldPoint | undefined {
+  const { step } = useStore.getState();
+  return pointsNear(worldPoints(scene, step), x, y, tolerance).find((p) => p.body !== GROUND);
+}
+
+/**
+ * The first of a tool's two clicks: remember the point and wait for the second.
+ * Returns the remembered point on the second click.
+ */
+function second(point: DraftPoint): DraftPoint | undefined {
+  const state = useStore.getState();
+  const [first] = state.draft;
+  if (!first) {
+    state.setDraft([point]);
+    state.setNotice(undefined);
+    return undefined;
+  }
+  return first;
+}
+
+/**
+ * Draw a crank: the first click is where it pivots, the second the end of its arm.
+ * A pivot placed on an existing point turns about that point; an arm end placed on
+ * one is pinned to it.
+ */
+export function clickCrank(point: DraftPoint, tolerance: number): void {
+  const pivot = second(point);
+  if (!pivot) return;
+  const state = useStore.getState();
+  const radius = Math.hypot(point.x - pivot.x, point.y - pivot.y);
+  if (radius <= tolerance) {
+    state.setNotice("Click away from the pivot to give the arm its length.");
+    return;
+  }
+  const scale = unit();
+  const degrees = state.shown?.compiled?.units.angle !== "rad";
+  const angle = Math.atan2(point.y - pivot.y, point.x - pivot.x);
+  let created: string | undefined;
+  const done = state.transact((tx) => {
+    const crank = addComponent(tx.doc, "crank", {
+      type: "crank",
+      at: pivot.ref ?? [tidy(pivot.x / scale), tidy(pivot.y / scale)],
+      arms: { A: [tidy(radius / scale), tidy(degrees ? (angle * 180) / Math.PI : angle)] },
+    });
+    tx.run(crank.edits);
+    created = crank.id;
+    if (point.ref) tx.run(addRevolute(tx.doc, ...ordered(point.ref, `${crank.id}.A`)).edits);
+  });
+  if (!done) return;
+  state.setDraft([]);
+  if (created) state.select({ kind: "body", id: created });
+}
+
+/** Draw a rod between two existing points: a link given by its length. */
+export function clickRod(scene: Scene, x: number, y: number, tolerance: number): void {
+  const state = useStore.getState();
+  const at = pointsNear(worldPoints(scene, state.step), x, y, tolerance)[0];
+  if (!at) {
+    state.setNotice("A rod runs between two existing points. Click on a point.");
+    return;
+  }
+  const from = second({ x: at.x, y: at.y, ref: at.ref });
+  if (!from?.ref) return;
+  if (from.ref.split(".")[0] === at.body) {
+    state.setNotice("Both ends are on the same body. Click a point of another one.");
+    return;
+  }
+  const start = from.ref;
+  const length = Math.hypot(at.x - from.x, at.y - from.y);
+  let created: string | undefined;
+  const done = state.transact((tx) => {
+    const rod = addComponent(tx.doc, "rod", {
+      type: "rod",
+      length: tidy(length / unit()),
+      connect: [start, at.ref],
+    });
+    tx.run(rod.edits);
+    created = rod.id;
+  });
+  if (!done) return;
+  state.setDraft([]);
+  if (created) state.select({ kind: "body", id: created });
+}
+
+/**
+ * Guide a point along a straight line: the first click picks the point, the second
+ * gives the direction of the line, which is fixed to the ground.
+ */
+export function clickSlot(scene: Scene, point: DraftPoint, tolerance: number): void {
+  const state = useStore.getState();
+  if (state.draft.length === 0) {
+    const pin = linkPointAt(scene, point.x, point.y, tolerance);
+    if (!pin) {
+      state.setNotice("Click the point of a link that should slide along a line.");
+      return;
+    }
+    second({ x: pin.x, y: pin.y, ref: pin.ref });
+    return;
+  }
+  const pin = second(point);
+  if (!pin?.ref) return;
+  if (Math.hypot(point.x - pin.x, point.y - pin.y) <= tolerance) {
+    state.setNotice("Click away from the point to give the direction of the line.");
+    return;
+  }
+  const guided = pin.ref;
+  const scale = unit();
+  let created: string | undefined;
+  const done = state.transact((tx) => {
+    const from = addPoint(tx.doc, GROUND, [pin.x / scale, pin.y / scale]);
+    tx.run(from.edits);
+    const to = addPoint(tx.doc, GROUND, [point.x / scale, point.y / scale]);
+    tx.run(to.edits);
+    const slot = addJoint(tx.doc, "slot", {
+      type: "pin-slot",
+      axis: [`${GROUND}.${from.name}`, `${GROUND}.${to.name}`],
+      point: guided,
+    });
+    tx.run(slot.edits);
+    created = slot.id;
+  });
+  if (!done) return;
+  state.setDraft([]);
+  if (created) state.select({ kind: "joint", id: created });
+}
+
+/** A joint between two clicked link points on different bodies. */
+function joinTwo(
+  scene: Scene,
+  x: number,
+  y: number,
+  tolerance: number,
+  ask: string,
+  build: (from: DraftPoint & { ref: string }, to: WorldPoint) => Parameters<typeof addJoint>[2],
+  base: string,
+): void {
+  const state = useStore.getState();
+  const at = linkPointAt(scene, x, y, tolerance);
+  if (!at) {
+    state.setNotice(ask);
+    return;
+  }
+  const from = second({ x: at.x, y: at.y, ref: at.ref });
+  if (!from?.ref) return;
+  if (from.ref.split(".")[0] === at.body) {
+    state.setNotice("Both are on the same body. Click a point of another one.");
+    return;
+  }
+  const first = { ...from, ref: from.ref };
+  let created: string | undefined;
+  const done = state.transact((tx) => {
+    const joint = addJoint(tx.doc, base, build(first, at));
+    tx.run(joint.edits);
+    created = joint.id;
+  });
+  if (!done) return;
+  state.setDraft([]);
+  if (created) state.select({ kind: "joint", id: created });
+}
+
+/** Keep two points a fixed distance apart, at the distance they are now. */
+export function clickTie(scene: Scene, x: number, y: number, tolerance: number): void {
+  joinTwo(
+    scene,
+    x,
+    y,
+    tolerance,
+    "A tie holds two points a fixed distance apart. Click a point of a link.",
+    (from, to) => ({
+      type: "distance",
+      connect: [from.ref, to.ref],
+      length: tidy(Math.hypot(to.x - from.x, to.y - from.y) / unit()),
+    }),
+    "tie",
+  );
+}
+
+/** Gear two turning bodies together, by clicking the centre each turns about. */
+export function clickGear(scene: Scene, x: number, y: number, tolerance: number): void {
+  joinTwo(
+    scene,
+    x,
+    y,
+    tolerance,
+    "Click the centre each wheel turns about: the pivot point of a crank or link.",
+    (from, to) => ({ type: "gear", connect: [from.ref, to.ref], sizes: [20, 20] }),
+    "gear",
+  );
+}
+
+/**
+ * Put a cam between two bodies: the first click is the cam's centre, the second the
+ * follower's point. It starts with a simple rise and fall, to be shaped in the inspector.
+ */
+export function clickCam(scene: Scene, x: number, y: number, tolerance: number): void {
+  joinTwo(
+    scene,
+    x,
+    y,
+    tolerance,
+    "Click the centre of the cam on its body, then the point of the follower that rides on it.",
+    (from, to) => {
+      const base = Math.hypot(to.x - from.x, to.y - from.y) / unit();
+      const lift = tidy(base * 0.3);
+      return {
+        type: "cam",
+        cam: from.ref,
+        follower: to.ref,
+        base: tidy(base),
+        profile: [
+          [0, 0],
+          [120, lift],
+          [180, lift],
+          [300, 0],
+        ],
+      };
+    },
+    "cam",
+  );
 }
 
 /**

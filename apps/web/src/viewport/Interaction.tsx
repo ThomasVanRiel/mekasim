@@ -6,10 +6,16 @@ import { type DraftPoint, useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
 import { type Hit, pick } from "./pick.ts";
 import {
+  clickCam,
+  clickCrank,
+  clickGear,
   clickLink,
   clickMeasure,
   clickMotor,
   clickPin,
+  clickRod,
+  clickSlot,
+  clickTie,
   clickTrace,
   type Grab,
   grab,
@@ -38,9 +44,31 @@ interface Press {
 }
 
 /** Tools whose clicks write points as they sit at the start of the motion. */
-const DRAWN_AT_START = new Set(["link", "pin", "reshape"]);
+const DRAWN_AT_START = new Set([
+  "link",
+  "pin",
+  "reshape",
+  "crank",
+  "rod",
+  "slot",
+  "tie",
+  "gear",
+  "cam",
+]);
 /** Tools that collect clicked places, shown as the tool is used. */
-const COLLECTING = new Set(["link", "measure", "calibrate"]);
+const COLLECTING = new Set([
+  "link",
+  "measure",
+  "calibrate",
+  "crank",
+  "rod",
+  "slot",
+  "tie",
+  "gear",
+  "cam",
+]);
+/** Tools that show a line from the last place to the pointer while drawing. */
+const RUBBER_BAND = new Set(["link", "crank", "rod", "slot", "tie"]);
 
 function ring(x: number, y: number, z: number, radius: number): [number, number, number][] {
   return Array.from({ length: 33 }, (_, k) => {
@@ -113,6 +141,18 @@ export function Interaction() {
         clickTrace(state.scene, x, y, reach);
       } else if (state.tool === "measure") {
         clickMeasure(state.scene, x, y, reach);
+      } else if (state.tool === "crank") {
+        clickCrank(snap(state.scene, x, y, reach, event.altKey), reach);
+      } else if (state.tool === "rod") {
+        clickRod(state.scene, x, y, reach);
+      } else if (state.tool === "slot") {
+        clickSlot(state.scene, snap(state.scene, x, y, reach, event.altKey), reach);
+      } else if (state.tool === "tie") {
+        clickTie(state.scene, x, y, reach);
+      } else if (state.tool === "gear") {
+        clickGear(state.scene, x, y, reach);
+      } else if (state.tool === "cam") {
+        clickCam(state.scene, x, y, reach);
       } else if (state.tool === "calibrate") {
         // Two places on the picture; a third click starts over.
         state.setDraft(state.draft.length >= 2 ? [{ x, y }] : [...state.draft, { x, y }]);
@@ -128,7 +168,7 @@ export function Interaction() {
       if (!state.scene || state.view !== "2d") return;
       const { x, y, reach } = locate(event);
 
-      if (state.tool === "link" && event.target === canvas) {
+      if (RUBBER_BAND.has(state.tool) && event.target === canvas) {
         setCursor(snap(state.scene, x, y, reach, event.altKey));
       }
       if (!press) return;
@@ -173,12 +213,14 @@ export function Interaction() {
 
   useEffect(() => {
     gl.domElement.style.cursor = tool === "select" ? "" : "crosshair";
-    if (tool !== "link") setCursor(undefined);
+    if (!RUBBER_BAND.has(tool)) setCursor(undefined);
   }, [gl, tool]);
 
   if (!scene || !COLLECTING.has(tool)) return null;
   const z = scene.depth + scene.sizes.pitch;
-  const path = cursor && tool === "link" ? [...draft, cursor] : draft;
+  // Once a first place is set, a line follows the pointer to where the next would go.
+  const banded = cursor && RUBBER_BAND.has(tool) && (tool === "link" || draft.length > 0);
+  const path = banded ? [...draft, cursor] : draft;
   return (
     <>
       {path.length > 1 && (

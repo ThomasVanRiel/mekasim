@@ -21,7 +21,9 @@ export {
 export { type Diagnostic, hasErrors, type Position, type Severity } from "./diagnostics.ts";
 export {
   addBody,
+  addComponent,
   addDriver,
+  addJoint,
   addMeasure,
   addPlot,
   addPoint,
@@ -30,6 +32,7 @@ export {
   driversOf,
   editText,
   findRevolute,
+  freeName,
   jointRefs,
   movePoint,
   NEW_MODEL,
