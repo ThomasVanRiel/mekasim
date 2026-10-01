@@ -1,6 +1,7 @@
 import { type CSSProperties, useEffect } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
-import { decodeModel } from "./io/share.ts";
+import { EXAMPLES } from "./examples.ts";
+import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Build } from "./panels/Build.tsx";
 import { Header } from "./panels/Header.tsx";
@@ -67,15 +68,39 @@ function useKeys(): void {
   }, []);
 }
 
-/** A model that arrives in the link replaces the one kept from the last visit. */
-function useSharedModel(): void {
+/**
+ * A model that arrives in the link replaces the one kept from the last visit: either
+ * the whole model packed into the link, or the name of a built-in example.
+ */
+function useLinkedModel(): void {
+  const text = useStore((s) => s.text);
+
   useEffect(() => {
-    decodeModel(location.hash).then((text) => {
-      if (text === undefined) return;
-      useStore.getState().load(text);
-      history.replaceState(null, "", location.pathname + location.search);
-    });
+    function open(): void {
+      const example = EXAMPLES.find((e) => e.id === exampleIn(location.hash));
+      if (example) {
+        // The link stays in the address bar, so that it can be copied from there.
+        if (useStore.getState().text !== example.text) useStore.getState().load(example.text);
+        return;
+      }
+      decodeModel(location.hash).then((packed) => {
+        if (packed === undefined) return;
+        useStore.getState().load(packed);
+        history.replaceState(null, "", location.pathname + location.search);
+      });
+    }
+    open();
+    window.addEventListener("hashchange", open);
+    return () => window.removeEventListener("hashchange", open);
   }, []);
+
+  // Once the model is changed it is no longer the example the address names.
+  useEffect(() => {
+    const example = EXAMPLES.find((e) => e.id === exampleIn(location.hash));
+    if (example && example.text !== text) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }, [text]);
 }
 
 export function App() {
@@ -84,7 +109,7 @@ export function App() {
   const source = useLayout((s) => s.source);
   const side = useLayout((s) => s.side);
   useKeys();
-  useSharedModel();
+  useLinkedModel();
   // Column widths, as set by dragging the dividers or else the defaults.
   const columns = {
     "--source": source === undefined ? "minmax(20rem, 28%)" : `${source}px`,

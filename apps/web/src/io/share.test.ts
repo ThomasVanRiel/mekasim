@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { decodeModel, encodeModel } from "./share.ts";
+import { decodeModel, encodeModel, exampleFragment, exampleIn } from "./share.ts";
 
 const shaker = readFileSync(
   new URL("../../../../examples/shaker.mekasim.yaml", import.meta.url),
@@ -28,5 +28,20 @@ describe("share links", () => {
     expect(await decodeModel("")).toBeUndefined();
     expect(await decodeModel("#section")).toBeUndefined();
     expect(await decodeModel("#m=not-a-model")).toBeUndefined();
+  });
+});
+
+describe("example links", () => {
+  it("name an example in the link", () => {
+    expect(exampleFragment("walschaerts")).toBe("#example=walschaerts");
+    expect(exampleIn("#example=walschaerts")).toBe("walschaerts");
+    expect(exampleIn(exampleFragment("geared-five-bar"))).toBe("geared-five-bar");
+  });
+
+  it("are told apart from packed models and other fragments", async () => {
+    expect(exampleIn("")).toBeUndefined();
+    expect(exampleIn("#example=")).toBeUndefined();
+    expect(exampleIn("#m=abc")).toBeUndefined();
+    expect(await decodeModel("#example=walschaerts")).toBeUndefined();
   });
 });

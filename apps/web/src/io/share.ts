@@ -37,3 +37,20 @@ export async function decodeModel(fragment: string): Promise<string | undefined>
     return undefined;
   }
 }
+
+const EXAMPLE = "#example=";
+
+/** The fragment that names one of the built-in examples, starting with `#`. */
+export function exampleFragment(id: string): string {
+  return EXAMPLE + encodeURIComponent(id);
+}
+
+/** The example a fragment names, or undefined when it names none. */
+export function exampleIn(fragment: string): string | undefined {
+  if (!fragment.startsWith(EXAMPLE)) return undefined;
+  try {
+    return decodeURIComponent(fragment.slice(EXAMPLE.length)) || undefined;
+  } catch {
+    return undefined;
+  }
+}

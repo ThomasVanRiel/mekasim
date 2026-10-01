@@ -2,7 +2,7 @@ import { NEW_MODEL } from "@mekasim/core";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
 import { download, fileStem } from "../io/download.ts";
-import { encodeModel } from "../io/share.ts";
+import { encodeModel, exampleFragment } from "../io/share.ts";
 import { useStore } from "../store.ts";
 
 const button =
@@ -16,7 +16,10 @@ export function Header() {
 
   async function copyLink(): Promise<void> {
     try {
-      const fragment = await encodeModel(useStore.getState().text);
+      // An untouched example has a short link by its name; anything else is packed into the link.
+      const { text } = useStore.getState();
+      const example = EXAMPLES.find((e) => e.text === text);
+      const fragment = example ? exampleFragment(example.id) : await encodeModel(text);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
     } catch {
@@ -42,7 +45,10 @@ export function Header() {
         value=""
         onChange={(event) => {
           const example = EXAMPLES.find((e) => e.id === event.target.value);
-          if (example) load(example.text);
+          if (!example) return;
+          load(example.text);
+          // Show the example's own link in the address bar.
+          history.replaceState(null, "", exampleFragment(example.id));
         }}
       >
         <option value="" disabled>
