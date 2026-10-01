@@ -7,6 +7,8 @@
     "node": ">=26"
   },
   "scripts": {
+    "dev": "pnpm --filter @mekasim/web dev",
+    "build": "pnpm --filter @mekasim/web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",

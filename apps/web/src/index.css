@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+/* An engineering computation pad: green-tint paper, graphite ink, layout-dye blue. */
+@theme {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-paper: #edf1ea;
+  --color-sheet: #f8f9f6;
+  --color-rule: #c5cfc3;
+  --color-ink: #20282d;
+  --color-ink-soft: #5a666d;
+  --color-dye: #2046c4;
+  --color-brass: #8a6714;
+  --color-red: #b52d24;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-sheet);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-dye);
+  outline-offset: 1px;
+}
+
+/* Timeline scrubber, drawn as a ruled line with a brass marker. */
+input[type="range"] {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--color-ink-soft);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--color-ink-soft);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 20px;
+  margin-top: -9px;
+  border: 1px solid var(--color-ink);
+  border-radius: 2px;
+  background: #b58a2e;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 20px;
+  border: 1px solid var(--color-ink);
+  border-radius: 2px;
+  background: #b58a2e;
+}
+
+input[type="range"]:disabled {
+  opacity: 0.4;
+}

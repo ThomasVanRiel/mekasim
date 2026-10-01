@@ -1,0 +1,12 @@
+[build]
+  command = "pnpm --filter @mekasim/web build"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "26"
+
+# The site is unlisted: keep it out of search engines.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

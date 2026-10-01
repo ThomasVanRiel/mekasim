@@ -3,8 +3,9 @@
 Explore planar mechanisms: describe linkages, eccentrics and joints in a YAML file,
 solve their exact motion and measure what they do.
 
-The solver core and a command-line runner exist today. The browser app (2D and 3D
-view, drawing tools) is next; see [docs/PLAN.md](docs/PLAN.md).
+There is a solver core with a command-line runner, and a browser app that shows a
+model moving in 2D and 3D next to its source. Drawing tools are next; see
+[docs/PLAN.md](docs/PLAN.md).
 
 ## Use
 
@@ -12,6 +13,15 @@ Requires Node 26 and pnpm 11.
 
 ```
 pnpm install
+pnpm dev         # the app, at http://localhost:5173
+```
+
+Edit the YAML on the left and the drawing, measures and messages follow. Space
+plays and pauses; the arrow keys step through the cycle.
+
+From the command line:
+
+```
 pnpm solve examples/shaker.mekasim.yaml
 pnpm solve examples/shaker.mekasim.yaml --csv shaker.csv
 ```
@@ -34,6 +44,7 @@ of the files in [`examples/`](examples).
 ## Develop
 
 ```
+pnpm build       # production build of the app, into apps/web/dist
 pnpm test        # unit tests
 pnpm typecheck
 pnpm lint        # Biome; `pnpm format` applies fixes
@@ -52,4 +63,11 @@ packages/core/src
   analysis/   motion cycle, measures
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
+apps/web/src
+  store.ts    model text, solved result, playback state
+  editor/     YAML source editor
+  viewport/   the drawing: scene description, three.js rendering, labels
+  panels/     header, measures, messages, timeline, title block
 ```
+
+The app deploys to Netlify from `netlify.toml` as a static site.

@@ -10,7 +10,7 @@ import {
   NONE,
   type Units,
 } from "../expr/units.ts";
-import { type Document, type Expr, GROUND } from "../schema/document.ts";
+import { type Document, type Expr, GROUND, type Joint } from "../schema/document.ts";
 import {
   type BodyPoint,
   type Constraint,
@@ -37,11 +37,33 @@ export interface CompiledMeasure {
   ast: Node;
 }
 
+export interface CompiledJoint {
+  id: string;
+  type: Joint["type"];
+  /**
+   * The points involved, each as `body.point`: the two connected points of a
+   * revolute or weld; the two axis points and then the pin of a slider or pin-slot.
+   */
+  points: string[];
+}
+
+export interface CompiledDriver {
+  id: string;
+  /** The revolute joint it turns. */
+  joint: string;
+  /** In rad/s. */
+  speed: number;
+  /** Relative angle at time 0, in rad. */
+  phase: number;
+}
+
 export interface Compiled {
   units: Units;
   params: Map<string, Quantity>;
   bodies: Map<string, CompiledBody>;
   model: SolverModel;
+  joints: CompiledJoint[];
+  drivers: CompiledDriver[];
   /** Duration of one motion cycle in seconds; 0 when nothing is driven. */
   period: number;
   /** Samples per cycle. */
@@ -187,6 +209,8 @@ export function compile(doc: Document): CompileResult {
   const constraints: Constraint[] = [];
   /** Bodies joined by each revolute joint, for drivers to act on. */
   const hinges = new Map<string, [number, number]>();
+  const joints: CompiledJoint[] = [];
+  const drivers: CompiledDriver[] = [];
 
   for (const [id, joint] of Object.entries(doc.joints ?? {})) {
     const path = ["joints", id];
@@ -201,6 +225,7 @@ export function compile(doc: Document): CompileResult {
         constraints.push(coincident(id, a, b));
         if (joint.type === "weld") constraints.push(relativeAngle(id, a.body, b.body, angle));
         else hinges.set(id, [a.body, b.body]);
+        joints.push({ id, type: joint.type, points: [...joint.connect] });
         return;
       }
 
@@ -220,6 +245,7 @@ export function compile(doc: Document): CompileResult {
         pointOnLine(id, from, -(to.v - from.v) / length, (to.u - from.u) / length, pin),
       );
       if (joint.type === "slider") constraints.push(relativeAngle(id, from.body, pin.body, angle));
+      joints.push({ id, type: joint.type, points: [...joint.axis, joint.point] });
     });
   }
 
@@ -242,6 +268,7 @@ export function compile(doc: Document): CompileResult {
       const speed = scalar(driver.speed, ANGULAR_SPEED, [...path, "speed"], "rpm");
       const phase = scalar(driver.phase ?? 0, ANGLE, [...path, "phase"]);
       constraints.push(relativeAngle(id, hinge[0], hinge[1], phase, speed, true));
+      drivers.push({ id, joint: driver.joint, speed, phase });
       // The first moving driver sets the length of the cycle.
       if (period === 0 && speed !== 0) period = (2 * Math.PI) / Math.abs(speed);
     });
@@ -281,6 +308,8 @@ export function compile(doc: Document): CompileResult {
       params,
       bodies,
       model: { bodies: moving, constraints, q0 },
+      joints,
+      drivers,
       period,
       steps: doc.cycle?.steps ?? 360,
       traces,

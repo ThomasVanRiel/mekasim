@@ -1,7 +1,8 @@
 # mekasim — design plan
 
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
-reference). Phase 1, the viewer, is next. The format as implemented is described in
+reference). **Phase 1, the viewer, is built** but not yet deployed to Netlify.
+Phase 2, the editor, is next. The format as implemented is described in
 [FORMAT.md](FORMAT.md), which takes precedence over the sketch in section 4.
 
 A browser app for exploring mechanisms: draw or describe linkages, eccentrics, cams
@@ -59,7 +60,9 @@ docs/           this plan and the format reference
 
 Stack: TypeScript (strict), Vite, React, react-three-fiber, Zustand (state and
 undo/redo), `yaml` (parser with comment-preserving edits), CodeMirror 6 (source
-panel), uPlot (plots), Vitest, Playwright smoke tests, pnpm workspaces.
+panel), uPlot (plots), Vitest, pnpm workspaces. No browser automation: logic is
+kept in plain modules with unit tests, and the UI is checked by hand in a dev
+server.
 
 State is split three ways:
 
