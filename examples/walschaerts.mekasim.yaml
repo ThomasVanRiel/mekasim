@@ -1,0 +1,105 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Walschaerts valve gear, as on a steam locomotive.
+#
+# The valve gets its motion from two places and adds them up:
+#  - the return crank on the wheel swings the expansion link through the eccentric
+#    rod; the radius rod picks that swing off the link, more or less of it depending
+#    on how far from the link's pivot it is set;
+#  - the crosshead moves the foot of the combination lever through the union link.
+# The combination lever hangs from the valve spindle, is pushed near its top by the
+# radius rod and at its foot by the crosshead, and so moves the valve by the sum.
+#
+# `gear` is the reverser: 1 is full forward, -1 full reverse, 0 mid gear, where the
+# radius rod sits on the link's pivot and only the crosshead moves the valve.
+# Try the slider, or "Compare values", on it.
+mekasim: 1
+meta:
+  name: Walschaerts valve gear
+
+params:
+  rpm: 60
+  gear: 1            # reverser: 1 forward, 0 mid gear, -1 reverse
+  crank: 150 mm      # main crank radius: half the piston stroke
+  return: 50 mm      # return crank radius
+  die: 90 mm         # how far from the link's pivot the radius rod sits in full gear
+  valve_y: 350 mm    # height of the valve spindle above the cylinder axis
+  link_x: 500 mm     # pivot of the expansion link
+  link_y: 400 mm
+  foot: 220 mm       # pivot of the link down to its foot
+  # Direction from the axle to the link's foot. The return crank is set a quarter
+  # turn ahead of the main crank as seen along this line, so that the link's swing
+  # is exactly out of step with the piston, forward and reverse alike.
+  lean: atan2(link_y - foot, link_x)
+
+bodies:
+  ground:
+    points:
+      cyl_a: [700, 0]            # cylinder axis
+      cyl_b: [1300, 0]
+      valve_a: [600, valve_y]    # valve spindle axis
+      valve_b: [1100, valve_y]
+  crosshead:
+    points:
+      X: [0, 0]                  # pin of the main rod
+      A: [150, -80]              # drop arm, where the union link attaches
+  combination_lever:
+    points:
+      V: [0, 0]                  # valve spindle
+      J: [0, -40]                # radius rod
+      U: [0, -430]               # union link
+  valve:
+    points: { V: [0, 0], W: [160, 0] }
+
+components:
+  wheel:
+    type: crank
+    at: [0, 0]
+    # The main crank pin, and the return crank a quarter turn ahead of it.
+    arms: { C: [crank, 0], E: [return, 90 + lean] }
+    speed: rpm
+  expansion_link:
+    type: crank
+    at: [link_x, link_y]
+    # F is the foot the eccentric rod drives; D is the die, where the radius rod is set.
+    arms: { F: [foot, 270], D: [gear * die, 270] }
+  main_rod:
+    type: rod
+    length: 900
+    connect: [wheel.C, crosshead.X]
+  eccentric_rod:
+    type: rod
+    # Long enough that the link stands upright when the crank is on dead centre.
+    length: hypot(link_x, link_y - foot, return)
+    connect: [wheel.E, expansion_link.F]
+  radius_rod:
+    type: rod
+    length: 350
+    connect: [expansion_link.D, combination_lever.J]
+  union_link:
+    type: rod
+    length: 200
+    connect: [combination_lever.U, crosshead.A]
+
+joints:
+  crosshead_guide: { type: slider, axis: [ground.cyl_a, ground.cyl_b], point: crosshead.X }
+  valve_guide: { type: slider, axis: [ground.valve_a, ground.valve_b], point: valve.V }
+  valve_pin: { type: revolute, connect: [combination_lever.V, valve.V] }
+
+traces: [combination_lever.U, expansion_link.D]
+
+measures:
+  piston_stroke: range(x(crosshead.X))
+  valve_travel: range(x(valve.V))
+  link_swing: range(angle(expansion_link))
+  lever_swing: range(angle(combination_lever))
+
+plots:
+  piston: change(x(crosshead.X))
+  valve: change(x(valve.V))
+
+# Where the bodies written out above start, roughly, with the crank on front dead
+# centre. The rods and cranks place themselves.
+pose:
+  crosshead: [1050, 0, 0]
+  combination_lever: [834, valve_y, 23]
+  valve: [834, valve_y, 0]

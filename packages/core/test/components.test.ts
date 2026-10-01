@@ -324,3 +324,33 @@ measures:
     expect(measure(simulation, "swing")).toBeGreaterThan(0.5);
   });
 });
+
+describe("Walschaerts valve gear", () => {
+  const text = readFileSync(
+    new URL("../../../examples/walschaerts.mekasim.yaml", import.meta.url),
+    "utf8",
+  );
+  /** Valve travel with the reverser at a setting. */
+  const travel = (gear: number): number =>
+    measure(simulate(text.replace("gear: 1 ", `gear: ${gear} `)), "valve_travel");
+
+  it("runs through a full turn as one mechanism of nine bodies", () => {
+    const gear = simulate(text);
+    expect(gear.diagnostics).toEqual([]);
+    expect(gear.cycle?.count).toBe(360);
+    expect(gear.mobility).toMatchObject({ coordinates: 27, mobility: 1, free: 0, redundant: 0 });
+    expect(measure(gear, "piston_stroke")).toBeCloseTo(0.3, 9);
+  });
+
+  it("moves the valve by the crosshead alone in mid gear", () => {
+    // The combination lever passes on the crosshead's 300 mm in the ratio of its arms, 40 to 390.
+    expect(travel(0)).toBeCloseTo((0.3 * 40) / 390, 3);
+  });
+
+  it("gives the valve more travel the further the reverser is set, the same forward and reverse", () => {
+    expect(travel(0.5)).toBeGreaterThan(travel(0) * 1.2);
+    expect(travel(1)).toBeGreaterThan(travel(0.5) * 1.3);
+    expect(travel(-1) / travel(1)).toBeCloseTo(1, 1);
+    expect(travel(-0.5) / travel(0.5)).toBeCloseTo(1, 1);
+  });
+});
