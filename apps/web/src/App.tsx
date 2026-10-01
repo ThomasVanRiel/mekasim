@@ -5,6 +5,7 @@ import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Build } from "./panels/Build.tsx";
 import { Header } from "./panels/Header.tsx";
+import { HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
@@ -108,6 +109,8 @@ export function App() {
   const stale = useStore((s) => s.simulation !== s.shown);
   const source = useLayout((s) => s.source);
   const side = useLayout((s) => s.side);
+  const help = useLayout((s) => s.help);
+  const setHelp = useLayout((s) => s.setHelp);
   useKeys();
   useLinkedModel();
   // Column widths, as set by dragging the dividers or else the defaults.
@@ -119,7 +122,7 @@ export function App() {
   return (
     <div
       style={columns}
-      className="flex h-full flex-col lg:grid lg:grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] lg:grid-rows-[auto_minmax(0,1fr)]"
+      className="relative flex h-full flex-col lg:grid lg:grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] lg:grid-rows-[auto_minmax(0,1fr)]"
     >
       <div className="lg:col-span-5">
         <Header />
@@ -131,6 +134,21 @@ export function App() {
       </div>
 
       <div className="hidden min-h-0 flex-col lg:flex">
+        <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
+          <h2 className="font-semibold">Source</h2>
+          <button
+            type="button"
+            aria-expanded={help}
+            aria-controls={HELP_ID}
+            onClick={() => setHelp(!help)}
+            className="flex items-center gap-1.5 rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft active:bg-paper"
+          >
+            {help ? "Close help" : "Help"}
+            <svg viewBox="0 0 16 16" className="size-3" fill="currentColor" aria-hidden="true">
+              {help ? <path d="M11 2 5 8l6 6z" /> : <path d="M5 2l6 6-6 6z" />}
+            </svg>
+          </button>
+        </div>
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-0">
             <SourceEditor />
@@ -203,6 +221,8 @@ export function App() {
         <Measures />
         <Build />
       </div>
+
+      <Help />
     </div>
   );
 }

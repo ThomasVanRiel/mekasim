@@ -16,6 +16,7 @@ pnpm solve examples/four-bar.mekasim.yaml --csv out.csv
 mekasim: 1                  # format version, required
 meta:                       # optional
   name: Slider-crank
+  description: A crank that moves a ram along a line
   units: { length: mm, angle: deg }
 
 params:                     # named values
@@ -49,6 +50,9 @@ plots:                      # what to chart over the cycle
 pose:                       # where bodies start
   rod: [r, 0, 0]
 ```
+
+In `meta`, `name` is the title the model goes by and `description` a note kept
+with it; `units` is explained below.
 
 Names of parameters, bodies, points, joints, drivers and measures may contain
 letters, digits and `_`, and must not start with a digit. Unknown keys are errors,
@@ -145,7 +149,6 @@ The two can be mixed.
 | `weld` | `connect: [a.P, b.Q]`, `angle` | Holds the two points together and fixes the angle of the second body relative to the first (default 0) |
 | `pin-slot` | `axis: [a.P1, a.P2]`, `point: b.Q` | Keeps the point on the line through the two axis points; the point's body can still rotate |
 | `slider` | `axis: [a.P1, a.P2]`, `point: b.Q`, `angle` | As `pin-slot`, and also fixes the angle of the sliding body relative to the axis body (default 0) |
-
 | `distance` | `connect: [a.P, b.Q]`, `length` | Keeps the two points a fixed distance apart: a link without a body. Also the way to keep a pin in a curved slot, with the slot's centre as one of the points |
 | `gear` | `connect: [a.O, b.O]`, `sizes: [20, 40]`, `carrier` | Ties the rotation of two bodies as meshing gears do: they turn against each other, in the ratio of their sizes |
 | `belt` | `connect: [a.O, b.O]`, `sizes: [50 mm, 150 mm]`, `carrier` | As `gear`, but the two turn the same way, as on a belt or chain |

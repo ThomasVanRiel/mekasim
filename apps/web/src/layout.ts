@@ -30,13 +30,18 @@ function stored(): Sizes {
 }
 
 interface LayoutState extends Sizes {
+  /** Whether the help on the format is folded open beside the source. Not remembered. */
+  help: boolean;
+  setHelp(open: boolean): void;
   /** Set a size, or forget it so that the panel goes back to its default. */
   resize(panel: keyof Sizes, size: number | undefined): void;
 }
 
-/** Panel sizes, remembered in this browser between visits. */
+/** How the panels are laid out. Their sizes are remembered in this browser between visits. */
 export const useLayout = create<LayoutState>((set, get) => ({
   ...stored(),
+  help: false,
+  setHelp: (help) => set({ help }),
   resize(panel, size) {
     set({ [panel]: size });
     const { source, side, plots, messages } = get();

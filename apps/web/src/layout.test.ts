@@ -16,4 +16,11 @@ describe("panel sizes", () => {
     useLayout.getState().resize("plots", undefined);
     expect(useLayout.getState().plots).toBeUndefined();
   });
+
+  it("leave the help folded away until it is asked for", () => {
+    expect(useLayout.getState().help).toBe(false);
+    useLayout.getState().setHelp(true);
+    expect(useLayout.getState().help).toBe(true);
+    useLayout.getState().setHelp(false);
+  });
 });
