@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { linkedAt } from "../src/edit/linked.ts";
+import { entityAt, linkedAt } from "../src/edit/linked.ts";
 
 const MODEL = `mekasim: 1
 params:
@@ -130,5 +130,51 @@ describe("linkedAt", () => {
     expect(linkedAt(MODEL, nth("connect: [crank.A") + 12)).toBeUndefined();
     expect(linkedAt(MODEL, nth("# crank radius") + 3)).toBeUndefined();
     expect(linkedAt("bodies: [oops", 3)).toBeUndefined();
+  });
+});
+
+describe("entityAt", () => {
+  const at = (needle: string, n = 1, shift = 0) => entityAt(MODEL, nth(needle, n) + shift);
+
+  it("finds the link a place is inside, wherever in its description", () => {
+    expect(at("  crank:", 1, 4)).toEqual({ kind: "body", id: "crank" });
+    // On the word "points" of the crank.
+    expect(at("points: { O: [0, 0], A: [r", 1, 2)).toEqual({ kind: "body", id: "crank" });
+    expect(at("  arm:", 1, 3)).toEqual({ kind: "body", id: "arm" });
+    expect(at("type: crank", 1, 8)).toEqual({ kind: "body", id: "arm" });
+  });
+
+  it("finds a point, on its name or on its coordinates", () => {
+    expect(at("P: [80, 60]")).toEqual({ kind: "point", ref: "coupler.P" });
+    expect(at("P: [80, 60]", 1, 6)).toEqual({ kind: "point", ref: "coupler.P" });
+    expect(at("tip: [r, 90]", 1, 7)).toEqual({ kind: "point", ref: "arm.tip" });
+    expect(at("O4: [180", 1, 1)).toEqual({ kind: "point", ref: "ground.O4" });
+  });
+
+  it("finds a joint anywhere on its line, and through the motor that drives it", () => {
+    expect(at("  pin_a:", 1, 3)).toEqual({ kind: "joint", id: "pin_a" });
+    expect(at("connect: [crank.A, coupler.A]", 1, 14)).toEqual({ kind: "joint", id: "pin_a" });
+    expect(at("  motor:", 1, 4)).toEqual({ kind: "joint", id: "main" });
+    expect(at("speed: rpm", 1, 3)).toEqual({ kind: "joint", id: "main" });
+  });
+
+  it("finds what a trace, a measure or a plot names at that place", () => {
+    expect(at("traces: [coupler.P", 1, 12)).toEqual({ kind: "point", ref: "coupler.P" });
+    expect(at("reach: x(coupler.P)", 1, 12)).toEqual({ kind: "point", ref: "coupler.P" });
+    expect(at("range(angle(rocker))", 1, 14)).toEqual({ kind: "body", id: "rocker" });
+    expect(at('"y(coupler.P)"', 1, 5)).toEqual({ kind: "point", ref: "coupler.P" });
+    // On the name of a function or of another measure there is nothing to show.
+    expect(at("range(angle(rocker))", 1, 2)).toBeUndefined();
+    expect(at("both: swing", 1, 8)).toBeUndefined();
+  });
+
+  it("finds a link through its pose", () => {
+    expect(at("  rocker: [160", 1, 12)).toEqual({ kind: "body", id: "rocker" });
+  });
+
+  it("finds nothing among the parameters, in the header, or in text that cannot be read", () => {
+    expect(at("  r: 40", 1, 3)).toBeUndefined();
+    expect(at("mekasim: 1", 1, 3)).toBeUndefined();
+    expect(entityAt("bodies: [oops", 3)).toBeUndefined();
   });
 });

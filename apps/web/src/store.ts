@@ -132,6 +132,8 @@ interface State {
   labels: boolean;
   tool: Tool;
   selection?: Hit;
+  /** What the cursor in the source is on, shown in the drawing while the source has the keyboard. */
+  focus?: Hit;
   /** The points placed so far with the current tool: a link, a distance, a scale. */
   draft: DraftPoint[];
   sweep?: Sweep;
@@ -159,6 +161,7 @@ interface State {
   toggleLabels(): void;
   setTool(tool: Tool): void;
   select(selection: Hit | undefined): void;
+  setFocus(focus: Hit | undefined): void;
   setDraft(draft: DraftPoint[]): void;
   setNotice(notice: string | undefined): void;
   setSweep(sweep: Sweep | undefined): void;
@@ -283,6 +286,10 @@ export const useStore = create<State>((set, get) => {
               ];
       const at = readModel(get().text).locate(path);
       if (at) set({ reveal: { ...at, request: (get().reveal?.request ?? 0) + 1, focus: false } });
+    },
+    setFocus(focus) {
+      // The cursor moves often and mostly stays on the same thing; only a change is news.
+      if (JSON.stringify(focus) !== JSON.stringify(get().focus)) set({ focus });
     },
     setDraft: (draft) => set({ draft }),
     setNotice: (notice) => set({ notice }),

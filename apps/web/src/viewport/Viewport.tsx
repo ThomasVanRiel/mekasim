@@ -279,7 +279,8 @@ function UnderlayImage({ scene }: { scene: Scene }) {
 function Mechanism({ scene }: { scene: Scene }) {
   const labels = useStore((s) => s.labels);
   const seeThrough = useStore((s) => s.underlay !== undefined);
-  const selection = useStore((s) => s.selection);
+  // What the source cursor is on takes the highlight while the source is being worked in.
+  const selection = useStore((s) => s.focus ?? s.selection);
   const selectedJoint = selection?.kind === "joint" ? selection.id : undefined;
   const selectedBody = selection?.kind === "body" ? selection.id : undefined;
   const [pointBody, pointName] = selection?.kind === "point" ? selection.ref.split(".") : [];

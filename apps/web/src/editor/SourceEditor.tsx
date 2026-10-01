@@ -1,12 +1,14 @@
-import { history, redo, undo } from "@codemirror/commands";
+import { redo, undo } from "@codemirror/commands";
 import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Diagnostic as EditorDiagnostic, lintGutter, setDiagnostics } from "@codemirror/lint";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
+import { entityAt } from "@mekasim/core";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
-import { editorBridge, LIVE, useStore } from "../store.ts";
+import { editorBridge, useStore } from "../store.ts";
+import { undoGrouping } from "./history.ts";
 import { external, linkedNames } from "./linked.ts";
 
 /** How long to wait after the last keystroke before solving again. */
@@ -67,9 +69,17 @@ export function SourceEditor() {
         linkedNames(),
         theme,
         EditorView.contentAttributes.of({ "aria-label": "Model source" }),
-        // Let the steps of one drag or slider movement undo together.
-        history({ joinToEvent: (tr) => tr.isUserEvent(LIVE) }),
+        undoGrouping(),
         EditorView.updateListener.of((update) => {
+          // Show in the drawing what the cursor is on, for as long as the source has the keyboard.
+          if (update.focusChanged || update.selectionSet || update.docChanged) {
+            const { state, hasFocus } = update.view;
+            useStore
+              .getState()
+              .setFocus(
+                hasFocus ? entityAt(state.doc.toString(), state.selection.main.head) : undefined,
+              );
+          }
           if (!update.docChanged) return;
           const solveNow = (): void => {
             const current = editor.state.doc.toString();

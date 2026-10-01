@@ -191,3 +191,91 @@ export function linkedAt(text: string, offset: number): LinkedName | undefined {
       .sort((a, b) => a.from - b.from),
   };
 }
+
+/** The part of the model that a place in the text is about. */
+export type Entity =
+  | { kind: "body"; id: string }
+  | { kind: "point"; ref: string }
+  | { kind: "joint"; id: string };
+
+/**
+ * What the text at `offset` is about: the link, point or joint whose description
+ * the place is inside, or that is named there. Undefined where the text is about
+ * none of them, or cannot be read.
+ */
+export function entityAt(text: string, offset: number): Entity | undefined {
+  const doc = parseDocument(text);
+  if (doc.errors.length > 0 || !isMap(doc.contents)) return undefined;
+
+  // Walk down to the innermost entry that contains the place, noting the way there.
+  const path: Path = [];
+  let node: unknown = doc.contents;
+  let scalar: Scalar | undefined;
+  for (;;) {
+    if (isMap(node)) {
+      const pair = node.items.find((item) => {
+        if (!isScalar(item.key) || !item.key.range) return false;
+        const value =
+          isScalar(item.value) || isMap(item.value) || isSeq(item.value) ? item.value : undefined;
+        const end = value?.range ? value.range[1] : item.key.range[1] + 1;
+        return item.key.range[0] <= offset && offset <= end;
+      });
+      if (!pair || !isScalar(pair.key)) break;
+      path.push(String(pair.key.value));
+      node = pair.value;
+    } else if (isSeq(node)) {
+      const index = node.items.findIndex(
+        (item) =>
+          (isScalar(item) || isMap(item) || isSeq(item)) &&
+          item.range !== undefined &&
+          item.range !== null &&
+          item.range[0] <= offset &&
+          offset <= item.range[1],
+      );
+      if (index < 0) break;
+      path.push(index);
+      node = node.items[index];
+    } else {
+      if (isScalar(node)) scalar = node as Scalar;
+      break;
+    }
+  }
+
+  const [section, id, group, name] = path;
+  const naming = group === "points" || (section === "components" && group === "arms");
+  // In these sections every entry is named by a key; in a list of traces it is not.
+  switch (typeof id === "string" ? section : undefined) {
+    case "bodies":
+    case "components":
+      return naming && typeof name === "string"
+        ? { kind: "point", ref: `${id}.${name}` }
+        : { kind: "body", id: String(id) };
+    case "pose":
+      return { kind: "body", id: String(id) };
+    case "joints":
+      return { kind: "joint", id: String(id) };
+    case "drivers": {
+      const joint = doc.getIn(["drivers", id, "joint"]);
+      return typeof joint === "string" ? { kind: "joint", id: joint } : undefined;
+    }
+  }
+
+  // In a trace, a measure or a plot, the name the place is on says what it is about.
+  const start = scalar && contentStart(text, scalar);
+  if (!scalar || start === undefined) return undefined;
+  if (section !== "traces" && section !== "measures" && section !== "plots") return undefined;
+  const bodies = new Set<string>();
+  for (const key of ["bodies", "components"]) {
+    const map = doc.get(key, true);
+    if (isMap(map))
+      for (const pair of map.items) if (isScalar(pair.key)) bodies.add(String(pair.key.value));
+  }
+  for (const match of (scalar.value as string).matchAll(WORD)) {
+    const from = start + match.index;
+    if (offset < from || offset > from + match[0].length) continue;
+    const [base, point] = match[0].split(".") as [string, string | undefined];
+    if (!bodies.has(base)) return undefined;
+    return point === undefined ? { kind: "body", id: base } : { kind: "point", ref: match[0] };
+  }
+  return undefined;
+}

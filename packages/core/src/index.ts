@@ -20,7 +20,14 @@ export {
   compile,
 } from "./compile/compile.ts";
 export { type Diagnostic, hasErrors, type Position, type Severity } from "./diagnostics.ts";
-export { type LinkedName, linkedAt, type NameKind, type Span } from "./edit/linked.ts";
+export {
+  type Entity,
+  entityAt,
+  type LinkedName,
+  linkedAt,
+  type NameKind,
+  type Span,
+} from "./edit/linked.ts";
 export {
   addBody,
   addComponent,
