@@ -2,7 +2,13 @@
 
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
 reference). **Phase 1, the viewer, is built** but not yet deployed to Netlify.
-**Phase 2, the editor, is built.** Phase 3, analysis, is next.
+**Phase 2, the editor, is built.** **Phase 3, analysis, is built.** Phase 4,
+components and the refined 3D view, is next.
+
+Phase 3 differs from the plan in two ways. Charts are drawn as plain SVG rather
+than with uPlot, so that their geometry can be unit-tested without a browser.
+Plots are part of the model (a `plots:` section) rather than session state, so a
+shared model arrives with its charts.
 
 Left out of phase 2 for now: renaming things from the drawing (edit the name in the
 source), drawing sliders, welds and pin-slots (write them in the source), and a

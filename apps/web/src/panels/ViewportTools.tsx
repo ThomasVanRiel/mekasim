@@ -1,4 +1,7 @@
+import { docFactor, LENGTH } from "@mekasim/core";
+import { useRef, useState } from "react";
 import { editorBridge, type Tool, useStore } from "../store.ts";
+import { placeUnderlay, rescaleUnderlay } from "../viewport/underlay.ts";
 
 const base = "border border-ink px-2.5 py-1 text-sm";
 const on = "bg-ink text-sheet";
@@ -41,7 +44,154 @@ export const TOOLS: { id: Tool; label: string; key: string; hint: string }[] = [
     key: "r",
     hint: "Drag a point to change the shape of its link. Points pinned to it move along.",
   },
+  {
+    id: "measure",
+    label: "Measure",
+    key: "d",
+    hint: "Click two points to measure the distance between them, or click a link to measure its angle. The result is added to the measures.",
+  },
 ];
+
+const UNDERLAY_HINTS: Partial<Record<Tool, string>> = {
+  place: "Drag the picture to where it belongs.",
+  calibrate:
+    "Click two places on the picture whose real distance you know, then enter that distance.",
+};
+
+/** Controls for the picture laid under the drawing to trace over. */
+function UnderlayControls() {
+  const underlay = useStore((s) => s.underlay);
+  const tool = useStore((s) => s.tool);
+  const draft = useStore((s) => s.draft);
+  const units = useStore((s) => s.shown?.compiled?.units);
+  const { setUnderlay, setTool, setDraft } = useStore.getState();
+  const input = useRef<HTMLInputElement>(null);
+  const [distance, setDistance] = useState("");
+
+  function open(file: File | undefined): void {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const { scene } = useStore.getState();
+      if (!scene) return;
+      setUnderlay(
+        placeUnderlay(
+          { url, width: image.naturalWidth, height: image.naturalHeight },
+          scene.bounds,
+        ),
+      );
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      useStore.getState().setNotice("That file could not be read as a picture.");
+    };
+    image.src = url;
+  }
+
+  const [a, b] = draft;
+  const real = Number(distance);
+  const ready = tool === "calibrate" && a && b && real > 0;
+
+  return (
+    <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        onClick={() => input.current?.click()}
+        className={`${base} rounded-sm ${off}`}
+      >
+        {underlay ? "Change picture" : "Trace over a picture"}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(event) => {
+          open(event.target.files?.[0]);
+          event.target.value = "";
+        }}
+      />
+      {underlay && (
+        <>
+          <fieldset className="flex">
+            <legend className="sr-only">Picture</legend>
+            <button
+              type="button"
+              aria-pressed={tool === "place"}
+              onClick={() => setTool(tool === "place" ? "select" : "place")}
+              className={`${base} rounded-l-sm ${tool === "place" ? on : off}`}
+            >
+              Move picture
+            </button>
+            <button
+              type="button"
+              aria-pressed={tool === "calibrate"}
+              onClick={() => setTool(tool === "calibrate" ? "select" : "calibrate")}
+              className={`${base} -ml-px ${tool === "calibrate" ? on : off}`}
+            >
+              Set its scale
+            </button>
+            <button
+              type="button"
+              onClick={() => setUnderlay(undefined)}
+              className={`${base} -ml-px rounded-r-sm ${off}`}
+            >
+              Remove picture
+            </button>
+          </fieldset>
+          <label className="flex items-center gap-1.5 border border-ink bg-sheet px-2 py-0.5 text-sm">
+            Strength
+            <input
+              type="range"
+              className="w-24"
+              min={0.1}
+              max={1}
+              step={0.05}
+              value={underlay.opacity}
+              onChange={(event) =>
+                setUnderlay({ ...underlay, opacity: Number(event.target.value) })
+              }
+            />
+          </label>
+        </>
+      )}
+      {underlay && tool === "calibrate" && a && b && (
+        <form
+          className="flex items-center gap-1.5 border border-ink bg-sheet px-2 py-0.5 text-sm"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!ready || !units) return;
+            setUnderlay(rescaleUnderlay(underlay, a, b, real * docFactor(LENGTH, units)));
+            setDraft([]);
+            setDistance("");
+            setTool("select");
+          }}
+        >
+          <label className="flex items-center gap-1.5">
+            Real distance
+            <input
+              type="number"
+              step="any"
+              min="0"
+              className="w-24 rounded-sm border border-rule bg-sheet px-1 py-0.5 tabular-nums"
+              value={distance}
+              onChange={(event) => setDistance(event.target.value)}
+            />
+            {units?.length}
+          </label>
+          <button
+            type="submit"
+            disabled={!ready}
+            className="rounded-sm border border-ink px-2 disabled:opacity-40"
+          >
+            Apply
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
 
 function segment(index: number, count: number): string {
   if (index === 0) return "rounded-l-sm";
@@ -54,7 +204,7 @@ export function ViewportTools() {
   const tool = useStore((s) => s.tool);
   const notice = useStore((s) => s.notice);
   const { setView, toggleLabels, fit, setTool } = useStore.getState();
-  const active = TOOLS.find((t) => t.id === tool);
+  const hint = TOOLS.find((t) => t.id === tool)?.hint ?? UNDERLAY_HINTS[tool];
 
   return (
     <div className="pointer-events-none absolute top-3 right-3 left-3 flex flex-col items-start gap-2">
@@ -123,12 +273,14 @@ export function ViewportTools() {
         </div>
       </div>
 
-      {(notice || (active && view === "2d")) && (
+      {view === "2d" && <UnderlayControls />}
+
+      {(notice || (hint && view === "2d")) && (
         <p
           role="status"
           className={`max-w-xl border bg-sheet/95 px-2.5 py-1 text-sm ${notice ? "border-red" : "border-rule"}`}
         >
-          {notice ?? active?.hint}
+          {notice ?? hint}
         </p>
       )}
       {view === "3d" && !notice && (

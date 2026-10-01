@@ -39,6 +39,10 @@ measures:
   peak_speed: max(v(coupler.P))
   peak_accel: max(a(coupler.P))
 
+plots:
+  coupler_point: [x(coupler.P), y(coupler.P)]
+  rocker: angle(rocker)
+
 pose:
   coupler: [40, 0, 40]
   rocker: [160, 110, -80]

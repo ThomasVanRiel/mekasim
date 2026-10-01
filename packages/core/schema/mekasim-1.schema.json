@@ -339,6 +339,28 @@
         ]
       }
     },
+    "plots": {
+      "description": "Named charts; each is one expression or a list of them, drawn over the cycle",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "cycle": {
       "type": "object",
       "properties": {

@@ -43,6 +43,9 @@ traces: [rod.B]             # points whose paths are recorded
 measures:                   # what to compute
   stroke: range(x(rod.B))
 
+plots:                      # what to chart over the cycle
+  ram: [x(rod.B), vx(rod.B)]
+
 pose:                       # where bodies start
   rod: [r, 0, 0]
 ```
@@ -216,10 +219,36 @@ All of it combines with ordinary arithmetic and parameters:
 `range(x(upper.F) - x(lower.F))`, or `max(a(deck.F)) / g` for a peak acceleration
 as a multiple of gravity.
 
+A measure can use the measures above it by name:
+
+```yaml
+measures:
+  gap: dist(upper.F, lower.F)
+  gap_swing: range(gap)
+```
+
 A measure that is not reduced is a signal: the command line shows its starting
 value and writes the whole signal as a CSV column.
 
 Results are shown in document units: `mm`, `deg`, `mm/s`, `mm/s²`, `deg/s`.
+
+## Plots
+
+```yaml
+plots:
+  decks: [x(upper_deck.F), x(lower_deck.F)]
+  upper_accel: a(upper_deck.F)
+  gap: gap
+```
+
+A plot is a chart over the cycle of one expression or a list of them. The
+expressions are the same as in measures, and may use measures by name.
+
+Charts are drawn against the angle of the first driver. A plot whose expressions
+have different units is drawn as one chart per unit, since values on two different
+scales cannot be compared on one chart. Up to eight expressions per plot are drawn.
+
+Every plotted expression is also a column of the CSV output.
 
 ## Messages
 

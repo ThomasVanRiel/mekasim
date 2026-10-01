@@ -67,3 +67,7 @@ measures:
   opposition: range(x(upper_deck.F) - x(lower_deck.F))
   upper_peak_accel: max(a(upper_deck.F))
   upper_peak_g: max(a(upper_deck.F)) / g
+
+plots:
+  decks: [x(upper_deck.F), x(lower_deck.F)]
+  upper_accel: a(upper_deck.F)

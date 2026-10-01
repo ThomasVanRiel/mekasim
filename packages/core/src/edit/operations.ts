@@ -11,6 +11,7 @@ export const SECTION_ORDER = [
   "drivers",
   "traces",
   "measures",
+  "plots",
   "cycle",
   "pose",
 ];
@@ -201,4 +202,25 @@ export function setPose(poses: Record<string, [number, number, number]>): Edit[]
   return Object.entries(poses).map(
     ([id, pose]): Edit => ({ op: "set", path: ["pose", id], value: pose.map(tidy) }),
   );
+}
+
+/** Add a measure under a free name starting with `base`. */
+export function addMeasure(
+  doc: Document,
+  base: string,
+  expr: string,
+): { id: string; edits: Edit[] } {
+  const id = freeName(Object.keys(doc.measures ?? {}), base);
+  return { id, edits: [{ op: "set", path: ["measures", id], value: expr }] };
+}
+
+/** Add a chart of one or more expressions under a free name starting with `base`. */
+export function addPlot(
+  doc: Document,
+  base: string,
+  series: string[],
+): { id: string; edits: Edit[] } {
+  const taken = Object.keys(doc.plots ?? {});
+  const id = taken.includes(base) ? freeName(taken, `${base}_`) : base;
+  return { id, edits: [{ op: "set", path: ["plots", id], value: series }] };
 }

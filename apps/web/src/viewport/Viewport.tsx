@@ -1,8 +1,19 @@
 import { GROUND } from "@mekasim/core";
 import { Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { type ComponentRef, useEffect, useMemo, useRef } from "react";
-import { type Group, MOUSE, type OrthographicCamera, Shape, TOUCH, Vector2, Vector3 } from "three";
+import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Group,
+  MOUSE,
+  type OrthographicCamera,
+  Shape,
+  SRGBColorSpace,
+  type Texture,
+  TextureLoader,
+  TOUCH,
+  Vector2,
+  Vector3,
+} from "three";
 import { useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
 import { Interaction } from "./Interaction.tsx";
@@ -47,11 +58,14 @@ function Plate({
   sizes,
   selected,
   selectedPoint,
+  seeThrough,
 }: {
   body: DrawBody;
   sizes: Sizes;
   selected: boolean;
   selectedPoint: string | undefined;
+  /** Let a picture underneath show through, for tracing over it. */
+  seeThrough: boolean;
 }) {
   const shape = useMemo(
     () => new Shape(body.outline.map(([x, y]) => new Vector2(x, y))),
@@ -63,7 +77,12 @@ function Plate({
     <>
       <mesh position-z={body.z}>
         <extrudeGeometry args={[shape, { depth: sizes.thickness, bevelEnabled: false }]} />
-        <meshLambertMaterial color={body.color} />
+        <meshLambertMaterial
+          key={seeThrough ? "see-through" : "solid"}
+          color={body.color}
+          transparent={seeThrough}
+          opacity={seeThrough ? 0.5 : 1}
+        />
       </mesh>
       <Line
         points={loop(body.outline, front + lift)}
@@ -216,8 +235,49 @@ function Grid({ scene }: { scene: Scene }) {
   );
 }
 
+/** The picture being traced over, lying on the sheet behind the mechanism. */
+function UnderlayImage({ scene }: { scene: Scene }) {
+  const underlay = useStore((s) => s.underlay);
+  const url = underlay?.url;
+  const [texture, setTexture] = useState<Texture>();
+
+  useEffect(() => {
+    if (!url) {
+      setTexture(undefined);
+      return;
+    }
+    let current: Texture | undefined;
+    let live = true;
+    new TextureLoader().load(url, (loaded) => {
+      loaded.colorSpace = SRGBColorSpace;
+      current = loaded;
+      if (live) setTexture(loaded);
+      else loaded.dispose();
+    });
+    return () => {
+      live = false;
+      current?.dispose();
+    };
+  }, [url]);
+
+  if (!underlay || !texture) return null;
+  return (
+    <mesh position={[underlay.x, underlay.y, scene.groundZ - scene.sizes.pitch * 0.5]}>
+      <planeGeometry args={[underlay.width * underlay.scale, underlay.height * underlay.scale]} />
+      <meshBasicMaterial
+        map={texture}
+        transparent
+        opacity={underlay.opacity}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
 function Mechanism({ scene }: { scene: Scene }) {
   const labels = useStore((s) => s.labels);
+  const seeThrough = useStore((s) => s.underlay !== undefined);
   const selection = useStore((s) => s.selection);
   const selectedJoint = selection?.kind === "joint" ? selection.id : undefined;
   const selectedBody = selection?.kind === "body" ? selection.id : undefined;
@@ -249,6 +309,7 @@ function Mechanism({ scene }: { scene: Scene }) {
   return (
     <>
       <Grid scene={scene} />
+      <UnderlayImage scene={scene} />
       <Ground scene={scene} selectedPoint={pointBody === GROUND ? pointName : undefined} />
       {scene.pins
         .filter((pin) => pin.body < 0)
@@ -273,6 +334,7 @@ function Mechanism({ scene }: { scene: Scene }) {
             sizes={scene.sizes}
             selected={body.id === selectedBody}
             selectedPoint={pointBody === body.id ? pointName : undefined}
+            seeThrough={seeThrough}
           />
           {scene.pins
             .filter((pin) => pin.body === body.index)

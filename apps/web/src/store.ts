@@ -5,7 +5,9 @@ import {
   editText,
   load as readModel,
   type Simulation,
+  type SweepRun,
   simulate,
+  sweep as solveSweep,
 } from "@mekasim/core";
 import { create } from "zustand";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
@@ -17,7 +19,59 @@ const STORAGE_KEY = "mekasim.text";
 /** Playback speeds relative to real time. */
 export const RATES = [1, 0.5, 0.25, 0.1, 0.05, 0.02, 0.01];
 
-export type Tool = "select" | "link" | "pin" | "motor" | "trace" | "reshape";
+export type Tool =
+  | "select"
+  | "link"
+  | "pin"
+  | "motor"
+  | "trace"
+  | "reshape"
+  | "measure"
+  /** Moving the underlay, and picking the two points that set its scale. */
+  | "place"
+  | "calibrate";
+
+/** A parameter varied over a range, to compare the results side by side. */
+export interface Sweep {
+  param: string;
+  from: number;
+  to: number;
+  /** Number of values, ends included. */
+  count: number;
+  /** Unit written after each value, as in `15 mm`; empty for a plain number. */
+  unit: string;
+}
+
+/** A picture laid under the drawing to trace over. Kept for the session only. */
+export interface Underlay {
+  url: string;
+  /** Size of the picture in pixels. */
+  width: number;
+  height: number;
+  /** Centre of the picture on the sheet, in metres. */
+  x: number;
+  y: number;
+  /** Metres per pixel. */
+  scale: number;
+  opacity: number;
+}
+
+/** The values a sweep runs through. */
+export function sweepValues({ from, to, count }: Sweep): number[] {
+  return Array.from({ length: count }, (_, i) =>
+    Number((from + ((to - from) * i) / Math.max(count - 1, 1)).toPrecision(6)),
+  );
+}
+
+function runSweep(text: string, sweep: Sweep | undefined): SweepRun[] | undefined {
+  if (!sweep || readModel(text).doc?.params?.[sweep.param] === undefined) return undefined;
+  try {
+    return solveSweep(text, sweep.param, sweepValues(sweep), sweep.unit);
+  } catch (error) {
+    if (error instanceof EditError) return undefined;
+    throw error;
+  }
+}
 
 /** Edits that belong to one continuous gesture, such as a drag; they undo as one step. */
 export const LIVE = "input.type.live";
@@ -72,8 +126,12 @@ interface State {
   labels: boolean;
   tool: Tool;
   selection?: Hit;
-  /** The link being drawn. */
+  /** The points placed so far with the current tool: a link, a distance, a scale. */
   draft: DraftPoint[];
+  sweep?: Sweep;
+  /** The model solved for each value of the sweep. */
+  runs?: SweepRun[];
+  underlay?: Underlay;
   /** Why the last action did nothing, if it did nothing. */
   notice?: string;
   /** Changes when the view should be fitted to the model again. */
@@ -97,6 +155,8 @@ interface State {
   select(selection: Hit | undefined): void;
   setDraft(draft: DraftPoint[]): void;
   setNotice(notice: string | undefined): void;
+  setSweep(sweep: Sweep | undefined): void;
+  setUnderlay(underlay: Underlay | undefined): void;
   fit(): void;
   revealAt(line: number, col: number): void;
 }
@@ -141,13 +201,23 @@ export const useStore = create<State>((set, get) => {
         selection: undefined,
         draft: [],
         notice: undefined,
+        sweep: undefined,
+        runs: undefined,
         fitRequest: get().fitRequest + 1,
       });
     },
     edit(text, event = "input.canvas") {
       const next = solve(text, get());
       const count = next.shown?.cycle?.count ?? 1;
-      set({ ...next, syncEvent: event, step: Math.min(get().step, count - 1) });
+      const runs = runSweep(text, get().sweep);
+      set({
+        ...next,
+        syncEvent: event,
+        step: Math.min(get().step, count - 1),
+        runs,
+        // A sweep ends when its parameter is gone.
+        sweep: runs ? get().sweep : undefined,
+      });
     },
     transact(build, event) {
       const start = editorBridge.text?.() ?? get().text;
@@ -210,6 +280,17 @@ export const useStore = create<State>((set, get) => {
     },
     setDraft: (draft) => set({ draft }),
     setNotice: (notice) => set({ notice }),
+    setSweep(sweep) {
+      const runs = runSweep(get().text, sweep);
+      set({ sweep: runs ? sweep : undefined, runs });
+    },
+    setUnderlay(underlay) {
+      const previous = get().underlay;
+      if (previous && previous.url !== underlay?.url) URL.revokeObjectURL(previous.url);
+      const tool = get().tool;
+      const idle = !underlay && (tool === "place" || tool === "calibrate");
+      set(idle ? { underlay, tool: "select", draft: [] } : { underlay });
+    },
     fit: () => set({ fitRequest: get().fitRequest + 1 }),
     revealAt: (line, col) =>
       set({ reveal: { line, col, request: (get().reveal?.request ?? 0) + 1, focus: true } }),

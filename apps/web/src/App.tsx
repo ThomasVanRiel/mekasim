@@ -6,6 +6,7 @@ import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
 import { Parameters } from "./panels/Parameters.tsx";
+import { Plots } from "./panels/Plots.tsx";
 import { Timeline } from "./panels/Timeline.tsx";
 import { TitleBlock } from "./panels/TitleBlock.tsx";
 import { TOOLS, ViewportTools } from "./panels/ViewportTools.tsx";
@@ -88,26 +89,35 @@ export function App() {
       </div>
 
       <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:row-span-2 lg:h-auto lg:border-r">
-        <div className="min-h-0 flex-1">
-          <SourceEditor />
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0">
+            <SourceEditor />
+          </div>
         </div>
         <Messages />
       </div>
 
-      <main className="relative h-[60vh] min-h-0 bg-paper lg:h-auto">
-        <Viewport />
-        <ViewportTools />
-        <TitleBlock />
-        {stale && (
-          <p
-            role="status"
-            className="absolute bottom-3 left-3 max-w-[45%] border border-red bg-sheet px-3 py-1 text-sm"
-          >
-            {hasDrawing
-              ? "The source has errors. This is the last version that worked."
-              : "Nothing to draw yet. Fix the problems listed below the source, or load an example."}
-          </p>
-        )}
+      <main className="flex h-[80vh] min-h-0 flex-col lg:h-auto">
+        {/* The drawing fills this box by position, not by a percentage height: a canvas
+            sized in percent does not shrink when the plots take room below it. */}
+        <div className="relative min-h-0 flex-1 overflow-hidden bg-paper">
+          <div className="absolute inset-0">
+            <Viewport />
+          </div>
+          <ViewportTools />
+          <TitleBlock />
+          {stale && (
+            <p
+              role="status"
+              className="absolute bottom-3 left-3 max-w-[45%] border border-red bg-sheet px-3 py-1 text-sm"
+            >
+              {hasDrawing
+                ? "The source has errors. This is the last version that worked."
+                : "Nothing to draw yet. Fix the problems listed below the source, or load an example."}
+            </p>
+          )}
+        </div>
+        <Plots />
       </main>
 
       <div className="min-h-0 border-rule lg:overflow-y-auto lg:border-l">

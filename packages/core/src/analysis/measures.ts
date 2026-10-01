@@ -76,6 +76,18 @@ function unwrap(angles: Float64Array): Float64Array {
   return angles;
 }
 
+export interface PlotSeries {
+  /** The expression as written. */
+  source: string;
+  quantity?: Quantity;
+  error?: string;
+}
+
+export interface PlotResult {
+  id: string;
+  series: PlotSeries[];
+}
+
 export interface MeasureResult {
   id: string;
   /** A number, or a signal with one value per solved sample. */
@@ -99,8 +111,14 @@ const KINEMATIC = new Set([
   "alpha",
 ]);
 
-export function evaluateMeasures(compiled: Compiled, cycle: Cycle): MeasureResult[] {
+/** Evaluate the measures and plots of a model over a solved cycle. */
+export function evaluateMeasures(
+  compiled: Compiled,
+  cycle: Cycle,
+): { measures: MeasureResult[]; plots: PlotResult[] } {
   const n = cycle.count;
+  /** Measures evaluated so far; later measures and plots can use them by name. */
+  const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
 
   function refName(node: Node | undefined, fn: Node): string {
@@ -233,6 +251,8 @@ export function evaluateMeasures(compiled: Compiled, cycle: Cycle): MeasureResul
       if (name === "t") return { value: Float64Array.from(cycle.t), dim: TIME };
       const param = compiled.params.get(name);
       if (param) return param;
+      const measure = named.get(name);
+      if (measure) return measure;
       const hint = compiled.bodies.has(name.split(".")[0] as string)
         ? "; wrap it in a function such as x() or angle()"
         : "";
@@ -241,12 +261,38 @@ export function evaluateMeasures(compiled: Compiled, cycle: Cycle): MeasureResul
     special,
   };
 
-  return compiled.measures.map(({ id, ast }): MeasureResult => {
+  function attempt(ast: Node): { quantity?: Quantity; error?: string } {
     try {
-      return { id, quantity: evaluate(ast, context) };
+      return { quantity: evaluate(ast, context) };
     } catch (error) {
-      if (error instanceof ExprError) return { id, error: error.message };
+      if (error instanceof ExprError) return { error: error.message };
       throw error;
     }
+  }
+
+  const measures = compiled.measures.map(({ id, ast }): MeasureResult => {
+    const result = attempt(ast);
+    if (result.quantity) named.set(id, result.quantity);
+    return { id, ...result };
   });
+  const plots = compiled.plots.map(
+    ({ id, series }): PlotResult => ({
+      id,
+      series: series.map(({ source, ast }) => ({ source, ...attempt(ast) })),
+    }),
+  );
+  return { measures, plots };
+}
+
+/**
+ * What a cycle is plotted against: the angle of the first driver, which is how a
+ * mechanism's motion is usually read, or time when nothing turns.
+ */
+export function cycleAxis(compiled: Compiled, cycle: Cycle): { label: string; quantity: Quantity } {
+  const driver = compiled.drivers.find((d) => d.speed !== 0);
+  if (!driver) return { label: "time", quantity: { value: Float64Array.from(cycle.t), dim: TIME } };
+  return {
+    label: `${driver.id} angle`,
+    quantity: { value: cycle.t.map((t) => driver.phase + driver.speed * t), dim: ANGLE },
+  };
 }

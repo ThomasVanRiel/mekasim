@@ -57,6 +57,11 @@ export interface CompiledDriver {
   phase: number;
 }
 
+export interface CompiledPlot {
+  id: string;
+  series: { source: string; ast: Node }[];
+}
+
 export interface Compiled {
   units: Units;
   params: Map<string, Quantity>;
@@ -70,6 +75,7 @@ export interface Compiled {
   steps: number;
   traces: string[];
   measures: CompiledMeasure[];
+  plots: CompiledPlot[];
 }
 
 export interface CompileResult {
@@ -301,6 +307,17 @@ export function compile(doc: Document): CompileResult {
     attempt(() => measures.push({ id, ast: parse(String(source), ["measures", id]) }));
   }
 
+  const plots: CompiledPlot[] = [];
+  for (const [id, entry] of Object.entries(doc.plots ?? {})) {
+    const sources = typeof entry === "string" ? [entry] : entry;
+    const series: CompiledPlot["series"] = [];
+    sources.forEach((source, i) => {
+      const path = typeof entry === "string" ? ["plots", id] : ["plots", id, i];
+      attempt(() => series.push({ source, ast: parse(source, path) }));
+    });
+    plots.push({ id, series });
+  }
+
   if (diagnostics.some((d) => d.severity === "error")) return { diagnostics };
   return {
     compiled: {
@@ -314,6 +331,7 @@ export function compile(doc: Document): CompileResult {
       steps: doc.cycle?.steps ?? 360,
       traces,
       measures,
+      plots,
     },
     diagnostics,
   };

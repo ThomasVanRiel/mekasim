@@ -1,4 +1,4 @@
-import { addDriver, driversOf, GROUND, jointRefs, toggleTrace } from "@mekasim/core";
+import { addDriver, addPlot, driversOf, GROUND, jointRefs, toggleTrace } from "@mekasim/core";
 import type { ReactNode } from "react";
 import { useStore } from "../store.ts";
 import { deleteSelection } from "../viewport/tools.ts";
@@ -55,6 +55,26 @@ function PointRow({
   );
 }
 
+/** Buttons that add a chart of something to the model. */
+function PlotButtons({ plots }: { plots: { label: string; name: string; series: string[] }[] }) {
+  const transact = useStore((s) => s.transact);
+  return (
+    <div className="flex flex-wrap items-baseline gap-1.5">
+      <span className="text-ink-soft text-sm">Plot</span>
+      {plots.map(({ label, name, series }) => (
+        <button
+          key={label}
+          type="button"
+          className={button}
+          onClick={() => transact((tx) => tx.run(addPlot(tx.doc, name, series).edits))}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** The properties of whatever is selected in the drawing. */
 export function Inspector() {
   const selection = useStore((s) => s.selection);
@@ -90,6 +110,18 @@ export function Inspector() {
             hint="0"
           />
         )}
+        {!ground && (
+          <PlotButtons
+            plots={[
+              { label: "angle", name: `${selection.id}_angle`, series: [`angle(${selection.id})`] },
+              {
+                label: "turning speed",
+                name: `${selection.id}_omega`,
+                series: [`omega(${selection.id})`],
+              },
+            ]}
+          />
+        )}
       </Section>
     );
   }
@@ -111,6 +143,23 @@ export function Inspector() {
           >
             {traced ? "Stop recording its path" : "Record its path"}
           </button>
+        )}
+        {bodyId !== GROUND && (
+          <PlotButtons
+            plots={[
+              {
+                label: "position",
+                name: `${bodyId}_${name}`,
+                series: [`x(${selection.ref})`, `y(${selection.ref})`],
+              },
+              { label: "speed", name: `${bodyId}_${name}_speed`, series: [`v(${selection.ref})`] },
+              {
+                label: "acceleration",
+                name: `${bodyId}_${name}_accel`,
+                series: [`a(${selection.ref})`],
+              },
+            ]}
+          />
         )}
       </Section>
     );

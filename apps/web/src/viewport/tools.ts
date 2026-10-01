@@ -1,6 +1,7 @@
 import {
   addBody,
   addDriver,
+  addMeasure,
   addPoint,
   addRevolute,
   type BodyPoint,
@@ -21,6 +22,7 @@ import { type DraftPoint, LIVE, useStore } from "../store.ts";
 import {
   type Hit,
   nearestStep,
+  pick,
   pinNear,
   pointsNear,
   toLocal,
@@ -166,6 +168,42 @@ export function clickTrace(scene: Scene, x: number, y: number, tolerance: number
     return;
   }
   state.transact((tx) => tx.run(toggleTrace(tx.doc, point.ref)));
+}
+
+/**
+ * Measure on the drawing: two points give the distance between them, a link clicked
+ * away from its points gives its angle. The result is added to the model's measures.
+ */
+export function clickMeasure(scene: Scene, x: number, y: number, tolerance: number): void {
+  const state = useStore.getState();
+  const [first] = state.draft;
+  const point = pointsNear(worldPoints(scene, state.step), x, y, tolerance)[0];
+
+  if (point && !first) {
+    state.setDraft([{ x: point.x, y: point.y, ref: point.ref }]);
+    state.setNotice(undefined);
+    return;
+  }
+  if (point && first?.ref) {
+    if (point.ref === first.ref) {
+      state.setNotice("That is the same point. Click a different one to measure the distance.");
+      return;
+    }
+    const from = first.ref;
+    state.transact((tx) => tx.run(addMeasure(tx.doc, "dist", `dist(${from}, ${point.ref})`).edits));
+    state.setDraft([]);
+    return;
+  }
+  const hit = first ? undefined : pick(scene, state.step, x, y, tolerance);
+  if (hit?.kind === "body") {
+    state.transact((tx) => tx.run(addMeasure(tx.doc, "angle", `angle(${hit.id})`).edits));
+    return;
+  }
+  state.setNotice(
+    first
+      ? "Click a second point to measure the distance to it."
+      : "Click a point to start a distance, or a link to measure its angle.",
+  );
 }
 
 /** The points that move as one when a point is reshaped: it, and those pinned to it. */

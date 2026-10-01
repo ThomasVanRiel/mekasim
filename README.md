@@ -28,9 +28,15 @@ keeping its comments and layout.
 | Motor | M | Drive a pin, or remove its motor |
 | Trace | T | Record the path of a point |
 | Reshape | R | Drag a point to change its link; pinned points move along |
+| Measure | D | Click two points for their distance, or a link for its angle |
 
 Space plays and pauses, the arrow keys step through the cycle, Delete removes the
 selection, Ctrl+Z undoes. "Copy link" puts the whole model into a link.
+
+Select a point or a link to plot its position, speed, acceleration or angle over
+the cycle; "Export CSV" saves the motion as a table. "Compare values" on a
+parameter solves the model for several values and draws them together. "Trace over
+a picture" lays an image under the drawing, which is not saved with the model.
 
 From the command line:
 
@@ -73,7 +79,7 @@ packages/core/src
   expr/       expression parser, units and dimensions
   compile/    document -> solver model
   solver/     constraints, position/velocity/acceleration, degrees of freedom
-  analysis/   motion cycle, measures
+  analysis/   motion cycle, measures and plots, CSV, parameter sweeps
   edit/       changes to model text in place, model operations
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
@@ -82,7 +88,8 @@ apps/web/src
   editor/     YAML source editor
   viewport/   the drawing: scene description, three.js rendering, labels,
               hit-testing, drawing tools
-  panels/     header, inspector, parameters, measures, messages, timeline
+  panels/     header, inspector, parameters, measures, plots, messages, timeline
+  plot/       chart geometry and drawing
   io/         share links
 ```
 

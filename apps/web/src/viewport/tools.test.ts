@@ -4,6 +4,7 @@ import { useStore } from "../store.ts";
 import type { Scene } from "./scene.ts";
 import {
   clickLink,
+  clickMeasure,
   clickMotor,
   clickPin,
   clickTrace,
@@ -147,6 +148,36 @@ describe("pin, motor and trace", () => {
     expect(text()).toContain("pin3:");
     expect(text()).not.toContain("pin1:");
     expect(useStore.getState().selection).toBeUndefined();
+  });
+});
+
+describe("measuring", () => {
+  beforeEach(drawFourBar);
+
+  it("adds the distance between two clicked points", () => {
+    clickMeasure(scene(), 0, 0, TOL);
+    expect(useStore.getState().draft).toHaveLength(1);
+    clickMeasure(scene(), 0.14, 0.1, TOL);
+    expect(text()).toContain("measures:\n  dist1: dist(ground.G1, link2.B)\n");
+    expect(useStore.getState().draft).toEqual([]);
+    const measure = useStore.getState().simulation.measures.find((m) => m.id === "dist1");
+    const values = measure?.quantity?.value;
+    expect(typeof values === "object" ? values[0] : undefined).toBeCloseTo(
+      Math.hypot(0.14, 0.1),
+      9,
+    );
+  });
+
+  it("adds the angle of a link clicked away from its points", () => {
+    clickMeasure(scene(), 0.07, 0.07, TOL);
+    expect(text()).toContain("  angle1: angle(link2)\n");
+  });
+
+  it("asks for a different point when the same one is clicked twice", () => {
+    clickMeasure(scene(), 0.14, 0.1, TOL);
+    clickMeasure(scene(), 0.14, 0.1, TOL);
+    expect(useStore.getState().notice).toContain("same point");
+    expect(text()).not.toContain("measures:");
   });
 });
 

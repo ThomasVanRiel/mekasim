@@ -1,10 +1,15 @@
+export { toCsv } from "./analysis/csv.ts";
 export { type Cycle, type CycleFailure, solveCycle } from "./analysis/cycle.ts";
 export {
+  cycleAxis,
   evaluateMeasures,
   type MeasureResult,
+  type PlotResult,
+  type PlotSeries,
   type PointMotion,
   pointMotion,
 } from "./analysis/measures.ts";
+export { type SweepRun, sweep } from "./analysis/sweep.ts";
 export {
   type Compiled,
   type CompiledBody,
@@ -17,6 +22,8 @@ export { type Diagnostic, hasErrors, type Position, type Severity } from "./diag
 export {
   addBody,
   addDriver,
+  addMeasure,
+  addPlot,
   addPoint,
   addRevolute,
   type Coord,

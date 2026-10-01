@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { LIVE, useStore } from "../store.ts";
+import { MAX_SWEEP_RUNS } from "../plot/charts.ts";
+import { LIVE, type Sweep, useStore } from "../store.ts";
 import { Field, toValue } from "./Field.tsx";
 
 /** A plain number with an optional unit, which a slider can vary. */
@@ -41,6 +42,89 @@ function Slider({ name, value, unit }: { name: string; value: number; unit: stri
           );
       }}
     />
+  );
+}
+
+function NumberBox({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+}: {
+  label: string;
+  value: number;
+  onChange(value: number): void;
+  min?: number;
+  max?: number;
+}) {
+  return (
+    <label className="flex min-w-0 flex-1 items-baseline gap-1 text-ink-soft text-sm">
+      {label}
+      <input
+        type="number"
+        className="w-full min-w-0 rounded-sm border border-rule bg-sheet px-1 py-0.5 text-ink tabular-nums"
+        value={value}
+        min={min}
+        max={max}
+        step="any"
+        onChange={(event) => {
+          const next = Number(event.target.value);
+          if (event.target.value !== "" && Number.isFinite(next)) onChange(next);
+        }}
+      />
+    </label>
+  );
+}
+
+/** Compare the model at several values of a parameter. */
+function SweepControls({ name, value, unit }: { name: string; value: number; unit: string }) {
+  const sweep = useStore((s) => (s.sweep?.param === name ? s.sweep : undefined));
+  const setSweep = useStore((s) => s.setSweep);
+  const change = (part: Partial<Sweep>): void => {
+    if (sweep) setSweep({ ...sweep, ...part });
+  };
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        aria-pressed={sweep !== undefined}
+        className={`self-start rounded-sm border px-1.5 text-[12px] ${
+          sweep ? "border-ink bg-ink text-sheet" : "border-rule bg-sheet hover:border-ink-soft"
+        }`}
+        onClick={() =>
+          setSweep(
+            sweep
+              ? undefined
+              : {
+                  param: name,
+                  from: Number((value * 0.5).toPrecision(4)),
+                  to: Number((value * 1.5).toPrecision(4)),
+                  count: 5,
+                  unit,
+                },
+          )
+        }
+      >
+        {sweep ? "Stop comparing" : "Compare values"}
+      </button>
+      {sweep && (
+        <div className="flex gap-1.5">
+          <NumberBox label="from" value={sweep.from} onChange={(from) => change({ from })} />
+          <NumberBox label="to" value={sweep.to} onChange={(to) => change({ to })} />
+          <NumberBox
+            label="in"
+            value={sweep.count}
+            min={2}
+            max={MAX_SWEEP_RUNS}
+            onChange={(count) =>
+              change({ count: Math.min(Math.max(Math.round(count), 2), MAX_SWEEP_RUNS) })
+            }
+          />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -124,6 +208,9 @@ export function Parameters() {
               </button>
             </div>
             {literal && <Slider name={name} value={Number(literal[1])} unit={literal[2] ?? ""} />}
+            {literal && (
+              <SweepControls name={name} value={Number(literal[1])} unit={literal[2] ?? ""} />
+            )}
           </div>
         );
       })}

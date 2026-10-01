@@ -1,5 +1,5 @@
 import { type Cycle, solveCycle } from "./analysis/cycle.ts";
-import { evaluateMeasures, type MeasureResult } from "./analysis/measures.ts";
+import { evaluateMeasures, type MeasureResult, type PlotResult } from "./analysis/measures.ts";
 import { type Compiled, compile } from "./compile/compile.ts";
 import { type Diagnostic, hasErrors } from "./diagnostics.ts";
 import type { Document } from "./schema/document.ts";
@@ -14,6 +14,7 @@ export interface Simulation {
   /** Degrees of freedom at the starting position; absent when it cannot be assembled. */
   mobility?: Mobility;
   measures: MeasureResult[];
+  plots: PlotResult[];
 }
 
 function list(ids: string[]): string {
@@ -59,7 +60,7 @@ function mobilityDiagnostics(mobility: Mobility, compiled: Compiled): Diagnostic
 export function simulate(text: string): Simulation {
   const loaded = load(text);
   const diagnostics = [...loaded.diagnostics];
-  const simulation: Simulation = { diagnostics, measures: [] };
+  const simulation: Simulation = { diagnostics, measures: [], plots: [] };
   if (!loaded.doc) return simulation;
   simulation.doc = loaded.doc;
 
@@ -73,7 +74,9 @@ export function simulate(text: string): Simulation {
     if (cycle.count > 0) {
       simulation.mobility = analyzeMobility(compiled.model, cycle.q.subarray(0, cycle.width));
       diagnostics.push(...mobilityDiagnostics(simulation.mobility, compiled));
-      simulation.measures = evaluateMeasures(compiled, cycle);
+      const results = evaluateMeasures(compiled, cycle);
+      simulation.measures = results.measures;
+      simulation.plots = results.plots;
       for (const measure of simulation.measures) {
         if (measure.error)
           diagnostics.push({
@@ -81,6 +84,17 @@ export function simulate(text: string): Simulation {
             message: measure.error,
             path: ["measures", measure.id],
           });
+      }
+      for (const plot of simulation.plots) {
+        const listed = typeof loaded.doc.plots?.[plot.id] !== "string";
+        plot.series.forEach((series, i) => {
+          if (series.error)
+            diagnostics.push({
+              severity: "error",
+              message: series.error,
+              path: listed ? ["plots", plot.id, i] : ["plots", plot.id],
+            });
+        });
       }
     }
 

@@ -7,6 +7,7 @@ import { COLORS } from "../theme.ts";
 import { type Hit, pick } from "./pick.ts";
 import {
   clickLink,
+  clickMeasure,
   clickMotor,
   clickPin,
   clickTrace,
@@ -32,7 +33,14 @@ interface Press {
   hit?: Hit;
   held?: Grab;
   reshape?: Reshape;
+  /** Moving the underlay: where the pointer and the picture were when it was taken hold of. */
+  carry?: { x: number; y: number; originX: number; originY: number };
 }
+
+/** Tools whose clicks write points as they sit at the start of the motion. */
+const DRAWN_AT_START = new Set(["link", "pin", "reshape"]);
+/** Tools that collect clicked places, shown as the tool is used. */
+const COLLECTING = new Set(["link", "measure", "calibrate"]);
 
 function ring(x: number, y: number, z: number, radius: number): [number, number, number][] {
   return Array.from({ length: 33 }, (_, k) => {
@@ -78,7 +86,7 @@ export function Interaction() {
       const state = useStore.getState();
       if (event.button !== 0 || event.target !== canvas || state.view !== "2d" || !state.scene)
         return;
-      if (state.tool !== "select" && (state.playing || state.step !== 0)) {
+      if (DRAWN_AT_START.has(state.tool) && (state.playing || state.step !== 0)) {
         // Points are written as they sit at the start of the motion, so draw there.
         state.setPlaying(false);
         state.setStep(0);
@@ -103,9 +111,16 @@ export function Interaction() {
         clickMotor(state.scene, x, y, reach);
       } else if (state.tool === "trace") {
         clickTrace(state.scene, x, y, reach);
+      } else if (state.tool === "measure") {
+        clickMeasure(state.scene, x, y, reach);
+      } else if (state.tool === "calibrate") {
+        // Two places on the picture; a third click starts over.
+        state.setDraft(state.draft.length >= 2 ? [{ x, y }] : [...state.draft, { x, y }]);
+      } else if (state.tool === "place" && state.underlay) {
+        press.carry = { x, y, originX: state.underlay.x, originY: state.underlay.y };
       }
       // Holding a part must not also pan the sheet.
-      if (controls && (press.held || press.reshape)) controls.enabled = false;
+      if (controls && (press.held || press.reshape || press.carry)) controls.enabled = false;
     }
 
     function onMove(event: PointerEvent): void {
@@ -120,7 +135,13 @@ export function Interaction() {
       const travel = Math.hypot(event.clientX - press.startX, event.clientY - press.startY);
       if (!press.moved && travel < CLICK_PX) return;
       press.moved = true;
-      if (press.held) pull(state.scene, press.held, x, y);
+      if (press.carry && state.underlay) {
+        state.setUnderlay({
+          ...state.underlay,
+          x: press.carry.originX + x - press.carry.x,
+          y: press.carry.originY + y - press.carry.y,
+        });
+      } else if (press.held) pull(state.scene, press.held, x, y);
       else if (press.reshape) {
         const to = snap(state.scene, x, y, 0, event.altKey);
         reshapeTo(press.reshape, to.x, to.y);
@@ -155,9 +176,9 @@ export function Interaction() {
     if (tool !== "link") setCursor(undefined);
   }, [gl, tool]);
 
-  if (!scene || tool !== "link") return null;
+  if (!scene || !COLLECTING.has(tool)) return null;
   const z = scene.depth + scene.sizes.pitch;
-  const path = cursor ? [...draft, cursor] : draft;
+  const path = cursor && tool === "link" ? [...draft, cursor] : draft;
   return (
     <>
       {path.length > 1 && (

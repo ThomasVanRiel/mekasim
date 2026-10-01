@@ -93,6 +93,10 @@ export const Document = z.strictObject({
     .record(Id, Expr)
     .optional()
     .describe("Named expressions evaluated over the motion cycle"),
+  plots: z
+    .record(Id, z.union([z.string(), z.array(z.string()).min(1)]))
+    .optional()
+    .describe("Named charts; each is one expression or a list of them, drawn over the cycle"),
   cycle: z
     .strictObject({
       steps: z.int().min(1).max(100000).optional().describe("Samples per cycle; default 360"),

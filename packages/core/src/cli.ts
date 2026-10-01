@@ -1,39 +1,11 @@
 // Solve a model from the command line: node packages/core/src/cli.ts model.mekasim.yaml [--csv out.csv]
 import { readFileSync, writeFileSync } from "node:fs";
-import { pointMotion } from "./analysis/measures.ts";
-import { docFactor, formatQuantity, unitLabel } from "./expr/units.ts";
-import { type Simulation, simulate } from "./simulate.ts";
+import { toCsv } from "./analysis/csv.ts";
+import { formatQuantity } from "./expr/units.ts";
+import { simulate } from "./simulate.ts";
 
 function plural(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-/** Traces and signal measures as one table, a row per sample, in document units. */
-function csv(simulation: Simulation): string {
-  const { compiled, cycle } = simulation;
-  if (!compiled || !cycle) return "";
-  const { units } = compiled;
-  const columns: [string, ArrayLike<number>, number][] = [["t [s]", cycle.t, 1]];
-  const length = docFactor([1, 0, 0, 0], units);
-  for (const ref of compiled.traces) {
-    const motion = pointMotion(compiled, cycle, ref);
-    columns.push(
-      [`${ref}.x [${units.length}]`, motion.x, length],
-      [`${ref}.y [${units.length}]`, motion.y, length],
-    );
-  }
-  for (const { id, quantity } of simulation.measures) {
-    if (!quantity || typeof quantity.value === "number") continue;
-    const label = unitLabel(quantity.dim, units);
-    columns.push([label ? `${id} [${label}]` : id, quantity.value, docFactor(quantity.dim, units)]);
-  }
-  const rows = [columns.map(([name]) => name).join(",")];
-  for (let k = 0; k < cycle.count; k++) {
-    rows.push(
-      columns.map(([, values, factor]) => Number((values[k] / factor).toPrecision(10))).join(","),
-    );
-  }
-  return `${rows.join("\n")}\n`;
 }
 
 function main(): number {
@@ -91,7 +63,7 @@ function main(): number {
   }
 
   if (csvPath && cycle) {
-    writeFileSync(csvPath, csv(simulation));
+    writeFileSync(csvPath, toCsv(simulation));
     console.log(`\nWrote ${cycle.count} rows to ${csvPath}`);
   }
   return simulation.diagnostics.some((d) => d.severity === "error") ? 1 : 0;
