@@ -1,10 +1,16 @@
-import { createElement, Fragment, type ReactNode, useRef } from "react";
+import { createElement, Fragment, type ReactNode, useEffect, useRef } from "react";
 import type { Block, Inline } from "../help/markdown.ts";
 import { HELP, sectionsOf } from "../help/reference.ts";
 import { useLayout } from "../layout.ts";
 
 /** The panel's id, for the button that folds it open. */
 export const HELP_ID = "format-help";
+
+/**
+ * Marks what the help is read beside: the source and what belongs to it. A press
+ * there leaves the help open.
+ */
+export const BESIDE_HELP = "data-beside-help";
 
 const SECTIONS = sectionsOf(HELP);
 
@@ -105,24 +111,39 @@ function Part({ block }: { block: Block }) {
 }
 
 /**
- * The format reference, folded open beside the source: it lies over the drawing and
- * the panels to the right of it, which stay as they are underneath, so the source
- * can be written with the reference next to it.
+ * The format reference, folded open beside the source: it lies over the drawing and,
+ * where the window leaves it no room, the panels to the right of it, which stay as
+ * they are underneath, so the source can be written with the reference next to it.
  *
  * It is always there and is uncovered from the source's edge rightwards when it
  * opens, and covered again when it closes. Hidden, it takes no clicks and no focus.
+ *
+ * A press anywhere but on the help and the source closes it, and still does what
+ * it would have done: the help is put away by going back to the drawing.
  */
 export function Help() {
   const open = useLayout((s) => s.help);
   const setHelp = useLayout((s) => s.setHelp);
   const page = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    function onPress(event: PointerEvent): void {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest(`#${HELP_ID}, [${BESIDE_HELP}]`)) setHelp(false);
+    }
+    // Heard on the way down, so that nothing underneath can keep the press to itself.
+    document.addEventListener("pointerdown", onPress, true);
+    return () => document.removeEventListener("pointerdown", onPress, true);
+  }, [open, setHelp]);
+
   return (
     <section
       id={HELP_ID}
       aria-label="Help on the model format"
       // Placed on the grid of the page by position, so that it takes no cell from the panels under it.
-      className={`absolute inset-0 z-40 hidden flex-col bg-sheet/95 transition-[clip-path,visibility] duration-500 ease-out motion-reduce:transition-none lg:col-start-3 lg:col-end-6 lg:row-start-2 lg:row-end-3 lg:flex ${
+      // No wider than the list of sections and a page of text: on a wide window the rest stays in view.
+      className={`absolute inset-y-0 left-0 z-40 hidden w-full max-w-5xl flex-col border-rule border-r bg-sheet/95 transition-[clip-path,visibility] duration-500 ease-out motion-reduce:transition-none lg:col-start-3 lg:col-end-6 lg:row-start-2 lg:row-end-3 lg:flex ${
         open ? "visible [clip-path:inset(0)]" : "invisible [clip-path:inset(0_100%_0_0)]"
       }`}
     >

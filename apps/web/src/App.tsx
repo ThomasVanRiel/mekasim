@@ -5,7 +5,7 @@ import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Build } from "./panels/Build.tsx";
 import { Header } from "./panels/Header.tsx";
-import { HELP_ID, Help } from "./panels/Help.tsx";
+import { BESIDE_HELP, HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
@@ -133,7 +133,7 @@ export function App() {
         </p>
       </div>
 
-      <div className="hidden min-h-0 flex-col lg:flex">
+      <div className="hidden min-h-0 flex-col lg:flex" {...{ [BESIDE_HELP]: "" }}>
         <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
           <h2 className="font-semibold">Source</h2>
           <button
