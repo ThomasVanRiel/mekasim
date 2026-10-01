@@ -63,6 +63,44 @@ each with a pin. That solves correctly, but it is not what an eccentric is.
   disc with an off-centre shaft hole, and a rod with a large eye and clearance);
   and how the shaft and its bearing appear.
 
+### A viewer to embed in other pages
+
+A small React component that shows one mechanism moving, to use on a page of
+another site, such as Thomas's own. No source, no drawing tools, no inspector.
+
+Decided:
+
+- **What it shows:** the animated mechanism and the model's plots. The page can
+  name the plots it wants, or ask for none; left to itself the viewer shows all of
+  the model's `plots:`.
+- **Controls:** play and pause, a slider for the position in the cycle, and the
+  playback speed, as in the app. A checkbox shows or hides the names of points and
+  links.
+- **The model is given as YAML,** the same text the app reads.
+- **A React component,** drawn into the page itself, not an `<iframe>`.
+- **A flat SVG drawing,** not Three.js: there is no 3D view in the viewer. The
+  charts are plain SVG already.
+- **A link to the full app** that opens exactly the YAML being shown, the way a
+  share link does.
+- **Colours can be given** by the page; left out, the viewer uses the app's own.
+
+What it would take:
+
+- The description of the drawing (`viewport/scene.ts`: outlines, pins, traces and
+  the pose at each step) and the charts (`plot/`) need only the core and React,
+  not the app's store. They move to a package that both the app and the viewer
+  use. The colours of links and curves are fixed in those modules today and would
+  become something that is passed in.
+- A new SVG drawing of that description. The app's drawing is written for
+  Three.js and reads the store for selection, tools and the tracing picture, so it
+  is not reused. Playback is a small piece of state inside the component.
+- The viewer keeps nothing in the browser, so it never touches the model the
+  visitor has open in the app.
+
+The repository and the site will be public by the time this is built, so the
+component can be published as a package like any other, and the link to the full
+app gives nothing away.
+
 Done so far:
 
 - **Export links for 3D printing and laser cutting.** "Parts to make" in the side
