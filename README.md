@@ -58,7 +58,9 @@ Measures
 ```
 
 The model format is described in [docs/FORMAT.md](docs/FORMAT.md); start from one
-of the files in [`examples/`](examples).
+of the files in [`examples/`](examples). Besides links and pins a model can have
+gears, belts, cams and fixed-distance ties, and cranks and rods given by their
+dimensions instead of point positions.
 
 ## Develop
 

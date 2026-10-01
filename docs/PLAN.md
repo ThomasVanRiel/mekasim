@@ -2,8 +2,14 @@
 
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
 reference). **Phase 1, the viewer, is built** and deployed to Netlify.
-**Phase 2, the editor, is built.** **Phase 3, analysis, is built.** Phase 4,
-components and the refined 3D view, is next.
+**Phase 2, the editor, is built.** **Phase 3, analysis, is built.** **Phase 4,
+components, is built.** Phase 5, forces, is next.
+
+Phase 4 as built: gear, belt, cam and distance joints in the solver; crank and rod
+components that expand to bodies and joints; bodies layered automatically for the
+3D view. Components and the new joints are written in the source and edited in the
+inspector; there are no drawing tools for them yet. Beyond layering, the 3D view
+was not reworked.
 
 Phase 3 differs from the plan in two ways. Charts are drawn as plain SVG rather
 than with uPlot, so that their geometry can be unit-tested without a browser.

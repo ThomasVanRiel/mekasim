@@ -23,8 +23,8 @@ function main(): number {
 
   if (doc && compiled) {
     console.log(doc.meta?.name ?? file);
-    const joints = Object.keys(doc.joints ?? {}).length;
-    const drivers = Object.keys(doc.drivers ?? {}).length;
+    const joints = compiled.joints.length;
+    const drivers = compiled.drivers.length;
     const moving = compiled.model.bodies.length;
     console.log(
       `  ${moving} moving ${moving === 1 ? "body" : "bodies"}, ${plural(joints, "joint")}, ${plural(drivers, "driver")}`,

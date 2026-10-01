@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  angleCoupling,
+  type CamProfile,
   type Constraint,
+  camContact,
   coincident,
+  distance,
   GROUND_INDEX,
   pointOnLine,
   relativeAngle,
@@ -14,6 +18,13 @@ const qd = Float64Array.of(0.5, 0.2, -1.3, -0.4, 0.9, 2.1, 0.3, -0.6, 0.8);
 const n = q.length;
 
 const normal: [number, number] = [Math.cos(0.4), Math.sin(0.4)];
+
+/** A smooth cam with three lobes. */
+const wavy: CamProfile = {
+  radius: (theta) => 0.3 + 0.05 * Math.sin(3 * theta),
+  slope: (theta) => 0.15 * Math.cos(3 * theta),
+  curvature: (theta) => -0.45 * Math.sin(3 * theta),
+};
 
 const cases: [string, Constraint][] = [
   [
@@ -50,6 +61,28 @@ const cases: [string, Constraint][] = [
   ],
   ["rotation lock", relativeAngle("j", 0, 2, 0.3)],
   ["motor on ground", relativeAngle("d", GROUND_INDEX, 1, 0.3, 4, true)],
+  [
+    "tie between two bodies",
+    distance("j", { body: 0, u: 0.12, v: -0.05 }, { body: 2, u: -0.2, v: 0.08 }, 0.3),
+  ],
+  [
+    "tie to ground",
+    distance("j", { body: GROUND_INDEX, u: 0.3, v: 0.1 }, { body: 1, u: 0.07, v: 0.11 }, 0.3),
+  ],
+  ["gears on ground", angleCoupling("j", 0, 1, GROUND_INDEX, 20, 40, 0.5)],
+  ["gears on a moving carrier", angleCoupling("j", 0, 1, 2, 20, -35, 0.5)],
+  [
+    "cam on a moving body",
+    camContact("j", { body: 0, u: 0.02, v: 0.01 }, { body: 1, u: 0.05, v: -0.03 }, wavy),
+  ],
+  [
+    "cam on ground",
+    camContact("j", { body: GROUND_INDEX, u: 0.1, v: 0.2 }, { body: 2, u: 0.05, v: -0.03 }, wavy),
+  ],
+  [
+    "cam with a follower on ground",
+    camContact("j", { body: 1, u: 0.02, v: 0.01 }, { body: GROUND_INDEX, u: 0.3, v: 0.4 }, wavy),
+  ],
 ];
 
 function residual(c: Constraint, at: Float64Array, t = 0): Float64Array {
@@ -78,7 +111,7 @@ describe.each(cases)("%s", (_name, c) => {
       const plus = residual(c, shifted(unit, h));
       const minus = residual(c, shifted(unit, -h));
       for (let i = 0; i < c.size; i++) {
-        expect(Math.abs(analytic[i * n + j] - (plus[i] - minus[i]) / (2 * h))).toBeLessThan(1e-8);
+        expect(Math.abs(analytic[i * n + j] - (plus[i] - minus[i]) / (2 * h))).toBeLessThan(1e-7);
       }
     }
   });

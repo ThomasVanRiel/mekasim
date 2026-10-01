@@ -16,6 +16,7 @@ import {
 } from "three";
 import { useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
+import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
 import type { Point } from "./outline.ts";
@@ -341,12 +342,30 @@ function Mechanism({ scene }: { scene: Scene }) {
             .map((pin) => (
               <Pin key={pin.id} pin={pin} sizes={scene.sizes} selected={pin.id === selectedJoint} />
             ))}
+          {scene.wheels
+            .filter((wheel) => wheel.body === body.index)
+            .map((wheel) => (
+              <Wheel key={wheel.id} wheel={wheel} />
+            ))}
+          {scene.cams
+            .filter((cam) => cam.body === body.index)
+            .map((cam) => (
+              <CamPlate key={cam.id} cam={cam} sizes={scene.sizes} color={body.color} />
+            ))}
+          {scene.rollers
+            .filter((roller) => roller.body === body.index)
+            .map((roller) => (
+              <Roller key={roller.id} roller={roller} sizes={scene.sizes} />
+            ))}
           {scene.axes
             .filter((axis) => axis.body === body.index)
             .map((axis) => (
               <Axis key={axis.id} axis={axis} sizes={scene.sizes} />
             ))}
         </group>
+      ))}
+      {scene.ties.map((tie) => (
+        <Tie key={tie.id} scene={scene} tie={tie} />
       ))}
       {scene.traces.map((trace) => (
         <Line key={trace.ref} points={trace.points} color={COLORS.dye} lineWidth={1.8} />

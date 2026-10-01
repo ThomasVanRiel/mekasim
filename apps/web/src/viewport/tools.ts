@@ -236,6 +236,13 @@ export function startReshape(
 
   const doc = state.shown?.doc;
   const points = all.filter((p) => refs.has(p.ref));
+  const made = points.find((p) => doc?.bodies[p.body]?.points[p.name] === undefined);
+  if (made) {
+    state.setNotice(
+      `${made.ref} belongs to a crank or rod, so it cannot be dragged. Select it and change its values in the inspector.`,
+    );
+    return undefined;
+  }
   const fixed = points.find((p) =>
     doc?.bodies[p.body]?.points[p.name]?.some((coordinate) => typeof coordinate !== "number"),
   );
@@ -269,9 +276,24 @@ export function deleteSelection(): void {
     state.setNotice("The ground cannot be removed.");
     return;
   }
+  const doc = state.simulation.doc;
+  // A point or pin that a crank or rod stands for goes only with that component.
+  const written =
+    selection.kind === "body" ||
+    (selection.kind === "joint"
+      ? doc?.joints?.[selection.id] !== undefined
+      : doc?.bodies[selection.ref.split(".")[0] as string]?.points[
+          selection.ref.split(".")[1] as string
+        ] !== undefined);
+  if (doc && !written) {
+    state.setNotice("This belongs to a crank or rod. Select the crank or rod itself to remove it.");
+    return;
+  }
   const done = state.transact((tx) => {
-    if (selection.kind === "body") tx.run(removeBody(tx.doc, selection.id));
-    else if (selection.kind === "joint") tx.run(removeJoint(tx.doc, selection.id));
+    if (selection.kind === "body") {
+      tx.run(removeBody(tx.doc, selection.id));
+      tx.run([{ op: "delete", path: ["components", selection.id] }]);
+    } else if (selection.kind === "joint") tx.run(removeJoint(tx.doc, selection.id));
     else {
       const [body, point] = selection.ref.split(".") as [string, string];
       tx.run(removePoint(tx.doc, body, point));

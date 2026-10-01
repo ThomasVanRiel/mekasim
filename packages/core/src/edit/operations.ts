@@ -7,6 +7,7 @@ export const SECTION_ORDER = [
   "meta",
   "params",
   "bodies",
+  "components",
   "joints",
   "drivers",
   "traces",
@@ -66,7 +67,8 @@ function bodyOf(ref: string): string {
 
 /** The points a joint refers to, each as `body.point`. */
 export function jointRefs(joint: NonNullable<Document["joints"]>[string]): string[] {
-  return "connect" in joint ? [...joint.connect] : [...joint.axis, joint.point];
+  if ("connect" in joint) return [...joint.connect];
+  return "axis" in joint ? [...joint.axis, joint.point] : [joint.cam, joint.follower];
 }
 
 export function addBody(

@@ -192,3 +192,176 @@ export function relativeAngle(
     },
   };
 }
+
+/** Two points stay a fixed distance apart: a link without a body. */
+export function distance(source: string, a: BodyPoint, b: BodyPoint, length: number): Constraint {
+  return {
+    source,
+    driver: false,
+    size: 1,
+    residual(q, _t, out, row) {
+      const pa = place(q, a);
+      const pb = place(q, b);
+      out[row] = Math.hypot(pa.x - pb.x, pa.y - pb.y) - length;
+    },
+    jacobian(q, jac, row) {
+      const pa = place(q, a);
+      const pb = place(q, b);
+      const d = Math.hypot(pa.x - pb.x, pa.y - pb.y) || 1;
+      const ex = (pa.x - pb.x) / d;
+      const ey = (pa.y - pb.y) / d;
+      add(jac, row, a.body, ex, ey, -ex * pa.by + ey * pa.bx);
+      add(jac, row, b.body, -ex, -ey, ex * pb.by - ey * pb.bx);
+    },
+    velocityRhs(out, row) {
+      out[row] = 0;
+    },
+    accelerationRhs(q, qd, out, row) {
+      const pa = place(q, a);
+      const pb = place(q, b);
+      const d = Math.hypot(pa.x - pb.x, pa.y - pb.y) || 1;
+      const ex = (pa.x - pb.x) / d;
+      const ey = (pa.y - pb.y) / d;
+      const wa = rate(qd, a.body, 2);
+      const wb = rate(qd, b.body, 2);
+      // Rate of change of the vector between the points.
+      const vx = rate(qd, a.body, 0) - wa * pa.by - (rate(qd, b.body, 0) - wb * pb.by);
+      const vy = rate(qd, a.body, 1) + wa * pa.bx - (rate(qd, b.body, 1) + wb * pb.bx);
+      const along = ex * vx + ey * vy;
+      out[row] =
+        -(vx * vx + vy * vy - along * along) / d +
+        ex * (wa * wa * pa.bx - wb * wb * pb.bx) +
+        ey * (wa * wa * pa.by - wb * wb * pb.by);
+    },
+  };
+}
+
+/**
+ * The rotations of two bodies are tied, as by meshing gears or a belt:
+ * `ka * angle(a) + kb * angle(b) = constant`, with both angles taken relative to
+ * the body that carries the two axes.
+ */
+export function angleCoupling(
+  source: string,
+  a: number,
+  b: number,
+  carrier: number,
+  ka: number,
+  kb: number,
+  constant: number,
+): Constraint {
+  const angle = (q: Float64Array, body: number): number => (body < 0 ? 0 : q[3 * body + 2]);
+  return {
+    source,
+    driver: false,
+    size: 1,
+    residual(q, _t, out, row) {
+      const c = angle(q, carrier);
+      out[row] = ka * (angle(q, a) - c) + kb * (angle(q, b) - c) - constant;
+    },
+    jacobian(_q, jac, row) {
+      add(jac, row, a, 0, 0, ka);
+      add(jac, row, b, 0, 0, kb);
+      add(jac, row, carrier, 0, 0, -ka - kb);
+    },
+    velocityRhs(out, row) {
+      out[row] = 0;
+    },
+    accelerationRhs(_q, _qd, out, row) {
+      out[row] = 0;
+    },
+  };
+}
+
+/** The pitch curve of a cam: distance from its centre as a function of the angle around it. */
+export interface CamProfile {
+  radius(theta: number): number;
+  /** First and second derivative of the radius with respect to the angle. */
+  slope(theta: number): number;
+  curvature(theta: number): number;
+}
+
+/**
+ * A follower point rides on a cam: seen from the cam, it stays on the pitch curve.
+ * `centre` is the cam's centre on the cam body. Contact is always kept; a follower
+ * that would lift off in reality does not here.
+ */
+export function camContact(
+  source: string,
+  centre: BodyPoint,
+  follower: BodyPoint,
+  profile: CamProfile,
+): Constraint {
+  const cam = centre.body;
+
+  /** The follower seen from the cam: position `(px, py)` in the cam's frame, and what is needed around it. */
+  function view(q: Float64Array) {
+    const po = place(q, centre);
+    const pf = place(q, follower);
+    const phi = cam < 0 ? 0 : q[3 * cam + 2];
+    const c = Math.cos(phi);
+    const s = Math.sin(phi);
+    const wx = pf.x - po.x;
+    const wy = pf.y - po.y;
+    const px = wx * c + wy * s;
+    const py = -wx * s + wy * c;
+    const rho = Math.hypot(px, py) || 1e-12;
+    const theta = Math.atan2(py, px);
+    const slope = profile.slope(theta);
+    // Gradient of the constraint with respect to the follower's position in the cam frame.
+    const gx = px / rho + (slope * py) / (rho * rho);
+    const gy = py / rho - (slope * px) / (rho * rho);
+    return { po, pf, c, s, px, py, rho, theta, slope, gx, gy };
+  }
+
+  return {
+    source,
+    driver: false,
+    size: 1,
+    residual(q, _t, out, row) {
+      const { rho, theta } = view(q);
+      out[row] = rho - profile.radius(theta);
+    },
+    jacobian(q, jac, row) {
+      const { po, pf, c, s, slope, gx, gy } = view(q);
+      // The gradient turned into the world.
+      const wx = gx * c - gy * s;
+      const wy = gx * s + gy * c;
+      add(jac, row, follower.body, wx, wy, -wx * pf.by + wy * pf.bx);
+      // Turning the cam moves its centre point, and shifts where on the profile the follower sits.
+      add(jac, row, cam, -wx, -wy, wx * po.by - wy * po.bx + slope);
+    },
+    velocityRhs(out, row) {
+      out[row] = 0;
+    },
+    accelerationRhs(q, qd, out, row) {
+      const { po, pf, c, s, px, py, rho, theta, slope, gx, gy } = view(q);
+      const wc = rate(qd, cam, 2);
+      const wf = rate(qd, follower.body, 2);
+      // Velocity of the follower relative to the cam centre, in the world and then in the cam frame.
+      const vx = rate(qd, follower.body, 0) - wf * pf.by - (rate(qd, cam, 0) - wc * po.by);
+      const vy = rate(qd, follower.body, 1) + wf * pf.bx - (rate(qd, cam, 1) + wc * po.bx);
+      const rx = vx * c + vy * s;
+      const ry = -vx * s + vy * c;
+      const dx = rx + wc * py;
+      const dy = ry - wc * px;
+      // The part of the follower's acceleration in the cam frame that comes from velocities alone.
+      const ax = -wf * wf * pf.bx + wc * wc * po.bx;
+      const ay = -wf * wf * pf.by + wc * wc * po.by;
+      const kx = ax * c + ay * s + wc * ry + wc * dy;
+      const ky = -ax * s + ay * c - wc * rx - wc * dx;
+
+      // Second derivatives of the constraint with respect to the cam-frame position.
+      const r2 = rho * rho;
+      const r4 = r2 * r2;
+      const tx = -py / r2;
+      const ty = px / r2;
+      const curve = profile.curvature(theta);
+      const hxx = (1 - (px * px) / r2) / rho - curve * tx * tx - (slope * 2 * px * py) / r4;
+      const hxy = (-px * py) / r2 / rho - curve * tx * ty - (slope * (py * py - px * px)) / r4;
+      const hyy = (1 - (py * py) / r2) / rho - curve * ty * ty + (slope * 2 * px * py) / r4;
+
+      out[row] = -(hxx * dx * dx + 2 * hxy * dx * dy + hyy * dy * dy) - (gx * kx + gy * ky);
+    },
+  };
+}

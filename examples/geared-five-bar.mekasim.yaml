@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Two cranks geared together drive a pair of links whose common pin draws a
+# looping curve. The wheel has twice the teeth of the pinion, so it turns half as
+# fast and the other way; the curve closes after two turns of the pinion.
+mekasim: 1
+meta:
+  name: Geared five-bar
+
+params:
+  link: 70 mm
+
+bodies:
+  left:
+    points: { A: [0, 0], B: [link, 0] }
+
+components:
+  pinion:
+    type: crank
+    at: [0, 0]
+    arms: { P: [15, 90] }
+    speed: 120
+  wheel:
+    type: crank
+    at: [60, 0]
+    arms: { Q: [30, 90] }
+  right:
+    type: rod
+    length: link
+    connect: [wheel.Q, left.B]
+
+joints:
+  left_pin: { type: revolute, connect: [pinion.P, left.A] }
+  mesh: { type: gear, connect: [pinion.O, wheel.O], sizes: [20, 40] }
+
+traces: [left.B]
+
+measures:
+  width: range(x(left.B))
+  height: range(y(left.B))
+  wheel_speed: mean(omega(wheel))
+
+cycle: { steps: 720, revolutions: 2 }
+
+pose:
+  left: [0, 15, 60]

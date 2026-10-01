@@ -85,3 +85,38 @@ describe("poseAt", () => {
     expect(pose[2]).toBeCloseTo((359.5 * Math.PI) / 180, 9);
   });
 });
+
+describe("gears, belts and cams", () => {
+  it("draws meshing gears as circles that touch between their centres", () => {
+    const { wheels, ties } = example("geared-five-bar");
+    expect(wheels.map((w) => w.radius)).toEqual([
+      expect.closeTo(0.02, 12),
+      expect.closeTo(0.04, 12),
+    ]);
+    // Pinion at the origin, wheel 60 mm to its right: 20 + 40 mm.
+    expect(ties).toEqual([]);
+  });
+
+  it("makes room in the view for a wheel that reaches beyond its body's points", () => {
+    const { bounds } = example("geared-five-bar");
+    expect(bounds.maxX).toBeGreaterThanOrEqual(0.1 - 1e-12);
+    expect(bounds.minY).toBeLessThanOrEqual(-0.04 + 1e-12);
+  });
+
+  it("draws a cam as its working surface, one roller radius inside the pitch curve", () => {
+    const { cams, rollers } = example("cam-follower");
+    expect(rollers).toMatchObject([{ id: "contact", radius: 0.008 }]);
+    const radii = cams[0]?.outline.map(([x, y]) => Math.hypot(x, y)) ?? [];
+    // Base radius 30 mm and lift 12 mm, less the 8 mm roller.
+    expect(Math.min(...radii)).toBeCloseTo(0.022, 6);
+    expect(Math.max(...radii)).toBeCloseTo(0.034, 6);
+  });
+
+  it("draws a model made of components like any other", () => {
+    const scene = example("shaker-components");
+    expect(scene.bodies).toHaveLength(7);
+    expect(scene.pins).toHaveLength(10);
+    expect(scene.supports).toHaveLength(3);
+    expect(scene.periodic).toBe(true);
+  });
+});

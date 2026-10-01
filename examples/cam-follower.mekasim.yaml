@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A cam lifting a follower that slides straight up and down. The lift diagram
+# rises 12 mm over a third of a turn, holds, and falls back; between those points
+# the follower moves by the cycloidal law, which starts and stops without a jolt.
+mekasim: 1
+meta:
+  name: Cam and sliding follower
+
+params:
+  base: 30 mm       # distance from cam centre to roller centre at rest
+  lift: 12 mm
+
+bodies:
+  ground:
+    points: { O: [0, 0], Y: [0, 100] }
+  lifter:
+    points: { P: [0, base], Top: [0, 90] }
+
+components:
+  camshaft:
+    type: crank
+    at: [0, 0]
+    arms: { mark: [20, 0] }
+    speed: 60
+
+joints:
+  guide: { type: slider, axis: [ground.O, ground.Y], point: lifter.P }
+  contact:
+    type: cam
+    cam: camshaft.O
+    follower: lifter.P
+    base: base
+    roller: 8
+    profile: [[0, 0], [120, lift], [180, lift], [300, 0]]
+
+measures:
+  travel: range(y(lifter.P))
+  peak_speed: max(abs(vy(lifter.P)))
+  peak_accel: max(abs(ay(lifter.P)))
+
+plots:
+  follower: y(lifter.P)
+  follower_speed: vy(lifter.P)
+  follower_accel: ay(lifter.P)

@@ -4,6 +4,7 @@ import { ExprError, type Node, parseExpr } from "../expr/parse.ts";
 import {
   ANGLE,
   ANGULAR_SPEED,
+  compatible,
   DEFAULT_UNITS,
   type Dim,
   LENGTH,
@@ -11,15 +12,20 @@ import {
   type Units,
 } from "../expr/units.ts";
 import { type Document, type Expr, GROUND, type Joint } from "../schema/document.ts";
+import { camOutlines, camProfile } from "../solver/cam.ts";
 import {
+  angleCoupling,
   type BodyPoint,
   type Constraint,
+  camContact,
   coincident,
+  distance,
   GROUND_INDEX,
   pointOnLine,
   relativeAngle,
 } from "../solver/constraints.ts";
 import type { SolverModel } from "../solver/solve.ts";
+import { type AutoPose, expandComponents } from "./components.ts";
 
 type Path = (string | number)[];
 
@@ -42,9 +48,20 @@ export interface CompiledJoint {
   type: Joint["type"];
   /**
    * The points involved, each as `body.point`: the two connected points of a
-   * revolute or weld; the two axis points and then the pin of a slider or pin-slot.
+   * revolute, weld, distance, gear or belt; the two axis points and then the pin of a
+   * slider or pin-slot; the cam centre and then the follower of a cam.
    */
   points: string[];
+  /** What is needed to draw a joint that is more than a pin. */
+  detail?:
+    | { kind: "wheels"; sizes: [number, number] }
+    | {
+        kind: "cam";
+        /** Outlines in the cam's frame, in metres. */
+        pitch: [number, number][];
+        surface: [number, number][];
+        roller: number;
+      };
 }
 
 export interface CompiledDriver {
@@ -89,8 +106,23 @@ const RESERVED = new Set(["pi", "g", "t"]);
 /** Raised for a problem that is already recorded as a diagnostic. */
 class Reported extends Error {}
 
-export function compile(doc: Document): CompileResult {
-  const diagnostics: Diagnostic[] = [];
+export function compile(source: Document): CompileResult {
+  const { doc, autoPoses, origins, diagnostics } = expandComponents(source);
+  const result = compileExpanded(doc, autoPoses, diagnostics);
+  // A problem inside what a component stands for is reported on the component.
+  for (const diagnostic of result.diagnostics) {
+    const { path } = diagnostic;
+    const origin = path && origins.find(({ prefix }) => prefix.every((key, i) => path[i] === key));
+    if (origin) diagnostic.path = origin.to;
+  }
+  return result;
+}
+
+function compileExpanded(
+  doc: Document,
+  autoPoses: AutoPose[],
+  diagnostics: Diagnostic[],
+): CompileResult {
   const units: Units = { ...DEFAULT_UNITS, ...doc.meta?.units };
 
   function fail(message: string, path: Path): Reported {
@@ -212,6 +244,55 @@ export function compile(doc: Document): CompileResult {
     return { body: body.index, u: local.u, v: local.v };
   }
 
+  const q0 = new Float64Array(3 * moving.length);
+  for (const [id, [x, y, angle]] of Object.entries(doc.pose ?? {})) {
+    const path = ["pose", id];
+    attempt(() => {
+      const body = bodies.get(id);
+      if (!body) throw fail(`Unknown body "${id}"`, path);
+      if (body.index < 0) throw fail(`"${GROUND}" is fixed and has no pose`, path);
+      q0[3 * body.index] = scalar(x, LENGTH, [...path, 0]);
+      q0[3 * body.index + 1] = scalar(y, LENGTH, [...path, 1]);
+      q0[3 * body.index + 2] = scalar(angle, ANGLE, [...path, 2]);
+    });
+  }
+
+  /** Where a point is at the start, from the starting position of its body. */
+  function startOf(p: BodyPoint): [number, number] {
+    if (p.body < 0) return [p.u, p.v];
+    const c = Math.cos(q0[3 * p.body + 2]);
+    const s = Math.sin(q0[3 * p.body + 2]);
+    return [q0[3 * p.body] + p.u * c - p.v * s, q0[3 * p.body + 1] + p.u * s + p.v * c];
+  }
+
+  // Bodies placed by what they attach to. One may attach to another, so place first
+  // those whose attachments are already in place, and repeat.
+  let waiting = [...autoPoses];
+  while (waiting.length > 0) {
+    const unplaced = new Set(waiting.map((item) => item.body));
+    const ready = waiting.filter((item) => {
+      const refs = "at" in item ? [item.at] : [item.from, item.to];
+      return refs.every((ref) => !unplaced.has(ref.split(".")[0] as string));
+    });
+    // Bodies attached to each other in a ring have no first; place them as they stand.
+    const batch = ready.length > 0 ? ready : waiting;
+    for (const item of batch) {
+      const path = ["components", item.body];
+      attempt(() => {
+        const index = (bodies.get(item.body) as CompiledBody).index;
+        if ("at" in item) {
+          const [x, y] = startOf(point(item.at, [...path, "at"]));
+          q0.set([x, y, scalar(item.angle, ANGLE, [...path, "angle"])], 3 * index);
+        } else {
+          const [x, y] = startOf(point(item.from, [...path, "connect", 0]));
+          const [tx, ty] = startOf(point(item.to, [...path, "connect", 1]));
+          q0.set([x, y, Math.atan2(ty - y, tx - x)], 3 * index);
+        }
+      });
+    }
+    waiting = waiting.filter((item) => !batch.includes(item));
+  }
+
   const constraints: Constraint[] = [];
   /** Bodies joined by each revolute joint, for drivers to act on. */
   const hinges = new Map<string, [number, number]>();
@@ -221,17 +302,89 @@ export function compile(doc: Document): CompileResult {
   for (const [id, joint] of Object.entries(doc.joints ?? {})) {
     const path = ["joints", id];
     attempt(() => {
-      if (joint.type === "revolute" || joint.type === "weld") {
+      if (joint.type === "revolute" || joint.type === "weld" || joint.type === "distance") {
         const a = point(joint.connect[0], [...path, "connect", 0]);
         const b = point(joint.connect[1], [...path, "connect", 1]);
         if (a.body === b.body)
           throw fail("A joint must connect two different bodies", [...path, "connect"]);
-        const angle =
-          joint.type === "weld" ? scalar(joint.angle ?? 0, ANGLE, [...path, "angle"]) : 0;
-        constraints.push(coincident(id, a, b));
-        if (joint.type === "weld") constraints.push(relativeAngle(id, a.body, b.body, angle));
-        else hinges.set(id, [a.body, b.body]);
+        if (joint.type === "distance") {
+          constraints.push(distance(id, a, b, scalar(joint.length, LENGTH, [...path, "length"])));
+        } else {
+          const angle =
+            joint.type === "weld" ? scalar(joint.angle ?? 0, ANGLE, [...path, "angle"]) : 0;
+          constraints.push(coincident(id, a, b));
+          if (joint.type === "weld") constraints.push(relativeAngle(id, a.body, b.body, angle));
+          else hinges.set(id, [a.body, b.body]);
+        }
         joints.push({ id, type: joint.type, points: [...joint.connect] });
+        return;
+      }
+
+      if (joint.type === "gear" || joint.type === "belt") {
+        const a = point(joint.connect[0], [...path, "connect", 0]);
+        const b = point(joint.connect[1], [...path, "connect", 1]);
+        if (a.body === b.body)
+          throw fail("The two wheels must be on different bodies", [...path, "connect"]);
+        const first = quantity(joint.sizes[0], [...path, "sizes", 0]);
+        const second = quantity(joint.sizes[1], [...path, "sizes", 1]);
+        const sizes = [first.value, second.value];
+        if (!compatible(first.dim, second.dim))
+          throw fail("Give both sizes as tooth counts or both as diameters", [...path, "sizes"]);
+        if (!sizes.every((size): size is number => typeof size === "number" && size > 0))
+          throw fail("Sizes must be positive numbers", [...path, "sizes"]);
+        let carrier = GROUND_INDEX;
+        if (joint.carrier !== undefined) {
+          const body = bodies.get(joint.carrier);
+          if (!body) throw fail(`Unknown body "${joint.carrier}"`, [...path, "carrier"]);
+          carrier = body.index;
+        }
+        // Meshing gears turn against each other; wheels on a belt turn the same way.
+        const total = sizes[0] + sizes[1];
+        const ka = sizes[0] / total;
+        const kb = ((joint.type === "gear" ? 1 : -1) * sizes[1]) / total;
+        const angleOf = (body: number): number => (body < 0 ? 0 : q0[3 * body + 2]);
+        const constant =
+          ka * (angleOf(a.body) - angleOf(carrier)) + kb * (angleOf(b.body) - angleOf(carrier));
+        constraints.push(angleCoupling(id, a.body, b.body, carrier, ka, kb, constant));
+        joints.push({
+          id,
+          type: joint.type,
+          points: [...joint.connect],
+          detail: { kind: "wheels", sizes: [sizes[0], sizes[1]] },
+        });
+        return;
+      }
+
+      if (joint.type === "cam") {
+        const centre = point(joint.cam, [...path, "cam"]);
+        const follower = point(joint.follower, [...path, "follower"]);
+        if (centre.body === follower.body)
+          throw fail("The cam and its follower must be different bodies", [...path, "follower"]);
+        const base = scalar(joint.base, LENGTH, [...path, "base"]);
+        if (!(base > 0)) throw fail("The base radius must be positive", [...path, "base"]);
+        const knots = joint.profile.map(([angle, lift], i) => ({
+          angle: scalar(angle, ANGLE, [...path, "profile", i, 0]),
+          lift: scalar(lift, LENGTH, [...path, "profile", i, 1]),
+        }));
+        knots.forEach((knot, i) => {
+          const previous = knots[i - 1]?.angle ?? -1e-12;
+          if (knot.angle <= previous || knot.angle >= 2 * Math.PI)
+            throw fail("Profile angles must rise from 0 and stay below a full turn", [
+              ...path,
+              "profile",
+              i,
+              0,
+            ]);
+        });
+        const roller = scalar(joint.roller ?? 0, LENGTH, [...path, "roller"]);
+        const profile = camProfile(base, knots, joint.law ?? "cycloidal");
+        constraints.push(camContact(id, centre, follower, profile));
+        joints.push({
+          id,
+          type: joint.type,
+          points: [joint.cam, joint.follower],
+          detail: { kind: "cam", roller, ...camOutlines(profile, roller) },
+        });
         return;
       }
 
@@ -253,6 +406,35 @@ export function compile(doc: Document): CompileResult {
       if (joint.type === "slider") constraints.push(relativeAngle(id, from.body, pin.body, angle));
       joints.push({ id, type: joint.type, points: [...joint.axis, joint.point] });
     });
+  }
+
+  // Bodies that share a joint overlap, so they go on different layers unless the
+  // model says where they go. Each takes the lowest layer its neighbours leave free.
+  const neighbours = new Map<string, Set<string>>();
+  for (const joint of joints) {
+    const ids = [...new Set(joint.points.map((ref) => ref.split(".")[0] as string))];
+    for (const id of ids) {
+      const others = neighbours.get(id) ?? new Set<string>();
+      for (const other of ids) if (other !== id && other !== GROUND) others.add(other);
+      neighbours.set(id, others);
+    }
+  }
+  const layered = new Set(
+    Object.entries(doc.bodies)
+      .filter(([, body]) => body.layer !== undefined)
+      .map(([id]) => id),
+  );
+  for (const body of bodies.values()) {
+    if (body.index < 0 || layered.has(body.id)) continue;
+    const taken = new Set(
+      [...(neighbours.get(body.id) ?? [])]
+        .filter((id) => layered.has(id))
+        .map((id) => (bodies.get(id) as CompiledBody).layer),
+    );
+    let layer = 0;
+    while (taken.has(layer)) layer++;
+    body.layer = layer;
+    layered.add(body.id);
   }
 
   let period = 0;
@@ -280,19 +462,6 @@ export function compile(doc: Document): CompileResult {
     });
   }
   period *= doc.cycle?.revolutions ?? 1;
-
-  const q0 = new Float64Array(3 * moving.length);
-  for (const [id, [x, y, angle]] of Object.entries(doc.pose ?? {})) {
-    const path = ["pose", id];
-    attempt(() => {
-      const body = bodies.get(id);
-      if (!body) throw fail(`Unknown body "${id}"`, path);
-      if (body.index < 0) throw fail(`"${GROUND}" is fixed and has no pose`, path);
-      q0[3 * body.index] = scalar(x, LENGTH, [...path, 0]);
-      q0[3 * body.index + 1] = scalar(y, LENGTH, [...path, 1]);
-      q0[3 * body.index + 2] = scalar(angle, ANGLE, [...path, 2]);
-    });
-  }
 
   const traces: string[] = [];
   (doc.traces ?? []).forEach((ref, i) => {

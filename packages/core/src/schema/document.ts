@@ -57,8 +57,73 @@ const PinSlot = z.strictObject({
   point: PointRef.describe("Pin that stays on the axis; its body remains free to rotate"),
 });
 
-const Joint = z.discriminatedUnion("type", [Revolute, Weld, Slider, PinSlot], {
-  error: "Unknown joint type; expected revolute, weld, slider or pin-slot",
+const Distance = z.strictObject({
+  type: z.literal("distance"),
+  connect: z.tuple([PointRef, PointRef]).describe("The two points kept a fixed distance apart"),
+  length: Expr.describe("The distance between them"),
+});
+
+const Wheels = {
+  connect: z
+    .tuple([PointRef, PointRef])
+    .describe("The centres of the two wheels, each a point on the body that turns"),
+  sizes: z
+    .tuple([Expr, Expr])
+    .describe("Tooth counts or diameters of the two wheels; only their ratio matters"),
+  carrier: Id.optional().describe("The body that carries both axes; ground when left out"),
+};
+
+const Gear = z.strictObject({ type: z.literal("gear"), ...Wheels });
+const Belt = z.strictObject({ type: z.literal("belt"), ...Wheels });
+
+const Cam = z.strictObject({
+  type: z.literal("cam"),
+  cam: PointRef.describe("The centre of the cam, a point on the cam's body"),
+  follower: PointRef.describe("The point of the follower that rides on the cam: its roller centre"),
+  base: Expr.describe("Distance from the cam centre to the follower at zero lift"),
+  profile: z
+    .array(z.tuple([Expr, Expr]))
+    .describe("The lift diagram: [angle, lift] pairs around the cam, in rising order of angle"),
+  law: z
+    .enum(["cycloidal", "harmonic", "polynomial"])
+    .optional()
+    .describe("How the lift moves between two pairs; default cycloidal"),
+  roller: Expr.optional().describe("Radius of the follower's roller, for drawing; default 0"),
+});
+
+const Joint = z.discriminatedUnion(
+  "type",
+  [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam],
+  {
+    error:
+      "Unknown joint type; expected revolute, weld, slider, pin-slot, distance, gear, belt or cam",
+  },
+);
+
+const Crank = z.strictObject({
+  type: z.literal("crank"),
+  at: z
+    .union([z.tuple([Expr, Expr]), PointRef])
+    .describe("Where it pivots: a fixed position [x, y], or a point on another body"),
+  arms: z.record(Id, z.tuple([Expr, Expr])).describe("Named points, each as [radius, angle]"),
+  angle: Expr.optional().describe("How far the whole crank is turned at the start; default 0"),
+  speed: Expr.optional().describe("Drive it at this speed; rpm unless a unit is given"),
+  layer: z.int().optional(),
+});
+
+const Rod = z.strictObject({
+  type: z.literal("rod"),
+  length: Expr.describe("Distance between its two ends"),
+  connect: z.tuple([PointRef, PointRef]).describe("The points its ends A and B are pinned to"),
+  points: z
+    .record(Id, z.tuple([Expr, Expr]))
+    .optional()
+    .describe("Further points, in the rod's frame: A at [0, 0], B at [length, 0]"),
+  layer: z.int().optional(),
+});
+
+const Component = z.discriminatedUnion("type", [Crank, Rod], {
+  error: "Unknown component type; expected crank or rod",
 });
 
 const Driver = z.strictObject({
@@ -85,7 +150,11 @@ export const Document = z.strictObject({
     })
     .optional(),
   params: z.record(Id, Expr).optional().describe("Named values usable in any expression"),
-  bodies: z.record(Id, Body).describe(`Rigid bodies. "${GROUND}" is the fixed one`),
+  bodies: z.record(Id, Body).default({}).describe(`Rigid bodies. "${GROUND}" is the fixed one`),
+  components: z
+    .record(Id, Component)
+    .optional()
+    .describe("Common parts given by their dimensions; each stands for a body and its joints"),
   joints: z.record(Id, Joint).optional(),
   drivers: z.record(Id, Driver).optional(),
   traces: z.array(PointRef).optional().describe("Points whose paths are recorded"),

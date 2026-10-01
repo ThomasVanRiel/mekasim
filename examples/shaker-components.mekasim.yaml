@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# The shaker of shaker.mekasim.yaml, written with components instead of
+# coordinates: cranks are given by their pivot, radii and angles, rods by their
+# length and what they connect. No point positions and no pose are needed.
+mekasim: 1
+meta:
+  name: Shaker decks from components
+
+params:
+  ecc: 15 mm        # eccentric radius
+  rpm: 280
+  arm: 120 mm       # rocker and rear arm length
+  rear: 1300 mm     # x of the rear arms
+  deck: rear - 500  # length of a deck between its pins
+
+components:
+  eccentric:
+    type: crank
+    at: [0, 0]
+    arms: { A: [ecc, 90] }
+    speed: rpm
+  rocker:
+    type: crank
+    at: [500, 0]
+    arms: { D: [60, 90], U: [arm, 90], L: [arm, 270] }
+  upper_arm:
+    type: crank
+    at: [rear, 0]
+    arms: { B: [arm, 90] }
+  lower_arm:
+    type: crank
+    at: [rear, 0]
+    arms: { B: [arm, 270] }
+  pitman:
+    type: rod
+    length: hypot(500 mm, 45 mm)
+    connect: [eccentric.A, rocker.D]
+  upper_deck:
+    type: rod
+    length: deck
+    connect: [rocker.U, upper_arm.B]
+  lower_deck:
+    type: rod
+    length: deck
+    connect: [rocker.L, lower_arm.B]
+
+traces: [upper_deck.A, lower_deck.A]
+
+measures:
+  rocker_swing: range(angle(rocker))
+  upper_stroke: range(x(upper_deck.A))
+  lower_stroke: range(x(lower_deck.A))
+  upper_peak_g: max(a(upper_deck.A)) / g
+
+plots:
+  decks: [x(upper_deck.A), x(lower_deck.A)]

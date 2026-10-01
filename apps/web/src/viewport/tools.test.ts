@@ -248,3 +248,47 @@ describe("dragging", () => {
     expect(useStore.getState().playing).toBe(false);
   });
 });
+
+describe("components on the sheet", () => {
+  const model = `mekasim: 1
+components:
+  shaft: { type: crank, at: [0, 0], arms: { A: [20, 90] }, speed: 60 }
+  rocker: { type: crank, at: [100, 0], arms: { B: [40, 90] } }
+  rod: { type: rod, length: 105, connect: [shaft.A, rocker.B] }
+`;
+  beforeEach(() => useStore.getState().load(model));
+
+  it("are drawn and run like bodies written out by hand", () => {
+    const { simulation } = useStore.getState();
+    expect(simulation.diagnostics).toEqual([]);
+    expect(scene().bodies.map((b) => b.id)).toEqual(["shaft", "rocker", "rod"]);
+    expect(scene().pins.map((p) => p.id)).toEqual(["shaft", "rocker", "rod_a", "rod_b"]);
+  });
+
+  it("cannot be reshaped by dragging, and say why", () => {
+    expect(startReshape(scene(), 0, 0.02, TOL)).toBeUndefined();
+    expect(useStore.getState().notice).toContain("belongs to a crank or rod");
+    expect(text()).toBe(model);
+  });
+
+  it("are removed as a whole", () => {
+    useStore.getState().select({ kind: "joint", id: "rod_a" });
+    deleteSelection();
+    expect(useStore.getState().notice).toContain("belongs to a crank or rod");
+    expect(text()).toBe(model);
+
+    useStore.getState().select({ kind: "body", id: "rod" });
+    deleteSelection();
+    expect(text()).not.toContain("rod:");
+    expect(text()).toContain("rocker:");
+  });
+
+  it("can have links drawn onto their points", () => {
+    useStore.getState().setTool("link");
+    link([100, 40], [160, 80]);
+    expect(text()).toContain("pin1: { type: revolute, connect: [rocker.B, link1.A] }");
+    expect(
+      useStore.getState().simulation.diagnostics.filter((d) => d.severity === "error"),
+    ).toEqual([]);
+  });
+});

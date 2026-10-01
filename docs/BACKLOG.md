@@ -29,8 +29,19 @@ prototype of what was drawn.
 
 Left out of the phases built so far, noted as each was handed over.
 
-- **Drawing tools:** sliders, welds and pin-slots cannot be drawn, only written in
-  the source. Links, points and joints cannot be renamed from the drawing.
+- **Drawing tools:** sliders, welds, pin-slots, gears, belts, cams, ties, cranks and
+  rods cannot be drawn, only written in the source. Links, points and joints cannot
+  be renamed from the drawing.
+- **Gears, belts, cams and ties cannot be selected** on the sheet, so they have no
+  inspector; change them in the source.
+- **A wheel or cam on the ground body** (a fixed sun gear, a fixed cam) works in the
+  solver but is not drawn.
+- **Gear teeth are not drawn,** only the pitch circle with marks on it. A belt is
+  drawn as its two straight runs.
+- **Cam followers never lift off.** Contact is kept even where a real follower
+  would leave the cam.
+- **3D view:** links are layered automatically, but shafts, spacers and the depth
+  of pins are not modelled, and nothing can be selected or drawn in 3D.
 - **Measured distances** are not drawn on the sheet as dimension lines; they only
   appear in the measures panel.
 - **Point names** can overlap where points sit close together.

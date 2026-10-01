@@ -22,7 +22,7 @@ params:                     # named values
   r: 15 mm
   L: 420 mm
 
-bodies:                     # rigid bodies and their points, required
+bodies:                     # rigid bodies and their points
   ground:
     points: { O: [0, 0], X: [1, 0] }
   crank:
@@ -97,11 +97,16 @@ bodies:
     layer: 1
 ```
 
+The `bodies` section may be left out of a model made only of components.
+
 A body is a rigid set of named points, each given as `[x, y]` in the body's own
 frame. The distances between its points are the body's dimensions.
 
-`ground` is the fixed body; its points are world coordinates. `layer` (an integer,
-default 0) orders bodies in depth for the 3D view and does not affect the motion.
+`ground` is the fixed body; its points are world coordinates.
+
+`layer` (an integer) orders bodies in depth for the 3D view and does not affect the
+motion. Leave it out and bodies that share a joint are put on different layers
+automatically, each on the lowest layer its neighbours leave free.
 
 A point is referred to elsewhere as `body.point`, for example `coupler.P`.
 
@@ -127,8 +132,114 @@ The two can be mixed.
 | `pin-slot` | `axis: [a.P1, a.P2]`, `point: b.Q` | Keeps the point on the line through the two axis points; the point's body can still rotate |
 | `slider` | `axis: [a.P1, a.P2]`, `point: b.Q`, `angle` | As `pin-slot`, and also fixes the angle of the sliding body relative to the axis body (default 0) |
 
+| `distance` | `connect: [a.P, b.Q]`, `length` | Keeps the two points a fixed distance apart: a link without a body. Also the way to keep a pin in a curved slot, with the slot's centre as one of the points |
+| `gear` | `connect: [a.O, b.O]`, `sizes: [20, 40]`, `carrier` | Ties the rotation of two bodies as meshing gears do: they turn against each other, in the ratio of their sizes |
+| `belt` | `connect: [a.O, b.O]`, `sizes: [50 mm, 150 mm]`, `carrier` | As `gear`, but the two turn the same way, as on a belt or chain |
+| `cam` | `cam`, `follower`, `base`, `profile`, `law`, `roller` | Keeps a follower point on the pitch curve of a cam; see below |
+
 The two axis points must be on the same body and define the line of travel; the
 line is unbounded. The two sides of a joint must be different bodies.
+
+### Gears and belts
+
+`connect` names the centres of the two wheels: a point on each body, at the axis it
+turns about. The joint only ties the rotations together; each body still needs its
+own pin to hold it in place. `sizes` are tooth counts or diameters; only their
+ratio matters. Angles are measured relative to `carrier`, the body both axes sit
+on, which is the ground unless given (give it for a planet gear on an arm).
+
+### Cams
+
+```yaml
+contact:
+  type: cam
+  cam: camshaft.O             # the cam's centre, a point on the cam's body
+  follower: lifter.P          # the follower's roller centre
+  base: 30 mm                 # centre to roller centre at zero lift
+  roller: 8 mm                # roller radius, for the drawing
+  profile: [[0, 0], [120, 12], [180, 12], [300, 0]]
+  law: cycloidal
+```
+
+`profile` is the lift diagram: `[angle, lift]` pairs around the cam, in rising
+order of angle from 0 to below a full turn. Between two pairs the lift moves from
+one value to the other by `law`; between two pairs with the same lift it stays
+level; from the last pair round to the first it does the same.
+
+| Law | Motion between two pairs |
+|---|---|
+| `cycloidal` (default) | Starts and ends with no speed and no acceleration |
+| `polynomial` | The 3-4-5 polynomial: likewise, with a lower peak acceleration |
+| `harmonic` | Simple harmonic: no speed at the ends, but acceleration jumps there |
+
+The curve described is the pitch curve, the path of the roller centre seen from the
+cam. The cam plate is drawn one roller radius inside it.
+
+The follower always stays on the cam. A follower that would lift off in reality,
+because nothing holds it down, does not lift off here.
+
+The cam joint only keeps the follower on the curve: the follower still needs its
+own joint, a slider to move in a line or a pin to swing.
+
+## Components
+
+```yaml
+components:
+  eccentric:
+    type: crank
+    at: [0, 0]
+    arms: { A: [ecc, 90] }
+    speed: rpm
+  rocker:
+    type: crank
+    at: [500, 0]
+    arms: { D: [60, 90], U: [120, 90], L: [120, 270] }
+  pitman:
+    type: rod
+    length: 502 mm
+    connect: [eccentric.A, rocker.D]
+```
+
+A component is a common part given by its dimensions rather than by the positions
+of its points. Each stands for a body with its joints, so everything else in the
+model can use it as a body: `rocker.U` is a point, `angle(rocker)` a measure.
+Nothing about a component is beyond what can be written out by hand; it is shorter
+and needs no coordinates and no `pose`.
+
+### crank
+
+A body turning about a pivot, with points given by radius and angle. It serves as
+an eccentric shaft, a rocker, a bellcrank or a hanger.
+
+| Field | Meaning |
+|---|---|
+| `at` | Where it pivots: a fixed position `[x, y]`, or a point on another body |
+| `arms` | Named points, each as `[radius, angle]`. `O` is the pivot itself |
+| `angle` | How far the whole crank is turned at the start; default 0 |
+| `speed` | Drive it at this speed (rpm unless a unit is given). Leave out for a crank that is moved by the rest |
+| `layer` | As for a body |
+
+It stands for a body named as the component, a pin of the same name at its pivot
+(on a ground point of the same name when `at` is a position), and a driver of the
+same name when `speed` is given.
+
+### rod
+
+A link given by its length and the two points it is pinned to.
+
+| Field | Meaning |
+|---|---|
+| `length` | Distance between its two ends |
+| `connect` | The two points its ends `A` and `B` are pinned to |
+| `points` | Further points in the rod's frame, where `A` is `[0, 0]` and `B` is `[length, 0]`: a coupler point, for example |
+| `layer` | As for a body |
+
+It stands for a body with points `A` and `B` and two pins named `<rod>_a` and
+`<rod>_b`. It starts with `A` on the first point, pointing at the second.
+
+An expression that contains a comma, such as `hypot(500, 45)`, cannot be written
+inside `{ ... }`: put the component's fields on lines of their own, or put the
+expression in quotes.
 
 ## Drivers
 

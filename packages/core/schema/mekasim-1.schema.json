@@ -58,6 +58,8 @@
       }
     },
     "bodies": {
+      "default": {},
+      "description": "Rigid bodies. \"ground\" is the fixed one",
       "type": "object",
       "propertyNames": {
         "type": "string",
@@ -107,8 +109,191 @@
           "points"
         ],
         "additionalProperties": false
+      }
+    },
+    "components": {
+      "description": "Common parts given by their dimensions; each stands for a body and its joints",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
       },
-      "description": "Rigid bodies. \"ground\" is the fixed one"
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "crank"
+              },
+              "at": {
+                "anyOf": [
+                  {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "description": "Where it pivots: a fixed position [x, y], or a point on another body"
+              },
+              "arms": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "description": "Named points, each as [radius, angle]"
+              },
+              "angle": {
+                "description": "How far the whole crank is turned at the start; default 0",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "speed": {
+                "description": "Drive it at this speed; rpm unless a unit is given",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "layer": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "type",
+              "at",
+              "arms"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "rod"
+              },
+              "length": {
+                "description": "Distance between its two ends",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The points its ends A and B are pinned to"
+              },
+              "points": {
+                "description": "Further points, in the rod's frame: A at [0, 0], B at [length, 0]",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "additionalProperties": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "layer": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "type",
+              "length",
+              "connect"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
     },
     "joints": {
       "type": "object",
@@ -273,6 +458,247 @@
               "type",
               "axis",
               "point"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "distance"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The two points kept a fixed distance apart"
+              },
+              "length": {
+                "description": "The distance between them",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "connect",
+              "length"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "gear"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The centres of the two wheels, each a point on the body that turns"
+              },
+              "sizes": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Tooth counts or diameters of the two wheels; only their ratio matters"
+              },
+              "carrier": {
+                "description": "The body that carries both axes; ground when left out",
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            },
+            "required": [
+              "type",
+              "connect",
+              "sizes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "belt"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The centres of the two wheels, each a point on the body that turns"
+              },
+              "sizes": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Tooth counts or diameters of the two wheels; only their ratio matters"
+              },
+              "carrier": {
+                "description": "The body that carries both axes; ground when left out",
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+              }
+            },
+            "required": [
+              "type",
+              "connect",
+              "sizes"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "cam"
+              },
+              "cam": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "The centre of the cam, a point on the cam's body"
+              },
+              "follower": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "The point of the follower that rides on the cam: its roller centre"
+              },
+              "base": {
+                "description": "Distance from the cam centre to the follower at zero lift",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "profile": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                "description": "The lift diagram: [angle, lift] pairs around the cam, in rising order of angle"
+              },
+              "law": {
+                "description": "How the lift moves between two pairs; default cycloidal",
+                "type": "string",
+                "enum": [
+                  "cycloidal",
+                  "harmonic",
+                  "polynomial"
+                ]
+              },
+              "roller": {
+                "description": "Radius of the follower's roller, for drawing; default 0",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "cam",
+              "follower",
+              "base",
+              "profile"
             ],
             "additionalProperties": false
           }

@@ -51,6 +51,52 @@ export interface DrawAxis {
   z: number;
 }
 
+/** A gear or pulley: a circle on a body, with marks on its rim to show it turning. */
+export interface DrawWheel {
+  id: string;
+  body: number;
+  u: number;
+  v: number;
+  radius: number;
+  z: number;
+}
+
+/** A place on a body, for things drawn between two bodies. */
+export interface Anchor {
+  body: number;
+  u: number;
+  v: number;
+  /** Radius of the wheel there, for a belt. */
+  radius: number;
+}
+
+/** A line between two bodies that is redrawn as they move: a fixed-distance tie, or a belt. */
+export interface DrawTie {
+  id: string;
+  kind: "distance" | "belt";
+  a: Anchor;
+  b: Anchor;
+  z: number;
+}
+
+/** A cam plate, as its working surface in the frame of the cam's body. */
+export interface DrawCam {
+  id: string;
+  body: number;
+  outline: Point[];
+  z: number;
+}
+
+/** The roller of a cam follower. */
+export interface DrawRoller {
+  id: string;
+  body: number;
+  u: number;
+  v: number;
+  radius: number;
+  z: number;
+}
+
 export interface DrawTrace {
   ref: string;
   points: [number, number, number][];
@@ -98,6 +144,10 @@ export interface Scene {
   bodies: DrawBody[];
   pins: DrawPin[];
   axes: DrawAxis[];
+  wheels: DrawWheel[];
+  ties: DrawTie[];
+  cams: DrawCam[];
+  rollers: DrawRoller[];
   traces: DrawTrace[];
   labels: DrawLabel[];
 }
@@ -227,7 +277,26 @@ export function buildScene(simulation: Simulation): Scene | undefined {
   const pins: DrawPin[] = [];
   const axes: DrawAxis[] = [];
   const supports: Point[] = [];
+  const wheels: DrawWheel[] = [];
+  const ties: DrawTie[] = [];
+  const cams: DrawCam[] = [];
+  const rollers: DrawRoller[] = [];
   const margin = sizes.thickness * 0.2;
+
+  /** Where a located point is at the first sample. */
+  const startOf = (p: { index: number; u: number; v: number }): Point => {
+    if (p.index < 0) return [p.u, p.v];
+    const at = 3 * p.index;
+    const c = Math.cos(cycle.q[at + 2]);
+    const s = Math.sin(cycle.q[at + 2]);
+    return [cycle.q[at] + p.u * c - p.v * s, cycle.q[at + 1] + p.u * s + p.v * c];
+  };
+  const reach = (at: Point, radius: number): void => {
+    bounds.minX = Math.min(bounds.minX, at[0] - radius);
+    bounds.maxX = Math.max(bounds.maxX, at[0] + radius);
+    bounds.minY = Math.min(bounds.minY, at[1] - radius);
+    bounds.maxY = Math.max(bounds.maxY, at[1] + radius);
+  };
 
   for (const joint of compiled.joints) {
     if (joint.type === "revolute" || joint.type === "weld") {
@@ -253,6 +322,68 @@ export function buildScene(simulation: Simulation): Scene | undefined {
         zFront: Math.max(a.z, b.z) + sizes.thickness + margin,
         driven: driven.has(joint.id),
       });
+      continue;
+    }
+
+    if (joint.type === "distance" || joint.type === "gear" || joint.type === "belt") {
+      const a = locate(joint.points[0] as string);
+      const b = locate(joint.points[1] as string);
+      const front = Math.max(a.z, b.z) + sizes.thickness + margin;
+      const radii: [number, number] = [0, 0];
+      if (joint.detail?.kind === "wheels") {
+        // Meshing gears touch between their centres; pulleys are drawn to scale with room between.
+        const [ax, ay] = startOf(a);
+        const [bx, by] = startOf(b);
+        const [first, second] = joint.detail.sizes;
+        const span = Math.hypot(bx - ax, by - ay) * (joint.type === "gear" ? 1 : 0.6);
+        radii[0] = (span * first) / (first + second);
+        radii[1] = (span * second) / (first + second);
+        [a, b].forEach((wheel, i) => {
+          const radius = radii[i] as number;
+          wheels.push({
+            id: `${joint.id}/${i}`,
+            body: wheel.index,
+            u: wheel.u,
+            v: wheel.v,
+            radius,
+            z: wheel.z + sizes.thickness + margin,
+          });
+          reach(startOf(wheel), radius);
+        });
+      }
+      if (joint.type !== "gear") {
+        ties.push({
+          id: joint.id,
+          kind: joint.type,
+          a: { body: a.index, u: a.u, v: a.v, radius: radii[0] },
+          b: { body: b.index, u: b.u, v: b.v, radius: radii[1] },
+          z: front,
+        });
+      }
+      continue;
+    }
+
+    if (joint.type === "cam") {
+      const centre = locate(joint.points[0] as string);
+      const follower = locate(joint.points[1] as string);
+      if (joint.detail?.kind === "cam") {
+        const { surface, pitch, roller } = joint.detail;
+        cams.push({
+          id: joint.id,
+          body: centre.index,
+          outline: surface.map(([x, y]): Point => [centre.u + x, centre.v + y]),
+          z: centre.z,
+        });
+        rollers.push({
+          id: joint.id,
+          body: follower.index,
+          u: follower.u,
+          v: follower.v,
+          radius: roller,
+          z: follower.z + sizes.thickness + margin,
+        });
+        reach(startOf(centre), Math.max(...pitch.map(([x, y]) => Math.hypot(x, y))) + roller);
+      }
       continue;
     }
 
@@ -358,6 +489,10 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     bodies,
     pins,
     axes,
+    wheels,
+    ties,
+    cams,
+    rollers,
     traces,
     labels,
   };
