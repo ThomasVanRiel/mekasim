@@ -323,6 +323,7 @@ and give a value at every sample of the cycle:
 | `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |
+| `jx(p)`, `jy(p)`, `j(p)` | Jerk components and magnitude of a point: how fast its acceleration changes |
 | `dist(p, q)` | Distance between two points |
 | `moved(p)` | How far a point is from where it started, whichever way it went |
 | `angle(body)` | Angle of a body |
@@ -365,7 +366,7 @@ measures:
 A measure that is not reduced is a signal: the command line shows its starting
 value and writes the whole signal as a CSV column.
 
-Results are shown in document units: `mm`, `deg`, `mm/s`, `mm/s²`, `deg/s`.
+Results are shown in document units: `mm`, `deg`, `mm/s`, `mm/s²`, `mm/s³`, `deg/s`.
 
 ## Plots
 

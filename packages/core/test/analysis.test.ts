@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { toCsv } from "../src/analysis/csv.ts";
 import { sweep } from "../src/analysis/sweep.ts";
 import { addMeasure, addPlot, editText, nameMeasure } from "../src/edit/operations.ts";
+import type { Quantity } from "../src/expr/evaluate.ts";
 import { load } from "../src/schema/load.ts";
 import { simulate } from "../src/simulate.ts";
 
@@ -44,6 +45,29 @@ describe("plots", () => {
     const swing = simulation.measures.find((m) => m.id === "gap_swing")?.quantity?.value;
     expect(swing).toBeCloseTo(Math.max(...gap) - Math.min(...gap), 12);
     expect(simulation.plots[0]?.series[2]?.quantity?.value).toEqual(gap);
+  });
+
+  it("plots the jerk of a point, the rate at which its acceleration changes", () => {
+    const jerky = simulate(
+      `${withPlots()}  jerk: [j(upper_deck.F), jx(upper_deck.F), a(upper_deck.F)]\n`,
+    );
+    expect(jerky.diagnostics).toEqual([]);
+    const { cycle } = jerky;
+    const [j, jx, a] = (jerky.plots[2]?.series ?? []).map((s) => s.quantity) as Quantity[];
+    expect(j?.dim).toEqual([1, -3, 0, 0]);
+    expect(toCsv(jerky).split("\n")[0]).toContain("j(upper_deck.F) [mm/s³]");
+    // The deck only moves sideways, so its acceleration along x changes at the rate jx.
+    const signed = simulate(`${withPlots()}  ax: ax(upper_deck.F)\n`).plots[2]?.series[0]?.quantity
+      ?.value as Float64Array;
+    const dt = (cycle?.t[1] ?? 0) - (cycle?.t[0] ?? 0);
+    const n = signed.length;
+    const peak = Math.max(...(j.value as Float64Array));
+    expect(peak).toBeGreaterThan(0);
+    expect(Math.max(...(a.value as Float64Array))).toBeGreaterThan(0);
+    for (let k = 0; k < n; k++) {
+      const numeric = (signed[(k + 1) % n] - signed[(k - 1 + n) % n]) / (2 * dt);
+      expect(Math.abs((jx.value as Float64Array)[k] - numeric)).toBeLessThan(2e-3 * peak);
+    }
   });
 
   it("reports a mistake in a series on its own line", () => {

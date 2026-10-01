@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { pointMotion } from "../src/analysis/measures.ts";
+import { cycleJerk } from "../src/analysis/cycle.ts";
+import { pointJerk, pointMotion } from "../src/analysis/measures.ts";
 import type { Quantity } from "../src/expr/evaluate.ts";
 import { type Simulation, simulate } from "../src/simulate.ts";
 
@@ -63,6 +64,23 @@ describe("slider-crank", () => {
     }
   });
 
+  it("matches the closed-form jerk", () => {
+    const { jx, jy } = pointJerk(compiled, cycle, cycleJerk(compiled.model, cycle), "rod.B");
+    for (let k = 0; k < cycle.count; k++) {
+      const a = w * cycle.t[k];
+      const s = Math.sin(a);
+      const c = Math.cos(a);
+      const root = Math.sqrt(l * l - (r * s) ** 2);
+      const dddx =
+        r * s +
+        (2 * r * r * Math.sin(2 * a)) / root -
+        (3 * r ** 4 * s * c * Math.cos(2 * a)) / root ** 3 -
+        (3 * r ** 6 * (s * c) ** 3) / root ** 5;
+      expect(jx[k]).toBeCloseTo(w ** 3 * dddx, 3);
+      expect(jy[k]).toBeCloseTo(0, 3);
+    }
+  });
+
   it("reports the stroke as twice the crank radius", () => {
     expect(measure(simulation, "stroke")).toBeCloseTo(2 * r, 10);
     expect(measure(simulation, "rod_swing")).toBeCloseTo(2 * Math.asin(r / l), 10);
@@ -120,6 +138,14 @@ describe("four-bar", () => {
     expectSignalsClose(p.vy, derivative(p.y, dt), 1e-3);
     expectSignalsClose(p.ax, derivative(p.vx, dt), 1e-3);
     expectSignalsClose(p.ay, derivative(p.vy, dt), 1e-3);
+  });
+
+  it("has jerks consistent with the accelerations", () => {
+    const dt = cycle.t[1] - cycle.t[0];
+    const p = pointMotion(compiled, cycle, "coupler.P");
+    const { jx, jy } = pointJerk(compiled, cycle, cycleJerk(compiled.model, cycle), "coupler.P");
+    expectSignalsClose(jx, derivative(p.ax, dt), 1e-3);
+    expectSignalsClose(jy, derivative(p.ay, dt), 1e-3);
   });
 
   it("measures the rocker swing between its two limit positions", () => {

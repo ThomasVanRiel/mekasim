@@ -158,7 +158,7 @@ Notes:
   function is a phase 0 deliverable, since hand-written YAML is a primary input.
 
 Measure vocabulary (initial): `x(p)`, `y(p)`, `dist(p, q)`, `angle(body)`,
-`angle(p, q, r)`, `v(p)`, `a(p)`, `omega(body)`, `alpha(body)`; over a cycle:
+`angle(p, q, r)`, `v(p)`, `a(p)`, `j(p)`, `omega(body)`, `alpha(body)`; over a cycle:
 `min`, `max`, `range`, `mean`; plus ordinary arithmetic and parameters.
 
 ## 5. Solver

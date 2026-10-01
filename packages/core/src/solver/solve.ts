@@ -114,17 +114,62 @@ export function solveVelocity(model: SolverModel, q: Float64Array): Float64Array
   return solveLinear(jacobian(model, q), rhs);
 }
 
-/** Accelerations `qdd` satisfying the constraints at position `q` and velocity `qd`. */
-export function solveAcceleration(
-  model: SolverModel,
-  q: Float64Array,
-  qd: Float64Array,
-): Float64Array {
+function accelerationRhs(model: SolverModel, q: Float64Array, qd: Float64Array): Float64Array {
   const rhs = new Float64Array(rowCount(model.constraints));
   let row = 0;
   for (const c of model.constraints) {
     c.accelerationRhs(q, qd, rhs, row);
     row += c.size;
   }
-  return solveLinear(jacobian(model, q), rhs);
+  return rhs;
+}
+
+/** Accelerations `qdd` satisfying the constraints at position `q` and velocity `qd`. */
+export function solveAcceleration(
+  model: SolverModel,
+  q: Float64Array,
+  qd: Float64Array,
+): Float64Array {
+  return solveLinear(jacobian(model, q), accelerationRhs(model, q, qd));
+}
+
+/**
+ * Jerks `qddd` satisfying the constraints. Differentiating `Phi_q qdd = gamma` in time
+ * gives `Phi_q qddd = d(gamma)/dt - d(Phi_q)/dt qdd`. The right-hand side is taken as
+ * a central difference a very short way along the motion, so a constraint needs no
+ * third derivative of its own, and the result does not depend on the sampling of the cycle.
+ */
+export function solveJerk(
+  model: SolverModel,
+  q: Float64Array,
+  qd: Float64Array,
+  qdd: Float64Array,
+): Float64Array {
+  // A step that turns the fastest body by about 1e-5 rad: small enough that what the
+  // difference leaves out is far below it, large enough to stay clear of rounding.
+  let turning = 1;
+  for (let i = 2; i < qd.length; i += 3) turning = Math.max(turning, Math.abs(qd[i]));
+  const h = 1e-5 / turning;
+
+  /** `gamma - Phi_q qdd` a time `dt` along the motion, with `qdd` held as it is. */
+  function along(dt: number): Float64Array {
+    const at = q.map((value, i) => value + dt * qd[i]);
+    const out = accelerationRhs(
+      model,
+      at,
+      qd.map((value, i) => value + dt * qdd[i]),
+    );
+    const jac = jacobian(model, at);
+    for (let i = 0; i < jac.rows; i++) {
+      for (let j = 0; j < jac.cols; j++) out[i] = out[i] - jac.data[i * jac.cols + j] * qdd[j];
+    }
+    return out;
+  }
+
+  const ahead = along(h);
+  const behind = along(-h);
+  return solveLinear(
+    jacobian(model, q),
+    ahead.map((value, i) => (value - behind[i]) / (2 * h)),
+  );
 }

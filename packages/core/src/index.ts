@@ -1,5 +1,5 @@
 export { toCsv } from "./analysis/csv.ts";
-export { type Cycle, type CycleFailure, solveCycle } from "./analysis/cycle.ts";
+export { type Cycle, type CycleFailure, cycleJerk, solveCycle } from "./analysis/cycle.ts";
 export { assignLayers, hullDistance } from "./analysis/layers.ts";
 export {
   centreOf,
@@ -9,6 +9,7 @@ export {
   type PlotResult,
   type PlotSeries,
   type PointMotion,
+  pointJerk,
   pointMotion,
 } from "./analysis/measures.ts";
 export {
@@ -103,6 +104,7 @@ export {
   type PositionResult,
   type SolverModel,
   solveAcceleration,
+  solveJerk,
   solvePosition,
   solveVelocity,
 } from "./solver/solve.ts";

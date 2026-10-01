@@ -113,6 +113,14 @@ function Choice<T extends string>({
   );
 }
 
+/**
+ * The series of a chart of a velocity, an acceleration or a jerk: its two signed parts,
+ * which say which way it points, and its size, which is never negative.
+ */
+function vector(fn: "v" | "a" | "j", ref: string): string[] {
+  return [`${fn}x(${ref})`, `${fn}y(${ref})`, `${fn}(${ref})`];
+}
+
 /** Buttons that add a chart of something to the model. */
 function PlotButtons({ plots }: { plots: { label: string; name: string; series: string[] }[] }) {
   const transact = useStore((s) => s.transact);
@@ -271,9 +279,10 @@ function LinkActions({ id }: { id: string }) {
         plots={[
           { label: "movement", name: `${id}_movement`, series: [dx[1], dy[1], moved[1]] },
           { label: "turning", name: `${id}_turn`, series: [turn[1]] },
-          { label: "speed", name: `${id}_speed`, series: [`v(${id})`] },
+          { label: "speed", name: `${id}_speed`, series: vector("v", id) },
           { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
-          { label: "acceleration", name: `${id}_accel`, series: [`a(${id})`] },
+          { label: "acceleration", name: `${id}_accel`, series: vector("a", id) },
+          { label: "jerk", name: `${id}_jerk`, series: vector("j", id) },
         ]}
       />
       <MeasureButtons
@@ -365,12 +374,17 @@ export function Inspector() {
                   `moved(${selection.ref})`,
                 ],
               },
-              { label: "speed", name: `${bodyId}_${name}_speed`, series: [`v(${selection.ref})`] },
+              {
+                label: "speed",
+                name: `${bodyId}_${name}_speed`,
+                series: vector("v", selection.ref),
+              },
               {
                 label: "acceleration",
                 name: `${bodyId}_${name}_accel`,
-                series: [`a(${selection.ref})`],
+                series: vector("a", selection.ref),
               },
+              { label: "jerk", name: `${bodyId}_${name}_jerk`, series: vector("j", selection.ref) },
             ]}
           />
         )}

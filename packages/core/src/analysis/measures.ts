@@ -2,10 +2,11 @@ import type { Compiled, CompiledBody } from "../compile/compile.ts";
 import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
 import { ANGLE, type Dim, LENGTH, TIME } from "../expr/units.ts";
-import type { Cycle } from "./cycle.ts";
+import { type Cycle, cycleJerk } from "./cycle.ts";
 
 const SPEED: Dim = [1, -1, 0, 0];
 const ACCELERATION: Dim = [1, -2, 0, 0];
+const JERK: Dim = [1, -3, 0, 0];
 const ANGULAR_SPEED: Dim = [0, -1, 0, 1];
 const ANGULAR_ACCELERATION: Dim = [0, -2, 0, 1];
 
@@ -79,6 +80,40 @@ export function pointMotion(compiled: Compiled, cycle: Cycle, ref: string): Poin
   return motion;
 }
 
+/**
+ * The jerk of a point, or of the centre of a body, at every sample. `qddd` holds the
+ * jerks of the cycle, as `cycleJerk` gives them.
+ */
+export function pointJerk(
+  compiled: Compiled,
+  cycle: Cycle,
+  qddd: Float64Array,
+  ref: string,
+): { jx: Float64Array; jy: Float64Array } {
+  const [bodyId, name] = splitRef(ref);
+  const body = compiled.bodies.get(bodyId);
+  const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
+  if (!body || !local) throw new Error(`Unknown point "${ref}"`);
+
+  const n = cycle.count;
+  const jerk = { jx: new Float64Array(n), jy: new Float64Array(n) };
+  if (body.index < 0) return jerk;
+
+  const { q, qd, qdd, width } = cycle;
+  for (let k = 0; k < n; k++) {
+    const at = k * width + 3 * body.index;
+    const phi = q[at + 2];
+    const w = qd[at + 2];
+    const alpha = qdd[at + 2];
+    const beta = qddd[at + 2];
+    const bx = local.u * Math.cos(phi) - local.v * Math.sin(phi);
+    const by = local.u * Math.sin(phi) + local.v * Math.cos(phi);
+    jerk.jx[k] = qddd[at] - (beta - w ** 3) * by - 3 * alpha * w * bx;
+    jerk.jy[k] = qddd[at + 1] + (beta - w ** 3) * bx - 3 * alpha * w * by;
+  }
+  return jerk;
+}
+
 /** Remove the jumps of 2 pi that `atan2` introduces along a signal. */
 function unwrap(angles: Float64Array): Float64Array {
   let offset = 0;
@@ -124,6 +159,9 @@ const KINEMATIC = new Set([
   "a",
   "ax",
   "ay",
+  "j",
+  "jx",
+  "jy",
   "omega",
   "alpha",
 ]);
@@ -137,6 +175,8 @@ export function evaluateMeasures(
   /** Measures evaluated so far; later measures and plots can use them by name. */
   const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
+  const jerks = new Map<string, { jx: Float64Array; jy: Float64Array }>();
+  let qddd: Float64Array | undefined;
 
   function refName(node: Node | undefined, fn: Node): string {
     if (node?.kind !== "ref") {
@@ -165,6 +205,18 @@ export function evaluateMeasures(
       throw new ExprError(`Body "${bodyId}" has no point "${name}"`, (node as Node).pos);
     const result = pointMotion(compiled, cycle, ref);
     motions.set(ref, result);
+    return result;
+  }
+
+  function jerk(node: Node | undefined, fn: Node): { jx: Float64Array; jy: Float64Array } {
+    // Checks the point, and says what is wrong with it.
+    motion(node, fn);
+    const ref = refName(node, fn);
+    const known = jerks.get(ref);
+    if (known) return known;
+    qddd ??= cycleJerk(compiled.model, cycle);
+    const result = pointJerk(compiled, cycle, qddd, ref);
+    jerks.set(ref, result);
     return result;
   }
 
@@ -219,6 +271,15 @@ export function evaluateMeasures(
         one();
         const m = motion(args[0], fn);
         return { value: signal((k) => Math.hypot(m.ax[k], m.ay[k])), dim: ACCELERATION };
+      }
+      case "jx":
+      case "jy":
+        one();
+        return { value: jerk(args[0], fn)[name], dim: JERK };
+      case "j": {
+        one();
+        const m = jerk(args[0], fn);
+        return { value: signal((k) => Math.hypot(m.jx[k], m.jy[k])), dim: JERK };
       }
       case "moved": {
         // How far a point is from where it started, whichever way it went.

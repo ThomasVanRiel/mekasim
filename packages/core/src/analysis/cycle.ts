@@ -1,6 +1,7 @@
 import {
   type SolverModel,
   solveAcceleration,
+  solveJerk,
   solvePosition,
   solveVelocity,
 } from "../solver/solve.ts";
@@ -80,4 +81,18 @@ export function solveCycle(model: SolverModel, period: number, steps: number): C
     cycle.qdd = qdd.subarray(0, cycle.count * width);
   }
   return cycle;
+}
+
+/**
+ * Jerks over a solved cycle, `count` rows of `width`. They are worked out apart from
+ * the cycle, when something asks for them, since most models never do.
+ */
+export function cycleJerk(model: SolverModel, cycle: Cycle): Float64Array {
+  const { count, width, q, qd, qdd } = cycle;
+  const qddd = new Float64Array(count * width);
+  for (let k = 0; k < count; k++) {
+    const row = (source: Float64Array) => source.subarray(k * width, (k + 1) * width);
+    qddd.set(solveJerk(model, row(q), row(qd), row(qdd)), k * width);
+  }
+  return qddd;
 }
