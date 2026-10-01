@@ -52,6 +52,14 @@ export interface ChartSpec {
   note?: string;
 }
 
+/**
+ * What a series is called. A measure plotted by its name reads as words, like the
+ * measure itself; an expression is model text and keeps its spelling.
+ */
+function seriesLabel(source: string): string {
+  return /^[A-Za-z_]\w*$/.test(source) ? label(source) : source;
+}
+
 /** A quantity as one value per sample in document units; a constant becomes a level line. */
 function samples(quantity: Quantity, simulation: Simulation, count: number): Float64Array {
   const factor = docFactor(
@@ -121,7 +129,7 @@ export function buildCharts(simulation: Simulation): ChartSpec[] {
       const unit = unitLabel(quantity.dim, compiled.units);
       const lines = byUnit.get(unit) ?? [];
       lines.push({
-        label: series.source,
+        label: seriesLabel(series.source),
         color: SERIES_COLORS[i] as string,
         values: samples(quantity, simulation, cycle.count),
       });
@@ -181,7 +189,9 @@ export function buildSweepCharts(param: string, runs: SweepRun[]): ChartSpec[] {
         key: `${plot.id}/${index}`,
         plot: plot.id,
         title:
-          plot.series.length > 1 ? `${refLabel(plot.id)}: ${series.source}` : refLabel(plot.id),
+          plot.series.length > 1
+            ? `${refLabel(plot.id)}: ${seriesLabel(series.source)}`
+            : refLabel(plot.id),
         unit: unitLabel(series.quantity.dim, compiled.units),
         x,
         lines,

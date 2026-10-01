@@ -106,9 +106,10 @@ const model = `${shaker.slice(0, shaker.indexOf("plots:"))}plots:
 describe("buildCharts", () => {
   const charts = buildCharts(simulate(model));
 
+  // A measure plotted by its name is shown as words; an expression is left as written.
   it("makes one chart per unit of a plot, never two scales on one chart", () => {
     expect(charts.map((c) => [c.title, c.unit, c.lines.map((l) => l.label)])).toEqual([
-      ["Deck", "mm", ["x(upper_deck.F)", "y(upper_deck.F)", "upper_stroke"]],
+      ["Deck", "mm", ["x(upper_deck.F)", "y(upper_deck.F)", "Upper stroke"]],
       ["Deck", "mm/s", ["v(upper_deck.F)"]],
       ["Swing", "deg", ["angle(rocker)"]],
     ]);
@@ -143,7 +144,7 @@ describe("buildCharts", () => {
     expect(buildCharts(bare).map((c) => [c.title, c.lines.map((l) => l.label)])).toEqual([
       ["Upper deck F", ["x(upper_deck.F)", "y(upper_deck.F)"]],
       ["Lower deck F", ["x(lower_deck.F)", "y(lower_deck.F)"]],
-      ["Gap", ["gap"]],
+      ["Gap", ["Gap"]],
     ]);
     const swept = buildSweepCharts("ecc", sweep(text, "ecc", [10, 20], "mm"));
     expect(swept.map((c) => c.title)).toEqual([
@@ -167,7 +168,7 @@ describe("buildSweepCharts", () => {
       "Deck: x(upper_deck.F)",
       "Deck: y(upper_deck.F)",
       "Deck: v(upper_deck.F)",
-      "Deck: upper_stroke",
+      "Deck: Upper stroke",
       "Swing",
     ]);
     expect(charts[0]?.lines.map((l) => [l.label, l.color])).toEqual([
