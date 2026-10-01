@@ -1,22 +1,39 @@
-import { type CSSProperties, useEffect } from "react";
+import { type CSSProperties, type ReactNode, useEffect } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
 import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Build } from "./panels/Build.tsx";
+import { BESIDE_FOLD } from "./panels/Fold.tsx";
 import { Header } from "./panels/Header.tsx";
-import { BESIDE_HELP, HELP_ID, Help } from "./panels/Help.tsx";
+import { HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
 import { Parameters } from "./panels/Parameters.tsx";
 import { Plots } from "./panels/Plots.tsx";
+import { SKILL_ID, Skill } from "./panels/Skill.tsx";
 import { Splitter } from "./panels/Splitter.tsx";
 import { TitleBlock } from "./panels/TitleBlock.tsx";
 import { TOOLS, ViewportTools } from "./panels/ViewportTools.tsx";
 import { editorBridge, useStore } from "./store.ts";
 import { deleteSelection, finishLink } from "./viewport/tools.ts";
 import { Viewport } from "./viewport/Viewport.tsx";
+
+/**
+ * Whether a key belongs to what has the focus rather than to the drawing: text being
+ * typed, or a control reached with the keyboard. A control that was only clicked is
+ * done with, and holds on to no keys.
+ */
+function keepsKey(control: Element | null, key: string): boolean {
+  if (!control) return false;
+  if (control.matches("textarea, .cm-editor")) return true;
+  // A slider moves with the arrow keys and has no use for Space.
+  if (control.matches('input[type="range"]')) return key !== " ";
+  if (control.matches("input")) return true;
+  if (!control.matches(":focus-visible")) return false;
+  return control.matches("select") || key === " " || key === "Enter";
+}
 
 /**
  * Keyboard shortcuts for the drawing, active unless a control or the editor has the
@@ -27,10 +44,11 @@ function useKeys(): void {
   useEffect(() => {
     function onKey(event: KeyboardEvent): void {
       const target = event.target as HTMLElement;
-      if (target.closest("input, select, textarea, .cm-editor")) return;
+      const control = target.closest<HTMLElement>("input, select, button, textarea, .cm-editor");
+      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+      if (keepsKey(control, key)) return;
       const state = useStore.getState();
       const count = state.scene?.cycle.count ?? 0;
-      const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
       const tool = TOOLS.find((t) => t.key === key);
 
       if ((event.ctrlKey || event.metaKey) && key === "z") {
@@ -39,9 +57,6 @@ function useKeys(): void {
       } else if ((event.ctrlKey || event.metaKey) && key === "y") {
         editorBridge.redo?.();
       } else if (event.ctrlKey || event.metaKey || event.altKey) {
-        return;
-      } else if ((key === " " || key === "Enter") && target.closest("button")) {
-        // Space and Enter on a focused button press that button.
         return;
       } else if (key === " " && count > 1) {
         state.setPlaying(!state.playing);
@@ -63,6 +78,8 @@ function useKeys(): void {
         return;
       }
       event.preventDefault();
+      // A clicked button or list would otherwise answer the key as well, when it is let go.
+      if (control?.matches("button, select")) control.blur();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -104,6 +121,38 @@ function useLinkedModel(): void {
   }, [text]);
 }
 
+/** A button above the source that folds a panel open beside it, and shut again. */
+function FoldButton({
+  controls,
+  open,
+  onClick,
+  title,
+  children,
+}: {
+  /** The id of the panel it opens. */
+  controls: string;
+  open: boolean;
+  onClick(): void;
+  title?: string;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={onClick}
+      title={title}
+      className="flex items-center gap-1.5 whitespace-nowrap rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft active:bg-paper"
+    >
+      {children}
+      <svg viewBox="0 0 16 16" className="size-3" fill="currentColor" aria-hidden="true">
+        {open ? <path d="M11 2 5 8l6 6z" /> : <path d="M5 2l6 6-6 6z" />}
+      </svg>
+    </button>
+  );
+}
+
 export function App() {
   const hasDrawing = useStore((s) => s.scene !== undefined);
   const stale = useStore((s) => s.simulation !== s.shown);
@@ -111,6 +160,8 @@ export function App() {
   const side = useLayout((s) => s.side);
   const help = useLayout((s) => s.help);
   const setHelp = useLayout((s) => s.setHelp);
+  const skill = useLayout((s) => s.skill);
+  const setSkill = useLayout((s) => s.setSkill);
   useKeys();
   useLinkedModel();
   // Column widths, as set by dragging the dividers or else the defaults.
@@ -133,21 +184,22 @@ export function App() {
         </p>
       </div>
 
-      <div className="hidden min-h-0 flex-col lg:flex" {...{ [BESIDE_HELP]: "" }}>
+      <div className="hidden min-h-0 flex-col lg:flex" {...{ [BESIDE_FOLD]: "" }}>
         <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
           <h2 className="font-semibold">Source</h2>
-          <button
-            type="button"
-            aria-expanded={help}
-            aria-controls={HELP_ID}
-            onClick={() => setHelp(!help)}
-            className="flex items-center gap-1.5 rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft active:bg-paper"
-          >
-            {help ? "Close help" : "Help"}
-            <svg viewBox="0 0 16 16" className="size-3" fill="currentColor" aria-hidden="true">
-              {help ? <path d="M11 2 5 8l6 6z" /> : <path d="M5 2l6 6-6 6z" />}
-            </svg>
-          </button>
+          <div className="flex gap-1.5">
+            <FoldButton
+              controls={SKILL_ID}
+              open={skill}
+              onClick={() => setSkill(!skill)}
+              title="A text that teaches an AI assistant to write models for you"
+            >
+              {skill ? "Close skill" : "AI skill"}
+            </FoldButton>
+            <FoldButton controls={HELP_ID} open={help} onClick={() => setHelp(!help)}>
+              {help ? "Close help" : "Help"}
+            </FoldButton>
+          </div>
         </div>
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-0">
@@ -223,6 +275,7 @@ export function App() {
       </div>
 
       <Help />
+      <Skill />
     </div>
   );
 }

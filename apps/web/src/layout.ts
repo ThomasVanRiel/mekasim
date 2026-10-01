@@ -33,6 +33,12 @@ interface LayoutState extends Sizes {
   /** Whether the help on the format is folded open beside the source. Not remembered. */
   help: boolean;
   setHelp(open: boolean): void;
+  /**
+   * Whether the skill for an AI assistant is folded open beside the source. It lies
+   * where the help does, so opening one puts the other away. Not remembered.
+   */
+  skill: boolean;
+  setSkill(open: boolean): void;
   /** Set a size, or forget it so that the panel goes back to its default. */
   resize(panel: keyof Sizes, size: number | undefined): void;
 }
@@ -41,7 +47,9 @@ interface LayoutState extends Sizes {
 export const useLayout = create<LayoutState>((set, get) => ({
   ...stored(),
   help: false,
-  setHelp: (help) => set({ help }),
+  setHelp: (help) => set(help ? { help, skill: false } : { help }),
+  skill: false,
+  setSkill: (skill) => set(skill ? { skill, help: false } : { skill }),
   resize(panel, size) {
     set({ [panel]: size });
     const { source, side, plots, messages } = get();

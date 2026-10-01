@@ -50,6 +50,12 @@ build on in a CAD program. "Compare values" on a parameter solves the model for
 several values and draws them together. "Trace over a picture" lays an image under
 the drawing, which is not saved with the model.
 
+"AI skill" above the source opens a text that teaches an AI assistant to write
+models: copy it into a conversation, or download it as a skill, describe a
+mechanism, and paste the YAML it answers with into the source. The text is
+[skill/SKILL.md](skill/SKILL.md) with the format reference and a few examples
+added.
+
 "Parts to make" in the side panel takes the real width, thickness and pin size of
 the links, and downloads them as flat pieces: a DXF to laser cut, an STL to print.
 

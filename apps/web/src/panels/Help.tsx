@@ -1,16 +1,11 @@
-import { createElement, Fragment, type ReactNode, useEffect, useRef } from "react";
+import { createElement, Fragment, type ReactNode, useCallback, useRef } from "react";
 import type { Block, Inline } from "../help/markdown.ts";
 import { HELP, sectionsOf } from "../help/reference.ts";
 import { useLayout } from "../layout.ts";
+import { Fold } from "./Fold.tsx";
 
 /** The panel's id, for the button that folds it open. */
 export const HELP_ID = "format-help";
-
-/**
- * Marks what the help is read beside: the source and what belongs to it. A press
- * there leaves the help open.
- */
-export const BESIDE_HELP = "data-beside-help";
 
 const SECTIONS = sectionsOf(HELP);
 
@@ -110,81 +105,47 @@ function Part({ block }: { block: Block }) {
   );
 }
 
-/**
- * The format reference, folded open beside the source: it lies over the drawing and,
- * where the window leaves it no room, the panels to the right of it, which stay as
- * they are underneath, so the source can be written with the reference next to it.
- *
- * It is always there and is uncovered from the source's edge rightwards when it
- * opens, and covered again when it closes. Hidden, it takes no clicks and no focus.
- *
- * A press anywhere but on the help and the source closes it, and still does what
- * it would have done: the help is put away by going back to the drawing.
- */
+/** The format reference, folded open beside the source, with its sections listed to jump to. */
 export function Help() {
   const open = useLayout((s) => s.help);
   const setHelp = useLayout((s) => s.setHelp);
+  const close = useCallback(() => setHelp(false), [setHelp]);
   const page = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPress(event: PointerEvent): void {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target?.closest(`#${HELP_ID}, [${BESIDE_HELP}]`)) setHelp(false);
-    }
-    // Heard on the way down, so that nothing underneath can keep the press to itself.
-    document.addEventListener("pointerdown", onPress, true);
-    return () => document.removeEventListener("pointerdown", onPress, true);
-  }, [open, setHelp]);
-
   return (
-    <section
+    <Fold
       id={HELP_ID}
-      aria-label="Help on the model format"
-      // Placed on the grid of the page by position, so that it takes no cell from the panels under it.
-      // No wider than the list of sections and a page of text: on a wide window the rest stays in view.
-      className={`absolute inset-y-0 left-0 z-40 hidden w-full max-w-5xl flex-col border-rule border-r bg-sheet/95 transition-[clip-path,visibility] duration-500 ease-out motion-reduce:transition-none lg:col-start-3 lg:col-end-6 lg:row-start-2 lg:row-end-3 lg:flex ${
-        open ? "visible [clip-path:inset(0)]" : "invisible [clip-path:inset(0_100%_0_0)]"
-      }`}
+      label="Help on the model format"
+      title="Writing a model"
+      open={open}
+      onClose={close}
     >
-      <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
-        <h2 className="font-semibold">Writing a model</h2>
-        <button
-          type="button"
-          onClick={() => setHelp(false)}
-          className="rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft active:bg-paper"
-        >
-          Close
-        </button>
-      </div>
-      <div className="flex min-h-0 flex-1">
-        <nav aria-label="Sections of the help" className="w-52 shrink-0 overflow-y-auto py-2">
-          <ul>
-            {SECTIONS.map((section) => (
-              <li key={section.id}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    page.current
-                      ?.querySelector(`#${HELP_ID}-${section.id}`)
-                      ?.scrollIntoView({ block: "start" })
-                  }
-                  className="w-full px-3 py-1 text-left text-sm hover:bg-paper"
-                >
-                  {section.title}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div ref={page} className="min-w-0 flex-1 overflow-y-auto border-rule border-l px-6 py-4">
-          <div className="max-w-3xl">
-            {each(HELP, (block) => (
-              <Part block={block} />
-            ))}
-          </div>
+      <nav aria-label="Sections of the help" className="w-52 shrink-0 overflow-y-auto py-2">
+        <ul>
+          {SECTIONS.map((section) => (
+            <li key={section.id}>
+              <button
+                type="button"
+                onClick={() =>
+                  page.current
+                    ?.querySelector(`#${HELP_ID}-${section.id}`)
+                    ?.scrollIntoView({ block: "start" })
+                }
+                className="w-full px-3 py-1 text-left text-sm hover:bg-paper"
+              >
+                {section.title}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div ref={page} className="min-w-0 flex-1 overflow-y-auto border-rule border-l px-6 py-4">
+        <div className="max-w-3xl">
+          {each(HELP, (block) => (
+            <Part block={block} />
+          ))}
         </div>
       </div>
-    </section>
+    </Fold>
   );
 }

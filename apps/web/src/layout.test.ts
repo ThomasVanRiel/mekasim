@@ -23,4 +23,14 @@ describe("panel sizes", () => {
     expect(useLayout.getState().help).toBe(true);
     useLayout.getState().setHelp(false);
   });
+
+  it("show the help or the skill, never both", () => {
+    useLayout.getState().setHelp(true);
+    useLayout.getState().setSkill(true);
+    expect(useLayout.getState()).toMatchObject({ help: false, skill: true });
+    useLayout.getState().setHelp(true);
+    expect(useLayout.getState()).toMatchObject({ help: true, skill: false });
+    useLayout.getState().setHelp(false);
+    expect(useLayout.getState()).toMatchObject({ help: false, skill: false });
+  });
 });
