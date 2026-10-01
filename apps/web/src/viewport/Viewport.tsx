@@ -235,8 +235,14 @@ function Grid({ scene }: { scene: Scene }) {
   const size = major * 40;
   return (
     <group position={[x, y, z]} rotation-x={Math.PI / 2}>
-      <gridHelper args={[size, 200, COLORS.grid, COLORS.grid]} />
-      <gridHelper args={[size, 40, COLORS.gridMajor, COLORS.gridMajor]} position-y={-1e-5} />
+      {/* Every fifth light line lies under a heavy one. The light lines are drawn first and
+          leave no depth behind, so the heavy ones always end up on top of them. */}
+      <gridHelper
+        args={[size, 200, COLORS.grid, COLORS.grid]}
+        renderOrder={-2}
+        material-depthWrite={false}
+      />
+      <gridHelper args={[size, 40, COLORS.gridMajor, COLORS.gridMajor]} renderOrder={-1} />
     </group>
   );
 }
