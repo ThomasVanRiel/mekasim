@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Klann's walking leg: six links and one crank.
+#
+# The crank pulls a bent connecting rod that is held at its elbow by the lower
+# rocker. The far end of the rod is the knee of the leg, and the top of the leg
+# hangs from the upper rocker. The foot runs nearly straight along the ground for
+# half a turn of the crank, then lifts high and steps forward, higher than a
+# strandbeest foot does, which lets it climb over things.
+#
+# The model is written as drawn: the points are those of the example leg in
+# Klann's patent (US 6,260,862), with its unit taken as 100 mm, at the instant the
+# crank points at the leg.
+mekasim: 1
+meta:
+  name: Klann walking leg
+
+params:
+  rpm: 30
+
+bodies:
+  ground:
+    points:
+      shaft: [159.9, 75]         # crank shaft
+      upper: [136.6, 136.6]      # axle of the upper rocker
+      lower: [100.9, 57.4]       # axle of the lower rocker
+  crank:
+    points: { O: [159.9, 75], A: [133.1, 75] }
+  connecting_rod:
+    points:
+      A: [133.1, 75]             # crank pin
+      E: [74.1, 75]              # elbow, on the lower rocker
+      K: [23.2, 86.6]            # knee
+  lower_rocker:
+    points: { P: [100.9, 57.4], E: [74.1, 75] }
+  upper_rocker:
+    points: { P: [136.6, 136.6], H: [86.6, 150] }
+  leg:
+    points:
+      H: [86.6, 150]             # hip, on the upper rocker
+      K: [23.2, 86.6]            # knee
+      F: [0, 0]                  # foot
+
+joints:
+  main: { type: revolute, connect: [ground.shaft, crank.O] }
+  crank_pin: { type: revolute, connect: [crank.A, connecting_rod.A] }
+  elbow: { type: revolute, connect: [connecting_rod.E, lower_rocker.E] }
+  lower_axle: { type: revolute, connect: [ground.lower, lower_rocker.P] }
+  knee: { type: revolute, connect: [connecting_rod.K, leg.K] }
+  hip: { type: revolute, connect: [leg.H, upper_rocker.H] }
+  upper_axle: { type: revolute, connect: [ground.upper, upper_rocker.P] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+traces: [leg.F]
+
+measures:
+  stride: range(x(leg.F))
+  step_height: range(y(leg.F))
+  # How high the foot is above the lowest it gets: zero while it stands.
+  lift: y(leg.F) - min(y(leg.F))
+
+plots:
+  lift: lift
+  pace: vx(leg.F)

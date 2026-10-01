@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Two of Klann's legs geared together, as on one side of a walking machine.
+#
+# The left leg is the one of klann.mekasim.yaml; the right leg is its mirror
+# image. A pinion between them turns both crank wheels, and so turns them the
+# same way. That is what a mirrored leg needs: turned the opposite way it would
+# only mirror the other leg's motion and push against it, turned the same way its
+# foot goes back along the ground in the same direction.
+#
+# The two cranks are set half a turn apart, both pointing at their own leg at the
+# start, so one foot comes down as the other lifts. A walker has the same pair on
+# its other side, half a turn on again, and so always stands on two feet that are
+# diagonally opposite.
+#
+# The model is written as drawn, from the points of the example leg in Klann's
+# patent (US 6,260,862) with its unit taken as 100 mm. The wheels are drawn as
+# pitch circles, without teeth.
+mekasim: 1
+meta:
+  name: Klann walker, two geared legs
+
+params:
+  rpm: 30
+  wheel: 60 mm      # pitch diameter of the pinion and of both crank wheels
+
+bodies:
+  ground:
+    points:
+      left_shaft: [159.9, 75]    # crank shafts
+      right_shaft: [279.9, 75]
+      left_upper: [136.6, 136.6] # axles of the upper rockers
+      right_upper: [303.2, 136.6]
+      left_lower: [100.9, 57.4]  # axles of the lower rockers
+      right_lower: [338.9, 57.4]
+
+  left_crank:
+    points: { O: [159.9, 75], A: [133.1, 75] }
+  left_rod:
+    points:
+      A: [133.1, 75]             # crank pin
+      E: [74.1, 75]              # elbow, on the lower rocker
+      K: [23.2, 86.6]            # knee
+  left_lower_rocker:
+    points: { P: [100.9, 57.4], E: [74.1, 75] }
+  left_upper_rocker:
+    points: { P: [136.6, 136.6], H: [86.6, 150] }
+  left_leg:
+    points:
+      H: [86.6, 150]             # hip, on the upper rocker
+      K: [23.2, 86.6]            # knee
+      F: [0, 0]                  # foot
+
+  right_crank:
+    points: { O: [279.9, 75], A: [306.7, 75] }
+  right_rod:
+    points: { A: [306.7, 75], E: [365.7, 75], K: [416.6, 86.6] }
+  right_lower_rocker:
+    points: { P: [338.9, 57.4], E: [365.7, 75] }
+  right_upper_rocker:
+    points: { P: [303.2, 136.6], H: [353.2, 150] }
+  right_leg:
+    points: { H: [353.2, 150], K: [416.6, 86.6], F: [439.8, 0] }
+
+components:
+  # The pinion turns anticlockwise, which turns both cranks clockwise.
+  pinion:
+    type: crank
+    at: [219.9, 75]
+    arms: { mark: [wheel / 2, 90] }
+    speed: rpm
+
+joints:
+  left_main: { type: revolute, connect: [ground.left_shaft, left_crank.O] }
+  left_crank_pin: { type: revolute, connect: [left_crank.A, left_rod.A] }
+  left_elbow: { type: revolute, connect: [left_rod.E, left_lower_rocker.E] }
+  left_lower_axle: { type: revolute, connect: [ground.left_lower, left_lower_rocker.P] }
+  left_knee: { type: revolute, connect: [left_rod.K, left_leg.K] }
+  left_hip: { type: revolute, connect: [left_leg.H, left_upper_rocker.H] }
+  left_upper_axle: { type: revolute, connect: [ground.left_upper, left_upper_rocker.P] }
+
+  right_main: { type: revolute, connect: [ground.right_shaft, right_crank.O] }
+  right_crank_pin: { type: revolute, connect: [right_crank.A, right_rod.A] }
+  right_elbow: { type: revolute, connect: [right_rod.E, right_lower_rocker.E] }
+  right_lower_axle: { type: revolute, connect: [ground.right_lower, right_lower_rocker.P] }
+  right_knee: { type: revolute, connect: [right_rod.K, right_leg.K] }
+  right_hip: { type: revolute, connect: [right_leg.H, right_upper_rocker.H] }
+  right_upper_axle: { type: revolute, connect: [ground.right_upper, right_upper_rocker.P] }
+
+  left_mesh: { type: gear, connect: [pinion.O, left_crank.O], sizes: [wheel, wheel] }
+  right_mesh: { type: gear, connect: [pinion.O, right_crank.O], sizes: [wheel, wheel] }
+
+traces: [left_leg.F, right_leg.F]
+
+measures:
+  stride: range(x(left_leg.F))
+  step_height: range(y(left_leg.F))
+  # How high each foot is above the lowest it gets: zero while it stands.
+  left_lift: y(left_leg.F) - min(y(left_leg.F))
+  right_lift: y(right_leg.F) - min(y(right_leg.F))
+  crank_speed: mean(omega(left_crank))
+
+plots:
+  lift: [left_lift, right_lift]
+  pace: [vx(left_leg.F), vx(right_leg.F)]

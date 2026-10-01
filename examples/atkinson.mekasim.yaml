@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Atkinson's cycle engine of 1887: four strokes of different lengths in a single
+# turn of the crank.
+#
+# An ordinary engine needs two turns for its four strokes and makes them all the
+# same length. Here the crank works a link that is held by a rocker, and the
+# piston rod is pinned to a corner of that link. The corner goes round a narrow
+# bent loop, so the piston goes down and up twice in one turn, and not equally far:
+#
+#   intake       down  about 34 mm
+#   compression  up    about 27 mm
+#   expansion    down  about 62 mm
+#   exhaust      up    about 69 mm
+#
+# The gas expands over more than twice the length it was compressed in, which gets
+# more work out of it, and the exhaust stroke goes right to the top to clear the
+# cylinder. The model starts at the top of the exhaust stroke.
+#
+# The proportions here were found by trial to give strokes in the ratios of
+# Atkinson's engine; they are not taken from his drawings.
+mekasim: 1
+meta:
+  name: Atkinson cycle engine
+
+params:
+  rpm: 60
+  r: 40 mm          # crank radius
+  link: 212 mm      # the link, from the crank pin to the rocker
+  rocker: 180 mm
+  piston_rod: 140 mm
+
+bodies:
+  ground:
+    points:
+      cyl_a: [-80, 300]          # cylinder axis
+      cyl_b: [-80, 500]
+  piston:
+    points: { P: [0, 0], crown: [40, 0] }
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    arms: { A: [r, 40] }
+    speed: rpm
+  rocker:
+    type: crank
+    at: [-140, 0]
+    arms: { B: [rocker, 0] }
+    angle: 82
+  link:
+    type: rod
+    length: link
+    connect: [crank.A, rocker.B]
+    points: { C: [290, -100] }   # the corner that carries the piston rod
+  piston_rod:
+    type: rod
+    length: piston_rod
+    connect: [link.C, piston.P]
+
+joints:
+  cylinder: { type: slider, axis: [ground.cyl_a, ground.cyl_b], point: piston.P }
+
+traces: [link.C, rocker.B]
+
+measures:
+  # How far the piston is above the lowest it gets, at the end of the expansion.
+  height: y(piston.P) - min(y(piston.P))
+  longest_stroke: range(y(piston.P))
+  rocker_swing: range(angle(rocker))
+  rod_lean: max(abs(angle(piston_rod) - 90))
+
+plots:
+  piston: height
+  piston_speed: vy(piston.P)
+
+pose:
+  piston: [-80, 443, 90]

@@ -1,0 +1,120 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A pair of legs of Theo Jansen's strandbeest.
+#
+# One crank moves each leg through two rods. The upper rod rocks a triangle on the
+# frame, the lower rod a rocker on the same pivot, and the foot hangs between the
+# two. For most of the turn the foot runs along a flat line at a steady pace; then
+# it lifts, swings forward and comes down again.
+#
+# The lengths are the eleven "holy numbers" Jansen found by letting a computer
+# breed leg after leg, with his letter beside each. The foot's path is touchy:
+# move any of the sliders a little and the flat part bends.
+#
+# The two legs are mirror images on one crank pin. The crank turns the same way
+# for both, so one foot is on the ground while the other is in the air.
+mekasim: 1
+meta:
+  name: Strandbeest legs
+
+params:
+  rpm: 30
+  throw: 15 mm        # m: crank radius
+  across: 38 mm       # a: frame pivot, to the side of the axle
+  below: 7.8 mm       # l: frame pivot, below the axle
+  upper_rod: 50 mm    # j: crank to the top of the triangle
+  lower_rod: 61.9 mm  # k: crank to the knee
+  tri_b: 41.5 mm      # b: triangle, pivot to top
+  tri_d: 40.1 mm      # d: triangle, pivot to outer corner
+  tri_e: 55.8 mm      # e: triangle, top to outer corner
+  rocker: 39.3 mm     # c: pivot to the knee
+  link: 39.4 mm       # f: outer corner of the triangle down to the foot
+  foot_g: 36.7 mm     # g: foot, knee to the link
+  foot_h: 65.7 mm     # h: foot, link to toe
+  foot_i: 49 mm       # i: foot, knee to toe
+  # The angle of the triangle at the pivot, from its three sides.
+  tri_angle: acos((tri_b^2 + tri_d^2 - tri_e^2) / (2 * tri_b * tri_d))
+  # Where the toe sits on the foot: along the side from knee to link, and off it.
+  toe_along: (foot_g^2 + foot_i^2 - foot_h^2) / (2 * foot_g)
+  toe_off: sqrt(foot_i^2 - toe_along^2)
+
+bodies:
+  left_foot:
+    points: { K: [0, 0], V: [foot_g, 0], toe: [toe_along, toe_off] }
+  right_foot:
+    points: { K: [0, 0], V: [foot_g, 0], toe: [toe_along, -toe_off] }
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    arms: { C: [throw, 0] }
+    speed: rpm
+
+  left_triangle:
+    type: crank
+    at: [-across, -below]
+    arms: { U: [tri_b, 0], W: [tri_d, tri_angle] }
+    angle: 70
+  left_rocker:
+    type: crank
+    at: [-across, -below]
+    arms: { K: [rocker, 0] }
+    angle: -74
+  left_upper_rod:
+    type: rod
+    length: upper_rod
+    connect: [crank.C, left_triangle.U]
+  left_lower_rod:
+    type: rod
+    length: lower_rod
+    connect: [crank.C, left_rocker.K]
+  left_link:
+    type: rod
+    length: link
+    connect: [left_triangle.W, left_foot.V]
+
+  right_triangle:
+    type: crank
+    at: [across, -below]
+    arms: { U: [tri_b, 0], W: [tri_d, -tri_angle] }
+    angle: 66
+  right_rocker:
+    type: crank
+    at: [across, -below]
+    arms: { K: [rocker, 0] }
+    angle: -46
+  right_upper_rod:
+    type: rod
+    length: upper_rod
+    connect: [crank.C, right_triangle.U]
+  right_lower_rod:
+    type: rod
+    length: lower_rod
+    connect: [crank.C, right_rocker.K]
+  right_link:
+    type: rod
+    length: link
+    connect: [right_triangle.W, right_foot.V]
+
+joints:
+  left_knee: { type: revolute, connect: [left_rocker.K, left_foot.K] }
+  right_knee: { type: revolute, connect: [right_rocker.K, right_foot.K] }
+
+traces: [left_foot.toe, right_foot.toe]
+
+measures:
+  stride: range(x(left_foot.toe))
+  step_height: range(y(left_foot.toe))
+  # How high each toe is above the lowest it gets: zero while it stands.
+  left_lift: y(left_foot.toe) - min(y(left_foot.toe))
+  right_lift: y(right_foot.toe) - min(y(right_foot.toe))
+
+plots:
+  lift: [left_lift, right_lift]
+  pace: [vx(left_foot.toe), vx(right_foot.toe)]
+
+# Where the two feet start, roughly, with the crank pointing right: the left foot
+# is on the ground, the right one in the air. The rest places itself.
+pose:
+  left_foot: [-27, -46, 152]
+  right_foot: [65, -36, -31]

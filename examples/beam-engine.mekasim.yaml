@@ -1,0 +1,93 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A beam engine with Watt's parallel motion.
+#
+# The piston rod has to move in a straight line, but the end of the beam it works
+# moves in an arc. Watt joined the two with links instead of a guide, and thought
+# more of it than of anything else he made.
+#
+# The heart of it is three bars: the inner half of the beam, the radius rod on the
+# frame, as long and pointing the other way, and the back link that joins their
+# ends. The beam pulls the top of the back link one way off the line and the
+# radius rod pulls its foot the other way, so its middle goes nearly straight up
+# and down. The main link and the parallel bar make a parallelogram with the beam
+# that copies this motion at twice the size, at the foot of the main link, where
+# the piston rod hangs. The pump rod would hang from the middle of the back link.
+#
+# Nothing guides the top of the piston rod but the links: `wander` is how far it
+# strays sideways. The piston at its foot is kept in line by the cylinder.
+mekasim: 1
+meta:
+  name: Beam engine with Watt's parallel motion
+
+params:
+  rpm: 20
+  half: 300 mm      # half the beam: its pivot to either end
+  links: 120 mm     # the back link and the main link
+  crank: 90 mm      # flywheel crank radius: about half the piston stroke
+  rod: 500 mm       # connecting rod, beam to crank
+  pillar: 600 mm    # height of the beam's pivot above the floor
+  piston_rod: 250 mm
+
+bodies:
+  ground:
+    points:
+      cyl_a: [half, 100]         # the cylinder's axis, under the end of the beam
+      cyl_b: [half, 400]
+  piston:
+    points: { J: [0, 0], P: [0, -piston_rod] }
+
+components:
+  flywheel:
+    type: crank
+    at: [-half, pillar - rod]
+    arms: { A: [crank, 0] }
+    speed: rpm
+  beam:
+    type: crank
+    at: [0, pillar]
+    arms:
+      D: [half, 180]             # connecting rod
+      F: [half / 2, 0]           # back link
+      E: [half, 0]               # main link
+  radius_rod:
+    type: crank
+    at: [half, pillar - links]
+    arms: { K: [half / 2, 180] }
+  connecting_rod:
+    type: rod
+    length: rod
+    connect: [flywheel.A, beam.D]
+  back_link:
+    type: rod
+    length: links
+    connect: [beam.F, radius_rod.K]
+    points: { M: [links / 2, 0] }  # where the pump rod would hang
+  main_link:
+    type: rod
+    length: links
+    connect: [beam.E, piston.J]
+  parallel_bar:
+    type: rod
+    length: half / 2
+    connect: [radius_rod.K, piston.J]
+
+joints:
+  cylinder: { type: pin-slot, axis: [ground.cyl_a, ground.cyl_b], point: piston.P }
+
+traces: [piston.J, back_link.M, beam.E]
+
+measures:
+  stroke: range(y(piston.P))
+  beam_swing: range(angle(beam))
+  # How far the top of the piston rod strays from a straight line, and how far the
+  # end of the beam above it does.
+  wander: range(x(piston.J))
+  beam_end_wander: range(x(beam.E))
+  pump_wander: range(x(back_link.M))
+
+plots:
+  piston: change(y(piston.P))
+  sideways: [change(x(piston.J)), change(x(beam.E))]
+
+pose:
+  piston: [half, pillar - links, 0]

@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# The straw walkers of a combine harvester.
+#
+# Two crankshafts with equal throws carry long troughs, each on a throw of the
+# front shaft and the matching throw of the rear one. A trough stays parallel to
+# itself and every point of it goes round a circle the size of the throw, which
+# tosses the straw up and towards the back while the grain falls through.
+# Neighbouring troughs sit on throws a third of a turn apart, so one rises as the
+# next one drops.
+#
+# Only the front shaft is driven; the troughs turn the rear one. A single trough
+# could not do that: with both cranks in line with it, nothing says which way the
+# rear crank should go on. Three of them, out of step, always can. That is also
+# why the model reports redundant constraints: each trough after the first holds
+# the rear shaft where the others already hold it.
+mekasim: 1
+meta:
+  name: Straw walkers
+
+params:
+  rpm: 200
+  throw: 50 mm      # crank radius of both shafts
+  shafts: 1000 mm   # between the front and the rear shaft
+
+components:
+  front:
+    type: crank
+    at: [0, 0]
+    arms: { A: [throw, 90], B: [throw, 210], C: [throw, 330] }
+    speed: rpm
+  rear:
+    type: crank
+    at: [shafts, 0]
+    arms: { A: [throw, 90], B: [throw, 210], C: [throw, 330] }
+  walker_a:
+    type: rod
+    length: shafts
+    connect: [front.A, rear.A]
+    points: { nose: [-300, 40], tail: [shafts + 500, 40], M: [shafts / 2, 40] }
+  walker_b:
+    type: rod
+    length: shafts
+    connect: [front.B, rear.B]
+    points: { nose: [-300, 40], tail: [shafts + 500, 40], M: [shafts / 2, 40] }
+  walker_c:
+    type: rod
+    length: shafts
+    connect: [front.C, rear.C]
+    points: { nose: [-300, 40], tail: [shafts + 500, 40], M: [shafts / 2, 40] }
+
+traces: [walker_a.tail, walker_b.tail, walker_c.tail]
+
+measures:
+  toss: range(y(walker_a.M))
+  tilt: range(angle(walker_a))
+  speed: max(v(walker_a.M))
+  # What throws the straw: above 1 it leaves the trough on the way up.
+  peak_g: max(a(walker_a.M)) / g
+
+plots:
+  height: [y(walker_a.M), y(walker_b.M), y(walker_c.M)]

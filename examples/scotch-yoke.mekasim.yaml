@@ -1,0 +1,63 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A scotch yoke, beside a slider-crank on the same crank.
+#
+# The crank pin runs up and down in a slot across the yoke and carries the yoke
+# along sideways. The yoke's motion is a pure sine of the crank angle: it follows
+# the pin's sideways position exactly.
+#
+# The connecting rod on the other side moves its piston by the same crank, but the
+# rod leans as it goes, which adds to the motion at one end of the stroke and takes
+# away at the other. The two charts show the difference; make the rod longer and
+# the piston's motion comes closer to the yoke's.
+mekasim: 1
+meta:
+  name: Scotch yoke and slider-crank
+
+params:
+  rpm: 120
+  r: 30 mm          # crank radius
+  rod: 90 mm        # length of the connecting rod
+
+bodies:
+  ground:
+    points: { O: [0, 0], X: [100, 0] }
+  yoke:
+    points:
+      top: [0, r + 15]           # the slot runs from top to bottom
+      bottom: [0, -r - 15]
+      M: [0, 0]                  # middle of the slot
+      R: [120, 0]                # end of the yoke's rod
+  connecting_rod:
+    points: { A: [0, 0], B: [rod, 0] }
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    arms: { A: [r, 0] }
+    speed: rpm
+
+joints:
+  slot: { type: pin-slot, axis: [yoke.bottom, yoke.top], point: crank.A }
+  yoke_guide: { type: slider, axis: [ground.O, ground.X], point: yoke.M }
+  crank_pin: { type: revolute, connect: [crank.A, connecting_rod.A] }
+  piston_guide: { type: pin-slot, axis: [ground.O, ground.X], point: connecting_rod.B }
+
+traces: [yoke.R, connecting_rod.B]
+
+measures:
+  yoke_stroke: range(x(yoke.R))
+  piston_stroke: range(x(connecting_rod.B))
+  yoke_peak_accel: max(abs(ax(yoke.R)))
+  piston_peak_accel: max(abs(ax(connecting_rod.B)))
+  # How far the piston is from where a yoke would have put it.
+  rod_effect: range(x(connecting_rod.B) - x(yoke.R))
+
+plots:
+  position: [change(x(yoke.R)), change(x(connecting_rod.B))]
+  acceleration: [ax(yoke.R), ax(connecting_rod.B)]
+
+# The yoke starts with its slot over the crank pin; the rod points left.
+pose:
+  yoke: [r, 0, 0]
+  connecting_rod: [r, 0, 180]

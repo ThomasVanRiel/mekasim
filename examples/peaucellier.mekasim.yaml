@@ -1,0 +1,97 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# The Peaucellier-Lipkin linkage: an exactly straight line from pins and bars alone.
+#
+# Two long arms from a fixed pivot hold two opposite corners of a rhombus of four
+# equal bars. The two free corners of the rhombus then lie on one line through the
+# pivot, and the product of their distances from it never changes. That turns a
+# circle through the pivot into a straight line: the near corner is kept on such a
+# circle by the swing arm, whose own pivot is as far from the fixed pivot as the
+# arm is long, and the far corner draws the line.
+#
+# Watt's and Hoecken's lines are only nearly straight. This one is exact, and the
+# first that was: `wander` comes out as nothing but rounding.
+#
+# The linkage cannot go all the way round, so a crank and rod below rock the swing
+# arm to and fro.
+mekasim: 1
+meta:
+  name: Peaucellier straight line
+
+params:
+  rpm: 30
+  long: 120 mm      # the two long arms
+  side: 50 mm       # the four bars of the rhombus
+  swing: 50 mm      # the swing arm, and its pivot's distance from the fixed pivot
+  drive: 23 mm      # radius of the driving crank
+  lever: 30 mm      # the swing arm's tail, where the driving rod holds it
+  # Where the line is: this far from the fixed pivot.
+  line: (long^2 - side^2) / (2 * swing)
+  # How far the long arms stand apart from the middle when the swing arm points
+  # straight at the line.
+  open: acos((2 * swing + line) / (2 * long))
+
+bodies:
+  top_far:
+    points: { B: [0, 0], C: [side, 0] }
+
+components:
+  motor:
+    type: crank
+    at: [swing - lever, -150]
+    arms: { P: [drive, 0] }
+    speed: rpm
+  swing_arm:
+    type: crank
+    at: [swing, 0]
+    arms: { A: [swing, 0], T: [lever, 180] }
+  upper_arm:
+    type: crank
+    at: [0, 0]
+    arms: { B: [long, 0] }
+    angle: open
+  lower_arm:
+    type: crank
+    at: [0, 0]
+    arms: { D: [long, 0] }
+    angle: -open
+  drive_rod:
+    type: rod
+    length: 150
+    connect: [motor.P, swing_arm.T]
+  top_near:
+    type: rod
+    length: side
+    connect: [swing_arm.A, upper_arm.B]
+  bottom_near:
+    type: rod
+    length: side
+    connect: [swing_arm.A, lower_arm.D]
+  bottom_far:
+    type: rod
+    length: side
+    connect: [lower_arm.D, top_far.C]
+
+joints:
+  top_corner: { type: revolute, connect: [upper_arm.B, top_far.B] }
+
+traces: [top_far.C, swing_arm.A]
+
+measures:
+  stroke: range(y(top_far.C))
+  wander: range(x(top_far.C))
+  # The two free corners' distances from the fixed pivot, multiplied: it does not
+  # change, which is what makes the line straight.
+  product: dist(ground.upper_arm, swing_arm.A) * dist(ground.upper_arm, top_far.C)
+  product_change: range(product)
+  swing: range(angle(swing_arm))
+
+plots:
+  point: [x(top_far.C), y(top_far.C)]
+
+# The bar written out above starts at the upper corner of the rhombus, pointing
+# down at the line.
+pose:
+  top_far:
+    - long * cos(open)
+    - long * sin(open)
+    - "-atan2(long * sin(open), line - long * cos(open))"

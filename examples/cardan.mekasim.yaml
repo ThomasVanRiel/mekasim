@@ -1,0 +1,67 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Cardan's straight line, also known as the Tusi couple: a straight line out of
+# nothing but turning.
+#
+# An arm carries a planet wheel round a fixed sun wheel twice its size, with an
+# idler between the two. The sun turns the idler one way and the idler turns the
+# planet back, so that the planet turns against the arm at the same speed as the
+# arm goes round. A point on the planet as far from its centre as the centre is
+# from the shaft then runs to and fro along a straight line through the shaft:
+# four arm lengths long, with the motion of a pure sine.
+#
+# Set `reach` to anything else and the point draws an ellipse instead.
+#
+# The sun is part of the ground and is not drawn; the idler and planet are.
+mekasim: 1
+meta:
+  name: Cardan straight line
+
+params:
+  rpm: 30
+  sun: 80 mm        # pitch diameters of the three wheels
+  idler: 40 mm
+  planet: sun / 2
+  arm: (sun + planet) / 2 + idler   # shaft to the planet's centre
+  reach: arm        # planet's centre to the tracing point
+
+bodies:
+  idler_wheel:
+    points: { O: [0, 0], mark: [idler / 2, 0] }
+  planet_wheel:
+    points: { O: [0, 0], P: [reach, 0] }
+
+components:
+  carrier:
+    type: crank
+    at: [0, 0]
+    arms: { I: [(sun + idler) / 2, 0], P: [arm, 0] }
+    speed: rpm
+
+joints:
+  idler_pin: { type: revolute, connect: [carrier.I, idler_wheel.O] }
+  planet_pin: { type: revolute, connect: [carrier.P, planet_wheel.O] }
+  sun_mesh:
+    type: gear
+    connect: [ground.carrier, idler_wheel.O]
+    sizes: [sun, idler]
+    carrier: carrier
+  planet_mesh:
+    type: gear
+    connect: [idler_wheel.O, planet_wheel.O]
+    sizes: [idler, planet]
+    carrier: carrier
+
+traces: [planet_wheel.P]
+
+measures:
+  stroke: range(x(planet_wheel.P))
+  # How far the point strays from the line: nothing, while `reach` equals `arm`.
+  wander: range(y(planet_wheel.P))
+  planet_speed: mean(omega(planet_wheel))
+
+plots:
+  point: [x(planet_wheel.P), y(planet_wheel.P)]
+
+pose:
+  idler_wheel: [(sun + idler) / 2, 0, 0]
+  planet_wheel: [arm, 0, 0]

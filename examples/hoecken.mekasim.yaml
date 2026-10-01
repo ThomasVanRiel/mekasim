@@ -1,0 +1,53 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Hoecken's straight-line linkage, the same four bars as Chebyshev's lambda.
+#
+# A four-bar whose coupler is carried on past the rocker by its own length. For
+# the half turn in which the crank points away from the rocker's pivot, the end
+# of the coupler moves along a nearly straight line at a nearly steady speed; in
+# the other half turn it loops back over the top. Legs of walking machines and film
+# transports were made this way.
+#
+# The proportions that do it are 1 for the crank, 2 between the pivots and 2.5 for
+# the coupler and the rocker. Change one of them and the line bends.
+mekasim: 1
+meta:
+  name: Hoecken straight line
+
+params:
+  rpm: 60
+  r: 40 mm          # crank radius
+  base: 2 * r       # between the two fixed pivots
+  link: 2.5 * r     # the rocker, and the coupler from the crank to the rocker
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    # It starts pointing away from the rocker, with the coupler's end mid-way
+    # along the straight part.
+    arms: { A: [r, 180] }
+    speed: rpm
+  rocker:
+    type: crank
+    at: [base, 0]
+    arms: { B: [link, 0] }
+    angle: 180 - acos((base + r) / (2 * link))
+  coupler:
+    type: rod
+    length: link
+    connect: [crank.A, rocker.B]
+    points: { P: [2 * link, 0] }
+
+traces: [coupler.P]
+
+measures:
+  width: range(x(coupler.P))
+  height: range(y(coupler.P))
+  # How far the point is above the bottom of its path: next to nothing along the
+  # straight part.
+  rise: y(coupler.P) - min(y(coupler.P))
+  rocker_swing: range(angle(rocker))
+
+plots:
+  rise: rise
+  speed: vx(coupler.P)

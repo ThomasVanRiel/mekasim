@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Whitworth's quick-return motion, as on a shaping machine.
+#
+# The crank turns at a steady speed. Its pin slides in a slotted link that turns
+# about a pivot set below the crank's centre, by less than the crank's radius, so
+# the link goes all the way round too. While the pin is far from that pivot the
+# link turns slowly, while it is near it turns fast. A rod from the other end of
+# the link moves the ram, which so cuts slowly and comes back quickly.
+#
+# With the pivot half a crank radius below the shaft, the cutting stroke takes two
+# thirds of a turn and the return one third. Move `offset` towards zero and the
+# two become equal; towards the crank radius and the return becomes violent.
+mekasim: 1
+meta:
+  name: Whitworth quick return
+
+params:
+  rpm: 60
+  r: 60 mm                                    # crank radius
+  offset: { value: 30 mm, min: 0, max: 50 }   # link's pivot below the crank's centre
+  arm: 50 mm                                  # link's pivot to the rod: half the stroke
+  rod: 200 mm
+
+bodies:
+  ground:
+    points:
+      way_a: [0, -offset]        # the ram's ways, level with the link's pivot
+      way_b: [300, -offset]
+  ram:
+    points: { P: [0, 0], tool: [90, 0] }
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    arms: { A: [r, 90] }
+    speed: rpm
+  slotted_link:
+    type: crank
+    at: [0, -offset]
+    # The slot runs from the pivot to S; B is the pin of the rod, on the other side.
+    arms: { S: [r + offset + 15, 0], B: [arm, 180] }
+    angle: 90
+  ram_rod:
+    type: rod
+    length: rod
+    connect: [slotted_link.B, ram.P]
+
+joints:
+  slot: { type: pin-slot, axis: [slotted_link.O, slotted_link.S], point: crank.A }
+  ways: { type: slider, axis: [ground.way_a, ground.way_b], point: ram.P }
+
+traces: [ram.tool, slotted_link.B]
+
+measures:
+  stroke: range(x(ram.P))
+  cutting_speed: max(vx(ram.P))
+  return_speed: abs(min(vx(ram.P)))
+  # How many times faster the ram comes back than it cuts, at its fastest.
+  quickness: return_speed / cutting_speed
+  link_speed: omega(slotted_link)
+
+plots:
+  ram: change(x(ram.P))
+  ram_speed: vx(ram.P)
+  link_speed: link_speed
+
+pose:
+  ram: [194, -offset, 0]

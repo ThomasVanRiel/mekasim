@@ -1,0 +1,73 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A pumpjack, the nodding donkey of an oil well.
+#
+# A crank-rocker: the crank on the gearbox turns, the pitman pushes the back of
+# the walking beam up and down, and the horsehead at the front lifts and lowers
+# the polished rod that goes down the well. The crank's other end carries the
+# counterweight.
+#
+# On a real pumpjack the rod hangs on a cable that lies over the curved face of
+# the horsehead, which keeps it exactly in line with the well. A link stands in
+# for the cable here, and the rod is kept in line by a guide at the wellhead.
+mekasim: 1
+meta:
+  name: Pumpjack
+
+params:
+  rpm: 10
+  crank: 70 mm      # crank radius: the stroke is about twice this, times front / back
+  pitman: 280 mm
+  back: 200 mm      # saddle bearing to the pitman
+  front: 300 mm     # saddle bearing to the face of the horsehead
+  post: 500 mm      # height of the saddle bearing on the samson post
+
+bodies:
+  ground:
+    points:
+      well_a: [-front, 0]        # the well, straight down under the horsehead
+      well_b: [-front, 200]
+  polished_rod:
+    points: { top: [0, 0], bottom: [0, -220] }
+
+components:
+  gearbox:
+    type: crank
+    at: [back, post - pitman]
+    arms: { P: [crank, 0], weight: [130, 180] }
+    speed: rpm
+  beam:
+    type: crank
+    at: [0, post]
+    # The horsehead is the three points at the front; the cable leaves it at H.
+    arms:
+      E: [back, 0]
+      H: [front, 180]
+      head_top: [front, 160]
+      head_bottom: [front, 200]
+  pitman_arm:
+    type: rod
+    length: pitman
+    connect: [gearbox.P, beam.E]
+  bridle:
+    type: rod
+    length: 250
+    connect: [beam.H, polished_rod.top]
+
+joints:
+  wellhead: { type: slider, axis: [ground.well_a, ground.well_b], point: polished_rod.top }
+
+traces: [beam.H, polished_rod.top]
+
+measures:
+  stroke: range(y(polished_rod.top))
+  beam_swing: range(angle(beam))
+  upstroke_speed: max(vy(polished_rod.top))
+  downstroke_speed: abs(min(vy(polished_rod.top)))
+  peak_accel: max(abs(ay(polished_rod.top)))
+
+plots:
+  rod: change(y(polished_rod.top))
+  rod_speed: vy(polished_rod.top)
+
+pose:
+  polished_rod: [-front, post - 250, 0]
