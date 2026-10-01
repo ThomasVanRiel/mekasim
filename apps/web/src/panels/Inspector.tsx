@@ -5,12 +5,13 @@ import {
   type Edit,
   GROUND,
   jointRefs,
+  nameMeasure,
   toggleTrace,
 } from "@mekasim/core";
 import type { ReactNode } from "react";
 import { label, refLabel, titled } from "../names.ts";
 import { useStore } from "../store.ts";
-import { deleteSelection } from "../viewport/tools.ts";
+import { deleteSelection, linkMeasures } from "../viewport/tools.ts";
 import { Field } from "./Field.tsx";
 
 const button = "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft";
@@ -161,12 +162,7 @@ function ComponentSection({ doc, id }: { doc: Doc; id: string }) {
           optional
           hint="automatic"
         />
-        <PlotButtons
-          plots={[
-            { label: "angle", name: `${id}_angle`, series: [`angle(${id})`] },
-            { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
-          ]}
-        />
+        <LinkActions id={id} />
       </Section>
     );
   }
@@ -211,12 +207,7 @@ function ComponentSection({ doc, id }: { doc: Doc; id: string }) {
         optional
         hint="automatic"
       />
-      <PlotButtons
-        plots={[
-          { label: "angle", name: `${id}_angle`, series: [`angle(${id})`] },
-          { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
-        ]}
-      />
+      <LinkActions id={id} />
     </Section>
   );
 }
@@ -235,6 +226,63 @@ function PartOf({ title, component }: { title: string; component: string }) {
         Show {label(component)}
       </button>
     </Section>
+  );
+}
+
+/** Buttons that add live measures to the model. */
+function MeasureButtons({
+  measures,
+}: {
+  measures: { label: string; items: [name: string, expr: string][] }[];
+}) {
+  const transact = useStore((s) => s.transact);
+  return (
+    <div className="flex flex-wrap items-baseline gap-1.5">
+      <span className="text-ink-soft text-sm">Measure</span>
+      {measures.map(({ label: text, items }) => (
+        <button
+          key={text}
+          type="button"
+          className={button}
+          onClick={() =>
+            transact((tx) => {
+              for (const [name, expr] of items) tx.run(nameMeasure(tx.doc, name, expr));
+            })
+          }
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** What can be plotted and measured of a link as a whole: where it is and how it is turned. */
+function LinkActions({ id }: { id: string }) {
+  const [dx, dy, turn] = linkMeasures(id) as [[string, string], [string, string], [string, string]];
+  return (
+    <>
+      <PlotButtons
+        plots={[
+          { label: "movement", name: `${id}_movement`, series: [dx[1], dy[1]] },
+          { label: "turning", name: `${id}_turn`, series: [turn[1]] },
+          { label: "speed", name: `${id}_speed`, series: [`v(${id})`] },
+          { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
+          { label: "acceleration", name: `${id}_accel`, series: [`a(${id})`] },
+        ]}
+      />
+      <MeasureButtons
+        measures={[
+          { label: "movement", items: [dx, dy] },
+          { label: "turning", items: [turn] },
+          { label: "swing", items: [[`${id}_swing`, `range(angle(${id}))`]] },
+        ]}
+      />
+      <p className="text-ink-soft text-sm">
+        Movement and turning are counted from where the link starts. Movement is that of its centre,
+        the middle of its points, where its name is written.
+      </p>
+    </>
   );
 }
 
@@ -273,18 +321,7 @@ export function Inspector() {
             hint="0"
           />
         )}
-        {!ground && (
-          <PlotButtons
-            plots={[
-              { label: "angle", name: `${selection.id}_angle`, series: [`angle(${selection.id})`] },
-              {
-                label: "turning speed",
-                name: `${selection.id}_omega`,
-                series: [`omega(${selection.id})`],
-              },
-            ]}
-          />
-        )}
+        {!ground && <LinkActions id={selection.id} />}
       </Section>
     );
   }
@@ -315,9 +352,9 @@ export function Inspector() {
           <PlotButtons
             plots={[
               {
-                label: "position",
-                name: `${bodyId}_${name}`,
-                series: [`x(${selection.ref})`, `y(${selection.ref})`],
+                label: "movement",
+                name: `${bodyId}_${name}_movement`,
+                series: [`change(x(${selection.ref}))`, `change(y(${selection.ref}))`],
               },
               { label: "speed", name: `${bodyId}_${name}_speed`, series: [`v(${selection.ref})`] },
               {
@@ -325,6 +362,20 @@ export function Inspector() {
                 name: `${bodyId}_${name}_accel`,
                 series: [`a(${selection.ref})`],
               },
+            ]}
+          />
+        )}
+        {bodyId !== GROUND && (
+          <MeasureButtons
+            measures={[
+              {
+                label: "movement",
+                items: [
+                  [`${bodyId}_${name}_dx`, `change(x(${selection.ref}))`],
+                  [`${bodyId}_${name}_dy`, `change(y(${selection.ref}))`],
+                ],
+              },
+              { label: "speed", items: [[`${bodyId}_${name}_speed`, `v(${selection.ref})`]] },
             ]}
           />
         )}

@@ -137,6 +137,17 @@ describe("signals", () => {
     expect(run("max(abs(s))", { s: signal }).dim).toEqual(LENGTH);
   });
 
+  it("counts a signal from where it started", () => {
+    const moved = run("change(s)", { s: signal });
+    expect(moved.dim).toEqual(LENGTH);
+    [0, 0.02, -0.03].forEach((expected, k) => {
+      expect((moved.value as Float64Array)[k]).toBeCloseTo(expected, 12);
+    });
+    // A single number has nowhere to have moved from.
+    expect(run("change(5 mm)")).toEqual({ value: 0, dim: LENGTH });
+    expect(run("range(change(s))", { s: signal }).value).toBeCloseTo(0.05, 12);
+  });
+
   it("compares sample by sample when min or max get several arguments", () => {
     expect(Array.from(run("max(s, 0)", { s: signal }).value as Float64Array)).toEqual([
       0.01, 0.03, 0,

@@ -99,7 +99,7 @@ export const TOOLS: { id: Tool; group: Group; label: string; key: string; hint: 
     group: "Drive and measure",
     label: "Measure",
     key: "d",
-    hint: "Click two points to measure the distance between them, or click a link to measure its angle. The result is added to the measures.",
+    hint: "Click two points to measure the distance between them, or click a link to measure how far it has moved and turned from where it started. The result is added to the measures.",
   },
 ];
 

@@ -174,9 +174,26 @@ describe("measuring", () => {
     );
   });
 
-  it("adds the angle of a link clicked away from its points", () => {
+  it("measures how far a link clicked away from its points has moved and turned", () => {
     clickMeasure(scene(), 0.07, 0.07, TOL);
-    expect(text()).toContain("  angle1: angle(link2)\n");
+    expect(text()).toContain(
+      "measures:\n  link2_dx: change(x(link2))\n  link2_dy: change(y(link2))\n  link2_turn: change(angle(link2))\n",
+    );
+    // At the start nothing has moved yet.
+    const value = (id: string) => {
+      const found = useStore.getState().simulation.measures.find((m) => m.id === id)
+        ?.quantity?.value;
+      return typeof found === "object" ? found[0] : undefined;
+    };
+    expect(value("link2_dx")).toBe(0);
+    expect(value("link2_turn")).toBe(0);
+  });
+
+  it("does not measure the same thing twice", () => {
+    clickMeasure(scene(), 0.07, 0.07, TOL);
+    const once = text();
+    clickMeasure(scene(), 0.07, 0.07, TOL);
+    expect(text()).toBe(once);
   });
 
   it("asks for a different point when the same one is clicked twice", () => {

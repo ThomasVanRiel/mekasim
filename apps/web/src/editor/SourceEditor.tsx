@@ -7,6 +7,7 @@ import { tags } from "@lezer/highlight";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { editorBridge, LIVE, useStore } from "../store.ts";
+import { external, linkedNames } from "./linked.ts";
 
 /** How long to wait after the last keystroke before solving again. */
 const SOLVE_DELAY_MS = 200;
@@ -63,6 +64,7 @@ export function SourceEditor() {
         yaml(),
         syntaxHighlighting(highlight),
         lintGutter(),
+        linkedNames(),
         theme,
         EditorView.contentAttributes.of({ "aria-label": "Model source" }),
         // Let the steps of one drag or slider movement undo together.
@@ -115,6 +117,8 @@ export function SourceEditor() {
     editor.dispatch({
       changes: { from, to, insert: text.slice(from, end) },
       userEvent: useStore.getState().syncEvent,
+      // Not typed here, so not a rename of whatever name the cursor happens to be on.
+      annotations: external.of(true),
     });
   }, [text]);
 

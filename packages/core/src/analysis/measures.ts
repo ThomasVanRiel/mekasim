@@ -24,10 +24,26 @@ function splitRef(ref: string): [body: string, point: string | undefined] {
   return [body as string, point];
 }
 
+/**
+ * The centre of a body in its own frame: the middle of its points. It is what the
+ * position of a link means, since a link's own origin can be anywhere.
+ */
+export function centreOf(body: CompiledBody): { u: number; v: number } | undefined {
+  if (body.points.size === 0) return undefined;
+  let u = 0;
+  let v = 0;
+  for (const point of body.points.values()) {
+    u += point.u / body.points.size;
+    v += point.v / body.points.size;
+  }
+  return { u, v };
+}
+
+/** The motion of a point given as `body.point`, or of the centre of a body given as `body`. */
 export function pointMotion(compiled: Compiled, cycle: Cycle, ref: string): PointMotion {
   const [bodyId, name] = splitRef(ref);
   const body = compiled.bodies.get(bodyId);
-  const local = name === undefined ? undefined : body?.points.get(name);
+  const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
   if (!body || !local) throw new Error(`Unknown point "${ref}"`);
 
   const n = cycle.count;
@@ -138,12 +154,13 @@ export function evaluateMeasures(
     const [bodyId, name] = splitRef(ref);
     const body = compiled.bodies.get(bodyId);
     if (!body) throw new ExprError(`Unknown body "${bodyId}"`, (node as Node).pos);
-    if (name === undefined)
+    // A body stands for its centre.
+    if (name === undefined && body.points.size === 0)
       throw new ExprError(
-        `Expected a point such as ${bodyId}.A, got body "${bodyId}"`,
+        `Body "${bodyId}" has no points, so it has no centre`,
         (node as Node).pos,
       );
-    if (!body.points.has(name))
+    if (name !== undefined && !body.points.has(name))
       throw new ExprError(`Body "${bodyId}" has no point "${name}"`, (node as Node).pos);
     const result = pointMotion(compiled, cycle, ref);
     motions.set(ref, result);

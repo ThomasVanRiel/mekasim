@@ -63,8 +63,10 @@ Done so far:
 
 Left out of the phases built so far, noted as each was handed over.
 
-- **Renaming:** links, points and joints cannot be renamed from the drawing, only
-  in the source.
+- **Renaming** is done in the source, where editing a name where it is defined
+  changes every use of it. There is no renaming from the drawing or the inspector.
+  The pins a rod stands for (`rod_a`, `rod_b`) and the ground point of a crank are
+  not followed when the rod or crank is renamed.
 - **Drawing tools** place a slot's line on the ground only; a slot along a moving
   body is written in the source. A belt is made by drawing a gear and switching it
   in the inspector. A cam's follower still needs its own pin or slot.

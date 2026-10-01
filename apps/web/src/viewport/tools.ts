@@ -14,6 +14,7 @@ import {
   GROUND,
   LENGTH,
   movePoint,
+  nameMeasure,
   removeBody,
   removeJoint,
   removePoint,
@@ -401,6 +402,18 @@ export function clickCam(scene: Scene, x: number, y: number, tolerance: number):
 }
 
 /**
+ * The measures that say how a link has moved from where it started: how far its
+ * centre has gone each way, and how far it has turned.
+ */
+export function linkMeasures(id: string): [name: string, expr: string][] {
+  return [
+    [`${id}_dx`, `change(x(${id}))`],
+    [`${id}_dy`, `change(y(${id}))`],
+    [`${id}_turn`, `change(angle(${id}))`],
+  ];
+}
+
+/**
  * Measure on the drawing: two points give the distance between them, a link clicked
  * away from its points gives its angle. The result is added to the model's measures.
  */
@@ -426,13 +439,16 @@ export function clickMeasure(scene: Scene, x: number, y: number, tolerance: numb
   }
   const hit = first ? undefined : pick(scene, state.step, x, y, tolerance);
   if (hit?.kind === "body") {
-    state.transact((tx) => tx.run(addMeasure(tx.doc, "angle", `angle(${hit.id})`).edits));
+    // A link is measured by how far its centre has moved and how far it has turned.
+    state.transact((tx) => {
+      for (const [name, expr] of linkMeasures(hit.id)) tx.run(nameMeasure(tx.doc, name, expr));
+    });
     return;
   }
   state.setNotice(
     first
       ? "Click a second point to measure the distance to it."
-      : "Click a point to start a distance, or a link to measure its angle.",
+      : "Click a point to start a distance, or a link to measure how far it has moved and turned.",
   );
 }
 

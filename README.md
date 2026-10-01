@@ -39,6 +39,10 @@ keeping its comments and layout.
 Space plays and pauses, the arrow keys step through the cycle, Delete removes the
 selection, Ctrl+Z undoes. "Copy link" puts the whole model into a link.
 
+In the source, put the cursor on a name where it is defined (a link, a point, a
+pin, a parameter, a measure): every place that uses it is marked, and what you type
+into the name is typed into all of them.
+
 Select a point or a link to plot its position, speed, acceleration or angle over
 the cycle; "Export CSV" saves the motion as a table. "Compare values" on a
 parameter solves the model for several values and draws them together. "Trace over
@@ -98,7 +102,7 @@ packages/core/src
   cli.ts      command-line runner
 apps/web/src
   store.ts    model text, solved result, playback state
-  editor/     YAML source editor
+  editor/     YAML source editor, renaming by editing
   viewport/   the drawing: scene description, three.js rendering, labels,
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, plots, messages, timeline

@@ -102,6 +102,7 @@ export const FUNCTION_NAMES = [
   "atan2",
   "sqrt",
   "abs",
+  "change",
   "hypot",
 ];
 
@@ -181,6 +182,14 @@ function call(node: Node & { kind: "call" }, ctx: EvalContext): Quantity {
     case "abs":
       arity(node, 1);
       return { value: map1(first.value, Math.abs), dim: first.dim };
+    case "change": {
+      // How far a value has moved from where it started: the value less its first sample.
+      arity(node, 1);
+      const { value } = first;
+      if (typeof value === "number") return { value: 0, dim: first.dim };
+      const start = value[0] ?? 0;
+      return { value: value.map((x) => x - start), dim: first.dim };
+    }
     default:
       throw new ExprError(`Unknown function "${name}"`, node.pos);
   }

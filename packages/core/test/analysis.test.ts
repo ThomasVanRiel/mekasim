@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { toCsv } from "../src/analysis/csv.ts";
 import { sweep } from "../src/analysis/sweep.ts";
-import { addMeasure, addPlot, editText } from "../src/edit/operations.ts";
+import { addMeasure, addPlot, editText, nameMeasure } from "../src/edit/operations.ts";
 import { load } from "../src/schema/load.ts";
 import { simulate } from "../src/simulate.ts";
 
@@ -125,5 +125,53 @@ describe("adding measures and plots", () => {
       ),
     ).toBe(true);
     expect(simulate(text).diagnostics).toEqual([]);
+  });
+});
+
+describe("measuring a link as a whole", () => {
+  const text = `${shaker.slice(0, shaker.indexOf("measures:"))}measures:
+  centre_x: x(upper_deck)
+  centre_y: y(upper_deck)
+  ends_x: (x(upper_deck.F) + x(upper_deck.B)) / 2
+  centre_speed: v(upper_deck)
+  end_speed: v(upper_deck.F)
+  apart: dist(upper_deck, lower_deck)
+  rocker_centre: y(rocker)
+`;
+  const simulation = simulate(text);
+  const signal = (id: string) =>
+    simulation.measures.find((m) => m.id === id)?.quantity?.value as Float64Array;
+
+  it("takes the position of a link to be the middle of its points", () => {
+    expect(simulation.diagnostics).toEqual([]);
+    for (let k = 0; k < 360; k += 30) {
+      expect(signal("centre_x")[k]).toBeCloseTo(signal("ends_x")[k] as number, 12);
+    }
+    // The deck's two points start at (500, 120) and (1300, 120).
+    expect(signal("centre_x")[0]).toBeCloseTo(0.9, 9);
+    expect(signal("centre_y")[0]).toBeCloseTo(0.12, 9);
+  });
+
+  it("gives speeds and distances of links the same way", () => {
+    // The deck hangs on equal parallel arms, so every point of it moves alike.
+    for (let k = 0; k < 360; k += 30) {
+      expect(signal("centre_speed")[k]).toBeCloseTo(signal("end_speed")[k] as number, 9);
+    }
+    // The decks start 240 mm apart, one above the other.
+    expect(signal("apart")[0]).toBeCloseTo(0.24, 9);
+    // The rocker's four points average to 15 mm above its pivot when it stands upright.
+    expect(signal("rocker_centre")[0]).toBeCloseTo(0.015, 9);
+  });
+});
+
+describe("naming a measure", () => {
+  it("takes the name asked for, numbers it when taken, and skips what is already measured", () => {
+    const read = (t: string) => load(t).doc as NonNullable<ReturnType<typeof load>["doc"]>;
+    let model = shaker;
+    model = editText(model, nameMeasure(read(model), "deck_x", "x(upper_deck)"));
+    expect(model).toContain("  deck_x: x(upper_deck)\n");
+    expect(nameMeasure(read(model), "other", "x(upper_deck)")).toEqual([]);
+    model = editText(model, nameMeasure(read(model), "deck_x", "x(lower_deck)"));
+    expect(model).toContain("  deck_x_1: x(lower_deck)\n");
   });
 });

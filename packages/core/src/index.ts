@@ -1,6 +1,7 @@
 export { toCsv } from "./analysis/csv.ts";
 export { type Cycle, type CycleFailure, solveCycle } from "./analysis/cycle.ts";
 export {
+  centreOf,
   cycleAxis,
   evaluateMeasures,
   type MeasureResult,
@@ -19,6 +20,7 @@ export {
   compile,
 } from "./compile/compile.ts";
 export { type Diagnostic, hasErrors, type Position, type Severity } from "./diagnostics.ts";
+export { type LinkedName, linkedAt, type NameKind, type Span } from "./edit/linked.ts";
 export {
   addBody,
   addComponent,
@@ -36,6 +38,7 @@ export {
   jointRefs,
   movePoint,
   NEW_MODEL,
+  nameMeasure,
   removeBody,
   removeJoint,
   removePoint,

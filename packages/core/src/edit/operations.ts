@@ -254,3 +254,14 @@ export function addComponent(
     ],
   };
 }
+
+/**
+ * Add a measure under a given name, or a numbered variant of it when the name is
+ * taken. Nothing is added when the model already measures the same expression.
+ */
+export function nameMeasure(doc: Document, name: string, expr: string): Edit[] {
+  const measures = doc.measures ?? {};
+  if (Object.values(measures).some((existing) => existing === expr)) return [];
+  const id = name in measures ? freeName(Object.keys(measures), `${name}_`) : name;
+  return [{ op: "set", path: ["measures", id], value: expr }];
+}

@@ -306,7 +306,7 @@ and give a value at every sample of the cycle:
 
 | Function | Result |
 |---|---|
-| `x(p)`, `y(p)` | Position of a point |
+| `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |
 | `dist(p, q)` | Distance between two points |
@@ -315,6 +315,15 @@ and give a value at every sample of the cycle:
 | `angle(p, q, r)` | Angle at `q`, turning from `p` to `r` |
 | `omega(body)`, `alpha(body)` | Angular velocity and acceleration of a body |
 | `t` | Time |
+
+Wherever a function takes a point it also takes a body, written without a point:
+`x(rocker)`, `v(upper_deck)`, `dist(upper_deck, lower_deck)`. The body then stands
+for its centre, the middle of its points. `angle(body)` gives how far it is turned.
+
+`change(e)` counts a value from where it started: the value at each instant less
+its value at the start of the cycle. `change(x(deck))` is how far the deck has moved
+sideways from its starting position, `change(angle(rocker))` how far the rocker has
+turned.
 
 These reduce a value over the cycle to one number:
 
