@@ -1,9 +1,11 @@
+import { GROUND } from "@mekasim/core";
 import { Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, useEffect, useMemo, useRef } from "react";
 import { type Group, MOUSE, type OrthographicCamera, Shape, TOUCH, Vector2, Vector3 } from "three";
 import { useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
+import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
 import type { Point } from "./outline.ts";
 import {
@@ -31,7 +33,26 @@ function loop(outline: Point[], z: number): Vec3[] {
   return points;
 }
 
-function Plate({ body, sizes }: { body: DrawBody; sizes: Sizes }) {
+/** A ring that marks the selected thing. */
+function Halo({ at, radius }: { at: Vec3; radius: number }) {
+  return (
+    <group position={at}>
+      <Line points={circle(radius, 0)} color={COLORS.dye} lineWidth={3} />
+    </group>
+  );
+}
+
+function Plate({
+  body,
+  sizes,
+  selected,
+  selectedPoint,
+}: {
+  body: DrawBody;
+  sizes: Sizes;
+  selected: boolean;
+  selectedPoint: string | undefined;
+}) {
   const shape = useMemo(
     () => new Shape(body.outline.map(([x, y]) => new Vector2(x, y))),
     [body.outline],
@@ -44,7 +65,11 @@ function Plate({ body, sizes }: { body: DrawBody; sizes: Sizes }) {
         <extrudeGeometry args={[shape, { depth: sizes.thickness, bevelEnabled: false }]} />
         <meshLambertMaterial color={body.color} />
       </mesh>
-      <Line points={loop(body.outline, front + lift)} color={COLORS.ink} lineWidth={1.4} />
+      <Line
+        points={loop(body.outline, front + lift)}
+        color={selected ? COLORS.dye : COLORS.ink}
+        lineWidth={selected ? 3 : 1.4}
+      />
       <Line points={loop(body.outline, body.z - lift)} color={COLORS.ink} lineWidth={1.4} />
       {body.points.map((p) => (
         <mesh key={p.name} position={[p.u, p.v, front + lift]}>
@@ -52,11 +77,16 @@ function Plate({ body, sizes }: { body: DrawBody; sizes: Sizes }) {
           <meshBasicMaterial color={COLORS.ink} />
         </mesh>
       ))}
+      {body.points
+        .filter((p) => p.name === selectedPoint)
+        .map((p) => (
+          <Halo key={p.name} at={[p.u, p.v, front + 2 * lift]} radius={sizes.half * 0.7} />
+        ))}
     </>
   );
 }
 
-function Pin({ pin, sizes }: { pin: DrawPin; sizes: Sizes }) {
+function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: boolean }) {
   const radius = sizes.half * 0.42;
   const length = pin.zFront - pin.zBack;
   const lift = sizes.thickness * 0.03;
@@ -89,6 +119,7 @@ function Pin({ pin, sizes }: { pin: DrawPin; sizes: Sizes }) {
           lineWidth={2.5}
         />
       )}
+      {selected && <Halo at={[0, 0, pin.zFront + 2 * lift]} radius={sizes.half * 1.15} />}
     </group>
   );
 }
@@ -143,7 +174,7 @@ function Support({ at, z, sizes }: { at: Point; z: number; sizes: Sizes }) {
   );
 }
 
-function Ground({ scene }: { scene: Scene }) {
+function Ground({ scene, selectedPoint }: { scene: Scene; selectedPoint: string | undefined }) {
   const { sizes, groundZ } = scene;
   return (
     <>
@@ -163,6 +194,7 @@ function Ground({ scene }: { scene: Scene }) {
             color={COLORS.ink}
             lineWidth={1}
           />
+          {p.name === selectedPoint && <Halo at={[0, 0, 0]} radius={sizes.half * 0.7} />}
         </group>
       ))}
     </>
@@ -186,6 +218,10 @@ function Grid({ scene }: { scene: Scene }) {
 
 function Mechanism({ scene }: { scene: Scene }) {
   const labels = useStore((s) => s.labels);
+  const selection = useStore((s) => s.selection);
+  const selectedJoint = selection?.kind === "joint" ? selection.id : undefined;
+  const selectedBody = selection?.kind === "body" ? selection.id : undefined;
+  const [pointBody, pointName] = selection?.kind === "point" ? selection.ref.split(".") : [];
   const groups = useRef(new Map<number, Group>());
   const pose = useRef<[number, number, number]>([0, 0, 0]);
 
@@ -213,11 +249,11 @@ function Mechanism({ scene }: { scene: Scene }) {
   return (
     <>
       <Grid scene={scene} />
-      <Ground scene={scene} />
+      <Ground scene={scene} selectedPoint={pointBody === GROUND ? pointName : undefined} />
       {scene.pins
         .filter((pin) => pin.body < 0)
         .map((pin) => (
-          <Pin key={pin.id} pin={pin} sizes={scene.sizes} />
+          <Pin key={pin.id} pin={pin} sizes={scene.sizes} selected={pin.id === selectedJoint} />
         ))}
       {scene.axes
         .filter((axis) => axis.body < 0)
@@ -232,11 +268,16 @@ function Mechanism({ scene }: { scene: Scene }) {
             else groups.current.delete(body.index);
           }}
         >
-          <Plate body={body} sizes={scene.sizes} />
+          <Plate
+            body={body}
+            sizes={scene.sizes}
+            selected={body.id === selectedBody}
+            selectedPoint={pointBody === body.id ? pointName : undefined}
+          />
           {scene.pins
             .filter((pin) => pin.body === body.index)
             .map((pin) => (
-              <Pin key={pin.id} pin={pin} sizes={scene.sizes} />
+              <Pin key={pin.id} pin={pin} sizes={scene.sizes} selected={pin.id === selectedJoint} />
             ))}
           {scene.axes
             .filter((axis) => axis.body === body.index)
@@ -249,6 +290,7 @@ function Mechanism({ scene }: { scene: Scene }) {
         <Line key={trace.ref} points={trace.points} color={COLORS.dye} lineWidth={1.8} />
       ))}
       {labels && <Labels scene={scene} />}
+      <Interaction />
     </>
   );
 }
@@ -258,6 +300,7 @@ const CAMERA_DISTANCE = 50;
 
 function Camera({ scene }: { scene: Scene | undefined }) {
   const view = useStore((s) => s.view);
+  const tool = useStore((s) => s.tool);
   const fitRequest = useStore((s) => s.fitRequest);
   const camera = useThree((s) => s.camera) as OrthographicCamera;
   const controls = useThree((s) => s.controls) as ComponentRef<typeof OrbitControls> | null;
@@ -292,7 +335,8 @@ function Camera({ scene }: { scene: Scene | undefined }) {
       enableRotate={view === "3d"}
       zoomToCursor
       mouseButtons={{
-        LEFT: view === "3d" ? MOUSE.ROTATE : MOUSE.PAN,
+        // With a drawing tool the left button belongs to the tool; pan with the right one.
+        LEFT: view === "3d" ? MOUSE.ROTATE : tool === "select" ? MOUSE.PAN : undefined,
         MIDDLE: MOUSE.DOLLY,
         RIGHT: MOUSE.PAN,
       }}

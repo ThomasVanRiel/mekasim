@@ -32,6 +32,8 @@ export interface DrawBody {
 export interface DrawPin {
   id: string;
   kind: "revolute" | "weld" | "slider" | "pin-slot";
+  /** The points the joint connects, each as `body.point`. */
+  refs: string[];
   /** Body the pin is drawn on, at `(u, v)` in its frame. */
   body: number;
   u: number;
@@ -75,6 +77,11 @@ export interface Bounds {
 
 export interface Scene {
   cycle: Cycle;
+  /**
+   * Positions of all bodies that replace the cycle while a part is being dragged.
+   * Set and cleared by the drag itself, and read every frame.
+   */
+  override?: Float64Array;
   /** Whether the last sample leads back into the first, so playback can loop smoothly. */
   periodic: boolean;
   sizes: Sizes;
@@ -106,7 +113,13 @@ export function poseAt(
   step: number,
   out: [number, number, number],
 ): void {
-  const { cycle, periodic } = scene;
+  const { cycle, periodic, override } = scene;
+  if (override) {
+    out[0] = override[3 * body];
+    out[1] = override[3 * body + 1];
+    out[2] = override[3 * body + 2];
+    return;
+  }
   const k0 = Math.min(Math.max(Math.floor(step), 0), cycle.count - 1);
   const next = k0 + 1 < cycle.count ? k0 + 1 : periodic ? 0 : k0;
   const f = Math.min(Math.max(step - k0, 0), 1);
@@ -164,10 +177,17 @@ export function buildScene(simulation: Simulation): Scene | undefined {
       }
     }
   }
-  if (!Number.isFinite(bounds.minX)) return undefined;
-
   const unit = docFactor(LENGTH, compiled.units);
-  const extent = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 10 * unit);
+  if (!Number.isFinite(bounds.minX)) {
+    // Nothing is drawn yet: show an empty sheet of a workable size to start on.
+    bounds.minX = -150 * unit;
+    bounds.maxX = 150 * unit;
+    bounds.minY = -100 * unit;
+    bounds.maxY = 100 * unit;
+  }
+  // Links and grid are sized from the model, but not below what suits a sheet of about
+  // 100 units, so the first link drawn on an empty sheet is not a hairline.
+  const extent = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 100 * unit);
   const half = extent * 0.013;
   const sizes: Sizes = { half, thickness: half * 1.2, pitch: half * 1.9 };
   const backOf = (layer: number): number => layer * sizes.pitch;
@@ -225,6 +245,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
       pins.push({
         id: joint.id,
         kind: joint.type,
+        refs: joint.points,
         body: carrier.index,
         u: carrier.u,
         v: carrier.v,
@@ -241,6 +262,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     pins.push({
       id: joint.id,
       kind: joint.type,
+      refs: joint.points,
       body: pin.index,
       u: pin.u,
       v: pin.v,

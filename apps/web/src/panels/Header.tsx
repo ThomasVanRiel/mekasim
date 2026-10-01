@@ -1,5 +1,7 @@
-import { useRef } from "react";
+import { NEW_MODEL } from "@mekasim/core";
+import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
+import { encodeModel } from "../io/share.ts";
 import { useStore } from "../store.ts";
 
 const button =
@@ -17,6 +19,18 @@ export function Header() {
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const load = useStore((s) => s.load);
   const input = useRef<HTMLInputElement>(null);
+  const [shared, setShared] = useState<"copied" | "failed">();
+
+  async function copyLink(): Promise<void> {
+    try {
+      const fragment = await encodeModel(useStore.getState().text);
+      await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
+      setShared("copied");
+    } catch {
+      setShared("failed");
+    }
+    setTimeout(() => setShared(undefined), 2500);
+  }
 
   function download(): void {
     const url = URL.createObjectURL(new Blob([useStore.getState().text], { type: "text/yaml" }));
@@ -31,6 +45,9 @@ export function Header() {
     <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-rule border-b px-4 py-2">
       <span className="font-semibold text-lg tracking-tight">mekasim</span>
       <span className="min-w-0 flex-1 truncate text-ink-soft">{name ?? "Untitled model"}</span>
+      <button type="button" className={button} onClick={() => load(NEW_MODEL)}>
+        New model
+      </button>
       <select
         className={button}
         aria-label="Load an example"
@@ -54,6 +71,9 @@ export function Header() {
       </button>
       <button type="button" className={button} onClick={download}>
         Download
+      </button>
+      <button type="button" className={button} onClick={copyLink}>
+        {shared === "copied" ? "Link copied" : shared === "failed" ? "Could not copy" : "Copy link"}
       </button>
       <input
         ref={input}

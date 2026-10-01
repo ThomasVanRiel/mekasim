@@ -2,7 +2,12 @@
 
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
 reference). **Phase 1, the viewer, is built** but not yet deployed to Netlify.
-Phase 2, the editor, is next. The format as implemented is described in
+**Phase 2, the editor, is built.** Phase 3, analysis, is next.
+
+Left out of phase 2 for now: renaming things from the drawing (edit the name in the
+source), drawing sliders, welds and pin-slots (write them in the source), and a
+list of recent models (the last model is kept in the browser; files are opened and
+downloaded). The format as implemented is described in
 [FORMAT.md](FORMAT.md), which takes precedence over the sketch in section 4.
 
 A browser app for exploring mechanisms: draw or describe linkages, eccentrics, cams

@@ -16,8 +16,21 @@ pnpm install
 pnpm dev         # the app, at http://localhost:5173
 ```
 
-Edit the YAML on the left and the drawing, measures and messages follow. Space
-plays and pauses; the arrow keys step through the cycle.
+Edit the YAML on the left and the drawing, measures and messages follow. Or work
+on the drawing and the YAML follows: changes are written into the text in place,
+keeping its comments and layout.
+
+| Tool | Key | What it does |
+|---|---|---|
+| Select | V | Click to select; drag a part to move the mechanism |
+| Link | L | Click points for a new link; Enter or a second click on the last point finishes |
+| Pin | P | Pin overlapping points together, or a lone point to the ground |
+| Motor | M | Drive a pin, or remove its motor |
+| Trace | T | Record the path of a point |
+| Reshape | R | Drag a point to change its link; pinned points move along |
+
+Space plays and pauses, the arrow keys step through the cycle, Delete removes the
+selection, Ctrl+Z undoes. "Copy link" puts the whole model into a link.
 
 From the command line:
 
@@ -61,13 +74,16 @@ packages/core/src
   compile/    document -> solver model
   solver/     constraints, position/velocity/acceleration, degrees of freedom
   analysis/   motion cycle, measures
+  edit/       changes to model text in place, model operations
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
 apps/web/src
   store.ts    model text, solved result, playback state
   editor/     YAML source editor
-  viewport/   the drawing: scene description, three.js rendering, labels
-  panels/     header, measures, messages, timeline, title block
+  viewport/   the drawing: scene description, three.js rendering, labels,
+              hit-testing, drawing tools
+  panels/     header, inspector, parameters, measures, messages, timeline
+  io/         share links
 ```
 
 The app deploys to Netlify from `netlify.toml` as a static site.

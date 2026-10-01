@@ -1,3 +1,4 @@
+import { history, redo, undo } from "@codemirror/commands";
 import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Diagnostic as EditorDiagnostic, lintGutter, setDiagnostics } from "@codemirror/lint";
@@ -5,7 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
-import { useStore } from "../store.ts";
+import { editorBridge, LIVE, useStore } from "../store.ts";
 
 /** How long to wait after the last keystroke before solving again. */
 const SOLVE_DELAY_MS = 200;
@@ -49,7 +50,7 @@ export function SourceEditor() {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView>(null);
   const simulation = useStore((s) => s.simulation);
-  const loadCount = useStore((s) => s.loadCount);
+  const text = useStore((s) => s.text);
   const reveal = useStore((s) => s.reveal);
 
   useEffect(() => {
@@ -64,31 +65,58 @@ export function SourceEditor() {
         lintGutter(),
         theme,
         EditorView.contentAttributes.of({ "aria-label": "Model source" }),
+        // Let the steps of one drag or slider movement undo together.
+        history({ joinToEvent: (tr) => tr.isUserEvent(LIVE) }),
         EditorView.updateListener.of((update) => {
           if (!update.docChanged) return;
+          const solveNow = (): void => {
+            const current = editor.state.doc.toString();
+            if (current !== useStore.getState().text) useStore.getState().edit(current);
+          };
           clearTimeout(timer);
-          timer = setTimeout(() => {
-            const text = editor.state.doc.toString();
-            if (text !== useStore.getState().text) useStore.getState().edit(text);
-          }, SOLVE_DELAY_MS);
+          // Typing waits for a pause; undo and redo show their result at once.
+          const stepped = update.transactions.some(
+            (tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"),
+          );
+          if (stepped) solveNow();
+          else timer = setTimeout(solveNow, SOLVE_DELAY_MS);
         }),
       ],
     });
     view.current = editor;
+    editorBridge.text = () => editor.state.doc.toString();
+    editorBridge.undo = () => undo(editor);
+    editorBridge.redo = () => redo(editor);
     return () => {
       clearTimeout(timer);
+      editorBridge.text = undefined;
+      editorBridge.undo = undefined;
+      editorBridge.redo = undefined;
       editor.destroy();
     };
   }, []);
 
-  // A model loaded from elsewhere replaces what is in the editor.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: runs when a model is loaded, not on each edit
+  // Text changed from outside the editor (the drawing, a panel, a loaded file) is
+  // written into it as the smallest replacement, so the cursor and undo history survive.
   useEffect(() => {
     const editor = view.current;
-    const { text } = useStore.getState();
-    if (!editor || editor.state.doc.toString() === text) return;
-    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: text } });
-  }, [loadCount]);
+    if (!editor) return;
+    const current = editor.state.doc.toString();
+    if (current === text) return;
+    let from = 0;
+    const shortest = Math.min(current.length, text.length);
+    while (from < shortest && current[from] === text[from]) from++;
+    let to = current.length;
+    let end = text.length;
+    while (to > from && end > from && current[to - 1] === text[end - 1]) {
+      to--;
+      end--;
+    }
+    editor.dispatch({
+      changes: { from, to, insert: text.slice(from, end) },
+      userEvent: useStore.getState().syncEvent,
+    });
+  }, [text]);
 
   useEffect(() => {
     const editor = view.current;
@@ -113,7 +141,7 @@ export function SourceEditor() {
       selection: { anchor },
       effects: EditorView.scrollIntoView(anchor, { y: "center" }),
     });
-    editor.focus();
+    if (reveal.focus) editor.focus();
   }, [reveal]);
 
   return <div ref={host} className="h-full min-h-0 overflow-hidden" />;
