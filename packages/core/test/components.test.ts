@@ -356,6 +356,43 @@ describe("Walschaerts valve gear", () => {
   });
 });
 
+describe("Stephenson valve gear", () => {
+  const text = readFileSync(
+    new URL("../../../examples/stephenson.mekasim.yaml", import.meta.url),
+    "utf8",
+  );
+  /** The gear with the reverser at a setting. */
+  const at = (gear: number): Simulation => simulate(text.replace("value: 1,", `value: ${gear},`));
+  const travel = (gear: number): number => measure(at(gear), "valve_travel");
+  /** How far the valve moves between the piston's two dead centres. */
+  const offCentre = (gear: number): number => {
+    const valve = at(gear).plots.find((p) => p.id === "valve")?.series[0]?.quantity
+      ?.value as Float64Array;
+    return Math.abs((valve[180] as number) - (valve[0] as number));
+  };
+
+  it("runs through a full turn as one mechanism of nine bodies", () => {
+    const gear = simulate(text);
+    expect(gear.diagnostics).toEqual([]);
+    expect(gear.cycle?.count).toBe(360);
+    expect(gear.mobility).toMatchObject({ coordinates: 27, mobility: 1, free: 0, redundant: 0 });
+    expect(measure(gear, "piston_stroke")).toBeCloseTo(0.3, 9);
+  });
+
+  it("gives the valve more travel the further the reverser is set, the same forward and reverse", () => {
+    expect(travel(0.5)).toBeGreaterThan(travel(0) * 1.15);
+    expect(travel(1)).toBeGreaterThan(travel(0.5) * 1.3);
+    expect(travel(-1) / travel(1)).toBeCloseTo(1, 1);
+    expect(travel(-0.5) / travel(0.5)).toBeCloseTo(1, 1);
+  });
+
+  it("opens the valve earlier towards mid gear, as open rods do", () => {
+    expect(offCentre(0.5)).toBeGreaterThan(offCentre(1) * 1.1);
+    expect(offCentre(0)).toBeGreaterThan(offCentre(0.5));
+    expect(offCentre(-0.5)).toBeGreaterThan(offCentre(-1) * 1.1);
+  });
+});
+
 describe("parameter bounds", () => {
   const model = (gear: string) => `
 mekasim: 1

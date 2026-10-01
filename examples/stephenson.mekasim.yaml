@@ -1,0 +1,135 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Stephenson valve gear, as on a steam locomotive.
+#
+# Two eccentrics on the axle, one set for running forward and one for running
+# back, each push one end of the slotted expansion link through a rod of their own.
+# The valve spindle carries a die that sits in the slot. Whichever end of the link
+# is brought to the die, the valve follows that eccentric; in between it gets a mix
+# of the two, which is a shorter travel.
+#
+# The link hangs on a lifting link from the reverse arm, and turning that arm
+# raises or lowers the whole link over the die.
+#
+# `gear` is the reverser: 1 is full forward, -1 full reverse, 0 mid gear, where the
+# die sits in the middle of the link and the valve only moves by what the two
+# eccentrics agree on. Try the slider, or "Compare values", on it.
+#
+# Forward is the way the wheel turns here, anticlockwise. The fore rod then holds
+# the lower end of the link, and the link is raised for forward gear.
+mekasim: 1
+meta:
+  name: Stephenson valve gear
+
+params:
+  rpm: 60
+  # The reverser: 1 forward, 0 mid gear, -1 reverse. It cannot go beyond either end.
+  gear: { value: 1, min: -1, max: 1 }
+  crank: 150 mm      # main crank radius: half the piston stroke
+  throw: 40 mm       # how far each eccentric is off the axle's centre
+  # How much further than a quarter turn from the main crank each eccentric is set.
+  # It is what moves the valve off centre when the piston is at the end of its stroke.
+  advance: 20
+  link: 120 mm       # middle of the link to the pin of an eccentric rod
+  die: 90 mm         # how far from the link's middle the die sits in full gear
+  link_x: 650 mm     # middle of the link in mid gear
+  link_y: 250 mm
+  hanger: 250 mm     # length of the lifting link
+  arm: 200 mm        # length of the reverse arm
+  # Direction from the axle to the link. The eccentrics are set from this line, the
+  # link stands square to it and the valve spindle carries on along it.
+  lean: atan2(link_y, link_x)
+  # The reverse shaft, placed so that in mid gear the lifting link hangs square to
+  # the line from the axle and the reverse arm lies along it.
+  shaft_x: link_x - hanger * sin(lean) - arm * cos(lean)
+  shaft_y: link_y + hanger * cos(lean) - arm * sin(lean)
+  # How far the reverse arm is turned to lift the link by `gear * die`.
+  lift: asin(gear * die / arm)
+
+bodies:
+  ground:
+    points:
+      cyl_a: [700, 0]            # cylinder axis
+      cyl_b: [1300, 0]
+      valve_a: [link_x, link_y]  # valve spindle axis, in line with the axle
+      valve_b: [2 * link_x, 2 * link_y]
+      shaft: [shaft_x, shaft_y]  # reverse shaft
+  crosshead:
+    points: { X: [0, 0], P: [160, 0] }
+  # The link, drawn standing up. Its slot runs from one rod pin to the other. It is
+  # straight here, where a real one is curved to the length of the rods; that moves
+  # the middle of the valve's travel some 6 mm between mid gear and full gear.
+  expansion_link:
+    points:
+      M: [0, 0]                  # middle, where the lifting link holds it
+      F: [0, -link]              # fore eccentric rod
+      B: [0, link]               # back eccentric rod
+  reverse_arm:
+    points: { O: [0, 0], R: [arm, 0] }
+  valve:
+    points:
+      D: [0, 0]                  # die, in the link's slot
+      V: [450, 0]                # the valve itself, over the cylinder
+
+components:
+  wheel:
+    type: crank
+    at: [0, 0]
+    # The main crank pin and the two eccentrics. The fore eccentric is ahead of the
+    # crank the way the wheel turns here, the back eccentric as far behind it.
+    arms:
+      C: [crank, 0]
+      F: [throw, lean + 90 + advance]
+      B: [throw, lean - 90 - advance]
+    speed: rpm
+  main_rod:
+    type: rod
+    length: 900
+    connect: [wheel.C, crosshead.X]
+  # The rods are open: they cross when the eccentrics point away from the link and
+  # not when they point towards it. That makes the valve open earlier, not later,
+  # as the reverser is brought towards mid gear.
+  fore_rod:
+    type: rod
+    length: hypot(link_x, link_y, link)
+    connect: [wheel.F, expansion_link.F]
+  back_rod:
+    type: rod
+    length: hypot(link_x, link_y, link)
+    connect: [wheel.B, expansion_link.B]
+  lifting_link:
+    type: rod
+    length: hanger
+    connect: [reverse_arm.R, expansion_link.M]
+
+joints:
+  crosshead_guide: { type: slider, axis: [ground.cyl_a, ground.cyl_b], point: crosshead.X }
+  # The spindle lies along its axis, which leans as the gear does.
+  valve_guide:
+    type: slider
+    axis: [ground.valve_a, ground.valve_b]
+    point: valve.D
+    angle: lean
+  slot: { type: pin-slot, axis: [expansion_link.F, expansion_link.B], point: valve.D }
+  # The reverser holds the reverse arm where it is set.
+  reverser: { type: weld, connect: [ground.shaft, reverse_arm.O], angle: lean + lift }
+
+traces: [expansion_link.F, expansion_link.B]
+
+measures:
+  piston_stroke: range(x(crosshead.X))
+  valve_travel: range(dist(ground.valve_a, valve.V))
+  link_swing: range(angle(expansion_link))
+  # How far the die slides up and down the slot as the link rocks.
+  die_slip: range(dist(expansion_link.F, valve.D))
+
+plots:
+  piston: change(x(crosshead.X))
+  valve: change(dist(ground.valve_a, valve.V))
+
+# Where the bodies written out above start, roughly, with the crank on front dead
+# centre. The rods and the wheel place themselves.
+pose:
+  crosshead: [1050, 0, 0]
+  expansion_link: [link_x - gear * die * sin(lean), link_y + gear * die * cos(lean), lean]
+  reverse_arm: [shaft_x, shaft_y, lean + lift]
+  valve: [link_x, link_y, lean]
