@@ -310,6 +310,7 @@ and give a value at every sample of the cycle:
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |
 | `dist(p, q)` | Distance between two points |
+| `moved(p)` | How far a point is from where it started, whichever way it went |
 | `angle(body)` | Angle of a body |
 | `angle(p, q)` | Direction of the line from `p` to `q` |
 | `angle(p, q, r)` | Angle at `q`, turning from `p` to `r` |

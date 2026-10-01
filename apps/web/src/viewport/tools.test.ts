@@ -177,7 +177,7 @@ describe("measuring", () => {
   it("measures how far a link clicked away from its points has moved and turned", () => {
     clickMeasure(scene(), 0.07, 0.07, TOL);
     expect(text()).toContain(
-      "measures:\n  link2_dx: change(x(link2))\n  link2_dy: change(y(link2))\n  link2_turn: change(angle(link2))\n",
+      "measures:\n  link2_dx: change(x(link2))\n  link2_dy: change(y(link2))\n  link2_moved: moved(link2)\n  link2_turn: change(angle(link2))\n",
     );
     // At the start nothing has moved yet.
     const value = (id: string) => {

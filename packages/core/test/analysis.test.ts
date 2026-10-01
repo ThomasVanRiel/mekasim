@@ -152,6 +152,25 @@ describe("measuring a link as a whole", () => {
     expect(signal("centre_y")[0]).toBeCloseTo(0.12, 9);
   });
 
+  it("measures how far a point or a link is from where it started", () => {
+    const moved = simulate(
+      `${text}  far: moved(upper_deck.F)\n  dx: change(x(upper_deck.F))\n  dy: change(y(upper_deck.F))\n  whole: moved(upper_deck)\n`,
+    );
+    const of = (id: string) =>
+      moved.measures.find((m) => m.id === id)?.quantity?.value as Float64Array;
+    expect(moved.diagnostics).toEqual([]);
+    expect(of("far")[0]).toBe(0);
+    for (let k = 0; k < 360; k += 30) {
+      expect(of("far")[k]).toBeCloseTo(
+        Math.hypot(of("dx")[k] as number, of("dy")[k] as number),
+        12,
+      );
+      // Every point of the deck moves alike, so its centre has moved as far as its end.
+      expect(of("whole")[k]).toBeCloseTo(of("far")[k] as number, 9);
+    }
+    expect(Math.max(...of("far"))).toBeGreaterThan(0.03);
+  });
+
   it("gives speeds and distances of links the same way", () => {
     // The deck hangs on equal parallel arms, so every point of it moves alike.
     for (let k = 0; k < 360; k += 30) {

@@ -403,12 +403,13 @@ export function clickCam(scene: Scene, x: number, y: number, tolerance: number):
 
 /**
  * The measures that say how a link has moved from where it started: how far its
- * centre has gone each way, and how far it has turned.
+ * centre has gone each way and in all, and how far it has turned.
  */
 export function linkMeasures(id: string): [name: string, expr: string][] {
   return [
     [`${id}_dx`, `change(x(${id}))`],
     [`${id}_dy`, `change(y(${id}))`],
+    [`${id}_moved`, `moved(${id})`],
     [`${id}_turn`, `change(angle(${id}))`],
   ];
 }

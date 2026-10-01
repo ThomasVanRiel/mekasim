@@ -3,6 +3,7 @@ import { simulate, sweep } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import { buildCharts, buildSweepCharts, SERIES_COLORS, SWEEP_COLORS } from "./charts.ts";
 import {
+  extentOf,
   extentScale,
   formatNumber,
   linePath,
@@ -70,6 +71,18 @@ describe("drawing helpers", () => {
   it("finds the sample nearest a position", () => {
     expect(nearestIndex([0, 10, 20, 30], 14)).toBe(1);
     expect(nearestIndex([0, 10, 20, 30], 99)).toBe(3);
+  });
+
+  it("finds the least and greatest of a line, where they fall, and their difference", () => {
+    expect(extentOf([3, -2, 7, 7, 1])).toEqual({
+      min: -2,
+      max: 7,
+      range: 9,
+      minIndex: 1,
+      maxIndex: 2,
+    });
+    expect(extentOf([5, Number.NaN, 5])).toMatchObject({ min: 5, max: 5, range: 0 });
+    expect(extentOf([])).toBeUndefined();
   });
 
   it("formats numbers briefly", () => {

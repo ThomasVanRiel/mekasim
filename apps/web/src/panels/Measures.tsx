@@ -1,5 +1,6 @@
 import { addPlot, formatQuantity, type Quantity, type Units } from "@mekasim/core";
 import { label } from "../names.ts";
+import { extentOf } from "../plot/geometry.ts";
 import { useStore } from "../store.ts";
 
 const small = "rounded-sm border border-rule bg-sheet px-1.5 text-[12px] hover:border-ink-soft";
@@ -8,6 +9,37 @@ function scalar(quantity: Quantity | undefined, units: Units, digits = 5): strin
   if (!quantity) return "Not available";
   if (typeof quantity.value !== "number") return "varies";
   return formatQuantity(quantity.value, quantity.dim, units, digits);
+}
+
+/** The least and greatest of a measure over the cycle, and the delta between them. */
+function Extremes({
+  signal,
+  quantity,
+  units,
+}: {
+  signal: Float64Array;
+  quantity: Quantity;
+  units: Units;
+}) {
+  const extent = extentOf(signal);
+  if (!extent) return null;
+  const show = (value: number): string => formatQuantity(value, quantity.dim, units, 4);
+  return (
+    <dd className="mt-0.5 grid grid-cols-3 gap-x-2 text-sm tabular-nums">
+      {(
+        [
+          ["min", extent.min],
+          ["max", extent.max],
+          ["delta", extent.range],
+        ] as const
+      ).map(([name, value]) => (
+        <span key={name} className="flex flex-col">
+          <span className="text-[12px] text-ink-soft leading-tight">{name}</span>
+          <span className={name === "delta" ? "font-semibold" : ""}>{show(value)}</span>
+        </span>
+      ))}
+    </dd>
+  );
 }
 
 /** The measures of the model: live values, and side by side for each value of a sweep. */
@@ -78,11 +110,7 @@ export function Measures() {
                       )}
                 </dd>
                 {quantity && signal && (
-                  <dd className="text-ink-soft text-sm tabular-nums">
-                    now; over the cycle{" "}
-                    {formatQuantity(Math.min(...signal), quantity.dim, units, 4)} to{" "}
-                    {formatQuantity(Math.max(...signal), quantity.dim, units, 4)}
-                  </dd>
+                  <Extremes signal={signal} quantity={quantity} units={units} />
                 )}
                 {sweep && runs && !signal && (
                   <table className="mt-1 w-full text-sm tabular-nums">

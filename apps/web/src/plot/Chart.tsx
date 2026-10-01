@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChartSpec } from "./charts.ts";
 import {
+  extentOf,
   extentScale,
   formatNumber,
   linePath,
@@ -17,6 +18,8 @@ const HEIGHT = 170;
 const TOP = 10;
 const BOTTOM = 34;
 const LEFT = PLOT_LEFT;
+/** A column of figures: one width for all, the figures against its right edge. */
+const COLUMN = "w-20 min-w-20 whitespace-nowrap text-right font-normal";
 /** Up to this many lines get their name written at their end as well as in the legend. */
 const DIRECT_LABELS = 4;
 
@@ -97,6 +100,7 @@ export function Chart({
       mapX,
       mapY,
       paths: spec.lines.map((line) => linePath(xs, line.values, mapX, mapY)),
+      extents: spec.lines.map((line) => extentOf(line.values)),
       ends: spread(
         spec.lines.map((line) => mapY(line.values.at(-1) as number)),
         13,
@@ -106,7 +110,7 @@ export function Chart({
     };
   }, [spec, width]);
   if (!layout) return null;
-  const { direct, right, bottom, xScale, yScale, mapX, mapY, paths, ends } = layout;
+  const { direct, right, bottom, xScale, yScale, mapX, mapY, paths, ends, extents } = layout;
   const at = Math.min(Math.max(Math.floor(step), 0), x.values.length - 1);
   const shown = hover?.index ?? at;
 
@@ -119,30 +123,55 @@ export function Chart({
 
   return (
     <figure className="py-2" style={{ paddingInline: PLOT_PAD }}>
-      <figcaption className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 pl-1 text-sm">
-        <span className="font-semibold">{spec.title}</span>
-        {unit && <span className="text-ink-soft">{unit}</span>}
-        {lines.length > 1 &&
-          lines.map((line) => (
-            <span key={line.label} className="flex items-baseline gap-1.5">
-              <Key color={line.color} />
-              <span className="text-ink-soft">{line.label}</span>
-              <span className="tabular-nums">
-                {formatNumber(line.values[Math.min(shown, line.values.length - 1)] as number)}
-              </span>
-            </span>
-          ))}
-        {lines.length === 1 && (
-          <span className="tabular-nums">
-            {withUnit(
-              formatNumber(
-                lines[0]?.values[Math.min(shown, (lines[0]?.values.length ?? 1) - 1)] as number,
-              ),
-              unit,
-            )}
-          </span>
-        )}
-      </figcaption>
+      {/* Title and figures keep within the width of the plotting area below. On the left,
+          each line's name and where it is now; against the right edge, its min, max and
+          delta. Every column of figures has one fixed width, so that the changing "now"
+          value cannot push anything about. */}
+      <div style={{ paddingLeft: PLOT_LEFT, paddingRight: PLOT_RIGHT }}>
+        <figcaption className="text-sm">
+          <span className="font-semibold">{spec.title}</span>
+          {unit && <span className="ml-2 text-ink-soft">{unit}</span>}
+        </figcaption>
+        <table className="mb-1 w-full text-sm tabular-nums">
+          <thead>
+            <tr className="text-ink-soft">
+              <th className="w-px text-left font-normal">
+                <span className="sr-only">Line</span>
+              </th>
+              <th className={COLUMN}>now</th>
+              {/* Takes up the room between the two sides. */}
+              <td className="w-full" />
+              <th className={COLUMN}>min</th>
+              <th className={COLUMN}>max</th>
+              <th className={COLUMN}>delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((line, i) => {
+              const extent = extents[i];
+              return (
+                <tr key={line.label}>
+                  <th scope="row" className="w-px whitespace-nowrap pr-2 text-left font-normal">
+                    <span className="flex items-baseline gap-1.5">
+                      <Key color={line.color} />
+                      <span className="text-ink-soft">{line.label}</span>
+                    </span>
+                  </th>
+                  <td className={COLUMN}>
+                    {formatNumber(line.values[Math.min(shown, line.values.length - 1)] as number)}
+                  </td>
+                  <td />
+                  <td className={COLUMN}>{extent ? formatNumber(extent.min) : "–"}</td>
+                  <td className={COLUMN}>{extent ? formatNumber(extent.max) : "–"}</td>
+                  <td className={`${COLUMN} font-semibold`}>
+                    {extent ? formatNumber(extent.range) : "–"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
       <div
         ref={frame}
@@ -237,6 +266,23 @@ export function Chart({
                 {line.label.length > 20 ? `${line.label.slice(0, 19)}…` : line.label}
               </text>
             ))}
+
+          {/* The least and greatest of each line, ringed where they fall. */}
+          {lines.map((line, i) => {
+            const extent = extents[i];
+            if (!extent || extent.range === 0) return null;
+            return [extent.minIndex, extent.maxIndex].map((k) => (
+              <circle
+                key={`${line.label}/${k}`}
+                cx={mapX(x.values[k] as number)}
+                cy={mapY(line.values[k] as number)}
+                r={3.5}
+                fill="var(--color-sheet)"
+                stroke={line.color}
+                strokeWidth={1.5}
+              />
+            ));
+          })}
 
           {/* Where the playback is. */}
           <line

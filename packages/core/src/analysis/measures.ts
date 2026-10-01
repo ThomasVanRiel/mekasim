@@ -116,6 +116,7 @@ const KINEMATIC = new Set([
   "x",
   "y",
   "dist",
+  "moved",
   "angle",
   "v",
   "vx",
@@ -218,6 +219,15 @@ export function evaluateMeasures(
         one();
         const m = motion(args[0], fn);
         return { value: signal((k) => Math.hypot(m.ax[k], m.ay[k])), dim: ACCELERATION };
+      }
+      case "moved": {
+        // How far a point is from where it started, whichever way it went.
+        one();
+        const m = motion(args[0], fn);
+        return {
+          value: signal((k) => Math.hypot(m.x[k] - m.x[0], m.y[k] - m.y[0])),
+          dim: LENGTH,
+        };
       }
       case "dist": {
         if (args.length !== 2) throw wrongArity(call, "2 points");

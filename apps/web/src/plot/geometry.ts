@@ -126,3 +126,28 @@ export function formatNumber(value: number, digits = 5): string {
   const rounded = Number(value.toPrecision(digits));
   return (rounded === 0 ? 0 : rounded).toString();
 }
+
+/** The smallest and largest of a run of values, where each falls, and how far apart they are. */
+export interface Extent {
+  min: number;
+  max: number;
+  /** `max - min`: the stroke or swing. */
+  range: number;
+  minIndex: number;
+  maxIndex: number;
+}
+
+export function extentOf(values: ArrayLike<number>): Extent | undefined {
+  let minIndex = -1;
+  let maxIndex = -1;
+  for (let k = 0; k < values.length; k++) {
+    const value = values[k] as number;
+    if (!Number.isFinite(value)) continue;
+    if (minIndex < 0 || value < (values[minIndex] as number)) minIndex = k;
+    if (maxIndex < 0 || value > (values[maxIndex] as number)) maxIndex = k;
+  }
+  if (minIndex < 0) return undefined;
+  const min = values[minIndex] as number;
+  const max = values[maxIndex] as number;
+  return { min, max, range: max - min, minIndex, maxIndex };
+}

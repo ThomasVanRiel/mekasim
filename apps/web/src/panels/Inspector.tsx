@@ -259,12 +259,17 @@ function MeasureButtons({
 
 /** What can be plotted and measured of a link as a whole: where it is and how it is turned. */
 function LinkActions({ id }: { id: string }) {
-  const [dx, dy, turn] = linkMeasures(id) as [[string, string], [string, string], [string, string]];
+  const [dx, dy, moved, turn] = linkMeasures(id) as [
+    [string, string],
+    [string, string],
+    [string, string],
+    [string, string],
+  ];
   return (
     <>
       <PlotButtons
         plots={[
-          { label: "movement", name: `${id}_movement`, series: [dx[1], dy[1]] },
+          { label: "movement", name: `${id}_movement`, series: [dx[1], dy[1], moved[1]] },
           { label: "turning", name: `${id}_turn`, series: [turn[1]] },
           { label: "speed", name: `${id}_speed`, series: [`v(${id})`] },
           { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
@@ -273,7 +278,7 @@ function LinkActions({ id }: { id: string }) {
       />
       <MeasureButtons
         measures={[
-          { label: "movement", items: [dx, dy] },
+          { label: "movement", items: [dx, dy, moved] },
           { label: "turning", items: [turn] },
           { label: "swing", items: [[`${id}_swing`, `range(angle(${id}))`]] },
         ]}
@@ -354,7 +359,11 @@ export function Inspector() {
               {
                 label: "movement",
                 name: `${bodyId}_${name}_movement`,
-                series: [`change(x(${selection.ref}))`, `change(y(${selection.ref}))`],
+                series: [
+                  `change(x(${selection.ref}))`,
+                  `change(y(${selection.ref}))`,
+                  `moved(${selection.ref})`,
+                ],
               },
               { label: "speed", name: `${bodyId}_${name}_speed`, series: [`v(${selection.ref})`] },
               {
@@ -373,6 +382,7 @@ export function Inspector() {
                 items: [
                   [`${bodyId}_${name}_dx`, `change(x(${selection.ref}))`],
                   [`${bodyId}_${name}_dy`, `change(y(${selection.ref}))`],
+                  [`${bodyId}_${name}_moved`, `moved(${selection.ref})`],
                 ],
               },
               { label: "speed", items: [[`${bodyId}_${name}_speed`, `v(${selection.ref})`]] },
