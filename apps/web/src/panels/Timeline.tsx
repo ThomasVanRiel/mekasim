@@ -1,11 +1,21 @@
 import { ANGLE, formatQuantity } from "@mekasim/core";
+import type { ReactNode } from "react";
+import { PLOT_LEFT, PLOT_PAD, PLOT_RIGHT } from "../plot/geometry.ts";
 import { RATES, useStore } from "../store.ts";
+
+/** Width of the slider's marker, as set in the stylesheet. */
+const MARKER = 10;
 
 function rateLabel(rate: number): string {
   return rate === 1 ? "Real time" : `1/${Math.round(1 / rate)} speed`;
 }
 
-export function Timeline() {
+/**
+ * Playback controls, laid out on the same columns as the charts below them: the
+ * slider spans exactly the plotting area, so its marker stands over the same
+ * position in the cycle as the marker in every chart.
+ */
+export function Timeline({ aside }: { aside?: ReactNode }) {
   const scene = useStore((s) => s.scene);
   const compiled = useStore((s) => s.shown?.compiled);
   const step = useStore((s) => s.step);
@@ -24,41 +34,56 @@ export function Timeline() {
   return (
     <section
       aria-label="Playback"
-      className="flex flex-wrap items-center gap-x-4 gap-y-1 border-rule border-t px-4 py-2"
+      className="grid items-center gap-y-1 py-2"
+      style={{
+        gridTemplateColumns: `${PLOT_PAD + PLOT_LEFT}px minmax(0, 1fr) ${PLOT_RIGHT + PLOT_PAD}px`,
+      }}
     >
-      <button
-        type="button"
-        disabled={!moving}
-        onClick={() => setPlaying(!playing)}
-        aria-label={playing ? "Pause" : "Play"}
-        className="grid size-8 place-items-center rounded-sm border border-ink bg-ink text-sheet disabled:opacity-40"
-      >
-        <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden="true">
-          {playing && moving ? <path d="M3 2h4v12H3zM9 2h4v12H9z" /> : <path d="M4 2l10 6-10 6z" />}
-        </svg>
-      </button>
+      <div className="flex justify-center">
+        <button
+          type="button"
+          disabled={!moving}
+          onClick={() => setPlaying(!playing)}
+          aria-label={playing ? "Pause" : "Play"}
+          className="grid size-8 place-items-center rounded-sm border border-ink bg-ink text-sheet disabled:opacity-40"
+        >
+          <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden="true">
+            {playing && moving ? (
+              <path d="M3 2h4v12H3zM9 2h4v12H9z" />
+            ) : (
+              <path d="M4 2l10 6-10 6z" />
+            )}
+          </svg>
+        </button>
+      </div>
+
       {moving && compiled ? (
-        <>
-          <input
-            type="range"
-            aria-label="Position in the cycle"
-            className="min-w-40 flex-1"
-            min={0}
-            max={count - 1}
-            step={1}
-            value={Math.min(Math.floor(step), count - 1)}
-            onChange={(event) => {
-              setPlaying(false);
-              setStep(Number(event.target.value));
-            }}
-          />
-          <output className="w-72 text-sm tabular-nums">
-            {driver && `${driver.id} at ${formatQuantity(angle, ANGLE, compiled.units, 4)}, `}
-            {(time * 1000).toFixed(1)} ms, step {Math.floor(step) + 1} of {count}
-          </output>
+        <input
+          type="range"
+          aria-label="Position in the cycle"
+          // The marker's centre travels half its width short of each end of the input,
+          // so the input reaches that much past the plotting area on both sides.
+          style={{ marginInline: -MARKER / 2, width: `calc(100% + ${MARKER}px)` }}
+          min={0}
+          max={count - 1}
+          step={1}
+          value={Math.min(Math.floor(step), count - 1)}
+          onChange={(event) => {
+            setPlaying(false);
+            setStep(Number(event.target.value));
+          }}
+        />
+      ) : (
+        <p className="text-ink-soft text-sm">
+          Nothing is driven, so there is no motion to play. Add a motor to a pin.
+        </p>
+      )}
+
+      <div className="flex justify-end" style={{ paddingRight: PLOT_PAD }}>
+        {moving && (
           <select
             aria-label="Playback speed"
-            className="rounded-sm border border-rule bg-sheet px-2 py-1 text-sm"
+            className="rounded-sm border border-rule bg-sheet px-1.5 py-1 text-sm"
             value={rate}
             onChange={(event) => setRate(Number(event.target.value))}
           >
@@ -68,12 +93,21 @@ export function Timeline() {
               </option>
             ))}
           </select>
-        </>
-      ) : (
-        <p className="text-ink-soft text-sm">
-          Nothing is driven, so there is no motion to play. Add a driver to a revolute joint.
-        </p>
-      )}
+        )}
+      </div>
+
+      <div />
+      <output className="text-sm tabular-nums">
+        {moving && compiled && (
+          <>
+            {driver && `${driver.id} at ${formatQuantity(angle, ANGLE, compiled.units, 4)}, `}
+            {(time * 1000).toFixed(1)} ms, step {Math.floor(step) + 1} of {count}
+          </>
+        )}
+      </output>
+      <div className="flex justify-end" style={{ paddingRight: PLOT_PAD }}>
+        {aside}
+      </div>
     </section>
   );
 }

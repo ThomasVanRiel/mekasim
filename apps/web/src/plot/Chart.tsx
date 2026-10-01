@@ -6,6 +6,9 @@ import {
   linePath,
   mapper,
   nearestIndex,
+  PLOT_LEFT,
+  PLOT_PAD,
+  PLOT_RIGHT,
   spread,
   valueScale,
 } from "./geometry.ts";
@@ -13,9 +16,7 @@ import {
 const HEIGHT = 170;
 const TOP = 10;
 const BOTTOM = 34;
-const LEFT = 56;
-/** Room on the right for names written at the line ends. */
-const LABELS = 132;
+const LEFT = PLOT_LEFT;
 /** Up to this many lines get their name written at their end as well as in the legend. */
 const DIRECT_LABELS = 4;
 
@@ -64,7 +65,7 @@ export function Chart({
   // The lines themselves change only with the data or the width, not with every frame of playback.
   const layout = useMemo(() => {
     const direct = spec.lines.length > 1 && spec.lines.length <= DIRECT_LABELS;
-    const right = width - (direct ? LABELS : 14);
+    const right = width - PLOT_RIGHT;
     const bottom = HEIGHT - BOTTOM;
     let low = Number.POSITIVE_INFINITY;
     let high = Number.NEGATIVE_INFINITY;
@@ -117,7 +118,7 @@ export function Chart({
   }
 
   return (
-    <figure className="px-3 py-2">
+    <figure className="py-2" style={{ paddingInline: PLOT_PAD }}>
       <figcaption className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5 pl-1 text-sm">
         <span className="font-semibold">{spec.title}</span>
         {unit && <span className="text-ink-soft">{unit}</span>}

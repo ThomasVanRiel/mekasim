@@ -7,7 +7,6 @@ import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
 import { Parameters } from "./panels/Parameters.tsx";
 import { Plots } from "./panels/Plots.tsx";
-import { Timeline } from "./panels/Timeline.tsx";
 import { TitleBlock } from "./panels/TitleBlock.tsx";
 import { TOOLS, ViewportTools } from "./panels/ViewportTools.tsx";
 import { editorBridge, useStore } from "./store.ts";
@@ -83,12 +82,12 @@ export function App() {
   useSharedModel();
 
   return (
-    <div className="flex min-h-full flex-col lg:grid lg:h-full lg:grid-cols-[minmax(20rem,28%)_1fr_19rem] lg:grid-rows-[auto_minmax(0,1fr)_auto]">
+    <div className="flex min-h-full flex-col lg:grid lg:h-full lg:grid-cols-[minmax(20rem,28%)_1fr_19rem] lg:grid-rows-[auto_minmax(0,1fr)]">
       <div className="lg:col-span-3">
         <Header />
       </div>
 
-      <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:row-span-2 lg:h-auto lg:border-r">
+      <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:h-auto lg:border-r">
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-0">
             <SourceEditor />
@@ -124,10 +123,6 @@ export function App() {
         <Inspector />
         <Parameters />
         <Measures />
-      </div>
-
-      <div className="lg:col-span-2">
-        <Timeline />
       </div>
     </div>
   );

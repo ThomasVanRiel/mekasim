@@ -2,7 +2,9 @@ import { toCsv } from "@mekasim/core";
 import { useMemo } from "react";
 import { Chart } from "../plot/Chart.tsx";
 import { buildCharts, buildSweepCharts } from "../plot/charts.ts";
+import { PLOT_LEFT, PLOT_PAD } from "../plot/geometry.ts";
 import { sweepValues, useStore } from "../store.ts";
+import { Timeline } from "./Timeline.tsx";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm enabled:hover:border-ink-soft disabled:opacity-40";
@@ -16,7 +18,7 @@ export function download(name: string, text: string, type: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Charts of the model's plots over the cycle, and the export of the motion as a table. */
+/** Playback, the charts of the model over the cycle, and the export of the motion as a table. */
 export function Plots() {
   const shown = useStore((s) => s.shown);
   const sweep = useStore((s) => s.sweep);
@@ -32,8 +34,7 @@ export function Plots() {
   /** Charts that stand for plots written in the model can be removed; automatic ones cannot. */
   const own = new Set(shown?.plots.map((plot) => plot.id));
   let message = "";
-  if (!moving) message = "Plots need motion. Add a motor first.";
-  else if (charts.length === 0)
+  if (charts.length === 0)
     message =
       "Nothing to plot yet. Select a point or a link and choose what to plot, or trace a point.";
   else if (sweep)
@@ -55,23 +56,35 @@ export function Plots() {
       aria-label="Plots"
       className="max-h-[42vh] shrink-0 overflow-y-auto border-rule border-t bg-sheet"
     >
-      <div className="sticky top-0 z-20 flex items-center gap-3 border-rule border-b bg-sheet px-4 py-1.5">
-        <h2 className="font-semibold">Plots</h2>
-        <p className="min-w-0 flex-1 text-ink-soft text-sm">{message}</p>
-        <button
-          type="button"
-          className={button}
-          disabled={!shown?.cycle || !moving}
-          onClick={() => {
-            if (!shown) return;
-            const name = (shown.doc?.meta?.name ?? "model")
-              .toLowerCase()
-              .replace(/[^a-z0-9]+/g, "-");
-            download(`${name}.csv`, toCsv(shown), "text/csv");
-          }}
-        >
-          Export CSV
-        </button>
+      {/* Playback sits in the same scrolling box as the charts, so that a scrollbar
+          narrows both alike and the slider stays in line with them. */}
+      <div className="sticky top-0 z-20 border-rule border-b bg-sheet">
+        <Timeline
+          aside={
+            <button
+              type="button"
+              className={button}
+              disabled={!shown?.cycle || !moving}
+              onClick={() => {
+                if (!shown) return;
+                const name = (shown.doc?.meta?.name ?? "model")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-");
+                download(`${name}.csv`, toCsv(shown), "text/csv");
+              }}
+            >
+              Export CSV
+            </button>
+          }
+        />
+        {message && moving && (
+          <p
+            className="pb-1.5 text-ink-soft text-sm"
+            style={{ paddingLeft: PLOT_PAD + PLOT_LEFT, paddingRight: PLOT_PAD }}
+          >
+            {message}
+          </p>
+        )}
       </div>
       {charts.map((spec, i) => (
         <div key={spec.key} className="relative border-rule border-b last:border-b-0">

@@ -1,5 +1,16 @@
 /** Geometry for line charts: scales, tick positions, paths. No drawing here. */
 
+/**
+ * Where the plotting area sits across a chart, in pixels. Every chart and the
+ * playback slider share these, so that one position in the cycle is at the same
+ * place across all of them.
+ */
+export const PLOT_LEFT = 56;
+/** Room right of the plotting area, where line names are written. */
+export const PLOT_RIGHT = 132;
+/** Space kept clear on both sides of a chart. */
+export const PLOT_PAD = 12;
+
 export interface Scale {
   min: number;
   max: number;

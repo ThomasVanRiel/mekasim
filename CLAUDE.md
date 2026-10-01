@@ -2,6 +2,7 @@
 
 mekasim is a browser app for exploring planar mechanisms described in YAML.
 The plan and its phases are in `docs/PLAN.md`; the model format is in `docs/FORMAT.md`.
+Ideas and known gaps outside the phases are collected in `docs/BACKLOG.md`.
 
 ## Checking the UI
 
