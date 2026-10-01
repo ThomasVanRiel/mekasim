@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { type CSSProperties, useEffect } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { decodeModel } from "./io/share.ts";
+import { useLayout } from "./layout.ts";
 import { Header } from "./panels/Header.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
 import { Messages } from "./panels/Messages.tsx";
 import { Parameters } from "./panels/Parameters.tsx";
 import { Plots } from "./panels/Plots.tsx";
+import { Splitter } from "./panels/Splitter.tsx";
 import { TitleBlock } from "./panels/TitleBlock.tsx";
 import { TOOLS, ViewportTools } from "./panels/ViewportTools.tsx";
 import { editorBridge, useStore } from "./store.ts";
@@ -78,23 +80,50 @@ function useSharedModel(): void {
 export function App() {
   const hasDrawing = useStore((s) => s.scene !== undefined);
   const stale = useStore((s) => s.simulation !== s.shown);
+  const source = useLayout((s) => s.source);
+  const side = useLayout((s) => s.side);
   useKeys();
   useSharedModel();
+  // Column widths, as set by dragging the dividers or else the defaults.
+  const columns = {
+    "--source": source === undefined ? "minmax(20rem, 28%)" : `${source}px`,
+    "--side": side === undefined ? "19rem" : `${side}px`,
+  } as CSSProperties;
 
   return (
-    <div className="flex min-h-full flex-col lg:grid lg:h-full lg:grid-cols-[minmax(20rem,28%)_1fr_19rem] lg:grid-rows-[auto_minmax(0,1fr)]">
-      <div className="lg:col-span-3">
+    <div
+      style={columns}
+      className="flex min-h-full flex-col lg:grid lg:h-full lg:grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] lg:grid-rows-[auto_minmax(0,1fr)]"
+    >
+      <div className="lg:col-span-5">
         <Header />
       </div>
 
-      <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:h-auto lg:border-r">
+      <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:h-auto">
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-0">
             <SourceEditor />
           </div>
         </div>
+        <Splitter
+          panel="messages"
+          axis="y"
+          target="next"
+          min={34}
+          max={(height) => height * 0.6}
+          label="Height of the messages"
+        />
         <Messages />
       </div>
+      <Splitter
+        panel="source"
+        axis="x"
+        target="previous"
+        min={220}
+        max={(width) => width * 0.6}
+        label="Width of the source"
+        className="hidden lg:block"
+      />
 
       <main className="flex h-[80vh] min-h-0 flex-col lg:h-auto">
         {/* The drawing fills this box by position, not by a percentage height: a canvas
@@ -116,10 +145,27 @@ export function App() {
             </p>
           )}
         </div>
+        <Splitter
+          panel="plots"
+          axis="y"
+          target="next"
+          min={90}
+          max={(height) => height * 0.8}
+          label="Height of the plots"
+        />
         <Plots />
       </main>
+      <Splitter
+        panel="side"
+        axis="x"
+        target="next"
+        min={220}
+        max={(width) => width * 0.45}
+        label="Width of the side panel"
+        className="hidden lg:block"
+      />
 
-      <div className="min-h-0 border-rule lg:overflow-y-auto lg:border-l">
+      <div className="min-h-0 lg:overflow-y-auto">
         <Inspector />
         <Parameters />
         <Measures />

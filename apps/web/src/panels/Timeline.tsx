@@ -1,5 +1,6 @@
 import { ANGLE, formatQuantity } from "@mekasim/core";
 import type { ReactNode } from "react";
+import { label } from "../names.ts";
 import { PLOT_LEFT, PLOT_PAD, PLOT_RIGHT } from "../plot/geometry.ts";
 import { RATES, useStore } from "../store.ts";
 
@@ -100,7 +101,8 @@ export function Timeline({ aside }: { aside?: ReactNode }) {
       <output className="text-sm tabular-nums">
         {moving && compiled && (
           <>
-            {driver && `${driver.id} at ${formatQuantity(angle, ANGLE, compiled.units, 4)}, `}
+            {driver &&
+              `${label(driver.id)} at ${formatQuantity(angle, ANGLE, compiled.units, 4)}, `}
             {(time * 1000).toFixed(1)} ms, step {Math.floor(step) + 1} of {count}
           </>
         )}

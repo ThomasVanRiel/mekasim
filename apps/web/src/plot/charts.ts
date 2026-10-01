@@ -9,6 +9,7 @@ import {
   type SweepRun,
   unitLabel,
 } from "@mekasim/core";
+import { label, refLabel } from "../names.ts";
 
 /**
  * Series colours, in the fixed order they are handed out. A series keeps its slot
@@ -67,7 +68,7 @@ function axisOf(simulation: Simulation): ChartSpec["x"] | undefined {
   if (!compiled || !cycle || cycle.count < 2) return undefined;
   const axis = cycleAxis(compiled, cycle);
   return {
-    label: axis.label,
+    label: label(axis.label),
     unit: unitLabel(axis.quantity.dim, compiled.units),
     values: samples(axis.quantity, simulation, cycle.count),
   };
@@ -131,7 +132,7 @@ export function buildCharts(simulation: Simulation): ChartSpec[] {
       charts.push({
         key: `${plot.id}/${unit}`,
         plot: plot.id,
-        title: plot.id,
+        title: refLabel(plot.id),
         unit,
         x,
         lines,
@@ -171,7 +172,7 @@ export function buildSweepCharts(param: string, runs: SweepRun[]): ChartSpec[] {
         const count = run.simulation.cycle?.count ?? 0;
         if (!quantity || count === 0) return;
         lines.push({
-          label: `${param} = ${run.value}`,
+          label: `${label(param)} = ${run.value}`,
           color: SWEEP_COLORS[i] as string,
           values: samples(quantity, run.simulation, count),
         });
@@ -179,7 +180,8 @@ export function buildSweepCharts(param: string, runs: SweepRun[]): ChartSpec[] {
       charts.push({
         key: `${plot.id}/${index}`,
         plot: plot.id,
-        title: plot.series.length > 1 ? `${plot.id}: ${series.source}` : plot.id,
+        title:
+          plot.series.length > 1 ? `${refLabel(plot.id)}: ${series.source}` : refLabel(plot.id),
         unit: unitLabel(series.quantity.dim, compiled.units),
         x,
         lines,

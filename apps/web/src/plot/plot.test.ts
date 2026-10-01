@@ -95,9 +95,9 @@ describe("buildCharts", () => {
 
   it("makes one chart per unit of a plot, never two scales on one chart", () => {
     expect(charts.map((c) => [c.title, c.unit, c.lines.map((l) => l.label)])).toEqual([
-      ["deck", "mm", ["x(upper_deck.F)", "y(upper_deck.F)", "upper_stroke"]],
-      ["deck", "mm/s", ["v(upper_deck.F)"]],
-      ["swing", "deg", ["angle(rocker)"]],
+      ["Deck", "mm", ["x(upper_deck.F)", "y(upper_deck.F)", "upper_stroke"]],
+      ["Deck", "mm/s", ["v(upper_deck.F)"]],
+      ["Swing", "deg", ["angle(rocker)"]],
     ]);
   });
 
@@ -111,7 +111,7 @@ describe("buildCharts", () => {
   });
 
   it("plots against the driver angle in document units", () => {
-    expect(charts[0]?.x).toMatchObject({ label: "motor angle", unit: "deg" });
+    expect(charts[0]?.x).toMatchObject({ label: "Motor angle", unit: "deg" });
     expect(charts[0]?.x.values[90]).toBeCloseTo(90, 9);
     expect(charts[0]?.lines[0]?.values[0]).toBeCloseTo(500, 9);
   });
@@ -128,16 +128,16 @@ describe("buildCharts", () => {
     const bare = simulate(`${text.trimEnd()}\n  gap: dist(upper_deck.F, lower_deck.F)\n`);
     expect(bare.diagnostics).toEqual([]);
     expect(buildCharts(bare).map((c) => [c.title, c.lines.map((l) => l.label)])).toEqual([
-      ["upper_deck.F", ["x(upper_deck.F)", "y(upper_deck.F)"]],
-      ["lower_deck.F", ["x(lower_deck.F)", "y(lower_deck.F)"]],
-      ["gap", ["gap"]],
+      ["Upper deck F", ["x(upper_deck.F)", "y(upper_deck.F)"]],
+      ["Lower deck F", ["x(lower_deck.F)", "y(lower_deck.F)"]],
+      ["Gap", ["gap"]],
     ]);
     const swept = buildSweepCharts("ecc", sweep(text, "ecc", [10, 20], "mm"));
     expect(swept.map((c) => c.title)).toEqual([
-      "upper_deck.F: x(upper_deck.F)",
-      "upper_deck.F: y(upper_deck.F)",
-      "lower_deck.F: x(lower_deck.F)",
-      "lower_deck.F: y(lower_deck.F)",
+      "Upper deck F: x(upper_deck.F)",
+      "Upper deck F: y(upper_deck.F)",
+      "Lower deck F: x(lower_deck.F)",
+      "Lower deck F: y(lower_deck.F)",
     ]);
   });
 
@@ -151,16 +151,16 @@ describe("buildSweepCharts", () => {
 
   it("makes one chart per series with a line per value, light to dark", () => {
     expect(charts.map((c) => c.title)).toEqual([
-      "deck: x(upper_deck.F)",
-      "deck: y(upper_deck.F)",
-      "deck: v(upper_deck.F)",
-      "deck: upper_stroke",
-      "swing",
+      "Deck: x(upper_deck.F)",
+      "Deck: y(upper_deck.F)",
+      "Deck: v(upper_deck.F)",
+      "Deck: upper_stroke",
+      "Swing",
     ]);
     expect(charts[0]?.lines.map((l) => [l.label, l.color])).toEqual([
-      ["ecc = 10 mm", SWEEP_COLORS[0]],
-      ["ecc = 15 mm", SWEEP_COLORS[1]],
-      ["ecc = 20 mm", SWEEP_COLORS[2]],
+      ["Ecc = 10 mm", SWEEP_COLORS[0]],
+      ["Ecc = 15 mm", SWEEP_COLORS[1]],
+      ["Ecc = 20 mm", SWEEP_COLORS[2]],
     ]);
   });
 

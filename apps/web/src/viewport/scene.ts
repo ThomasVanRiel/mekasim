@@ -1,4 +1,5 @@
 import { type Cycle, docFactor, GROUND, LENGTH, pointMotion, type Simulation } from "@mekasim/core";
+import { label } from "../names.ts";
 import { BODY_COLORS } from "../theme.ts";
 import { type Point, plateOutline } from "./outline.ts";
 
@@ -462,10 +463,17 @@ export function buildScene(simulation: Simulation): Scene | undefined {
       cu += u / body.points.size;
       cv += v / body.points.size;
       if (unnamed.has(`${body.id}.${name}`)) continue;
-      labels.push({ text: name, body: false, carrier: body.index, u, v, z: front });
+      labels.push({ text: label(name), body: false, carrier: body.index, u, v, z: front });
     }
     if (body.index >= 0 && body.points.size > 1) {
-      labels.push({ text: body.id, body: true, carrier: body.index, u: cu, v: cv, z: front });
+      labels.push({
+        text: label(body.id),
+        body: true,
+        carrier: body.index,
+        u: cu,
+        v: cv,
+        z: front,
+      });
     }
   }
 

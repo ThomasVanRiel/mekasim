@@ -1,4 +1,5 @@
 import { addPlot, formatQuantity, type Quantity, type Units } from "@mekasim/core";
+import { label } from "../names.ts";
 import { useStore } from "../store.ts";
 
 const small = "rounded-sm border border-rule bg-sheet px-1.5 text-[12px] hover:border-ink-soft";
@@ -45,7 +46,7 @@ export function Measures() {
             return (
               <div key={id} className="border-rule border-b px-3 py-1.5">
                 <dt className="flex items-baseline gap-1.5 text-ink-soft text-sm">
-                  <span className="min-w-0 flex-1 truncate">{id}</span>
+                  <span className="min-w-0 flex-1 truncate">{label(id)}</span>
                   {signal && (
                     <button
                       type="button"
@@ -57,7 +58,7 @@ export function Measures() {
                   )}
                   <button
                     type="button"
-                    aria-label={`Remove measure ${id}`}
+                    aria-label={`Remove measure ${label(id)}`}
                     className="px-0.5 hover:text-red"
                     onClick={() => apply([{ op: "delete", path: ["measures", id] }])}
                   >
@@ -86,7 +87,7 @@ export function Measures() {
                 {sweep && runs && !signal && (
                   <table className="mt-1 w-full text-sm tabular-nums">
                     <caption className="sr-only">
-                      {id} for each value of {sweep.param}
+                      {label(id)} for each value of {label(sweep.param)}
                     </caption>
                     <tbody>
                       {runs.map((run) => (
@@ -95,7 +96,7 @@ export function Measures() {
                             scope="row"
                             className="py-0.5 pr-2 text-left font-normal text-ink-soft"
                           >
-                            {sweep.param} = {run.value}
+                            {label(sweep.param)} = {run.value}
                           </th>
                           <td className="py-0.5 text-right">
                             {scalar(

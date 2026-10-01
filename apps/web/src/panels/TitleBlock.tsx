@@ -1,5 +1,6 @@
 import { docFactor, formatQuantity, LENGTH } from "@mekasim/core";
 import type { ReactNode } from "react";
+import { label } from "../names.ts";
 import { useStore } from "../store.ts";
 
 function Cell({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
@@ -58,7 +59,7 @@ export function TitleBlock() {
       </Cell>
       <Cell label="Driver">
         {driver
-          ? `${driver.id}, ${Number(((driver.speed * 60) / (2 * Math.PI)).toPrecision(4))} rpm`
+          ? `${label(driver.id)}, ${Number(((driver.speed * 60) / (2 * Math.PI)).toPrecision(4))} rpm`
           : "None"}
       </Cell>
     </dl>

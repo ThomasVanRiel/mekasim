@@ -1,5 +1,6 @@
 import { addDriver, addPlot, driversOf, GROUND, jointRefs, toggleTrace } from "@mekasim/core";
 import type { ReactNode } from "react";
+import { label, refLabel, titled } from "../names.ts";
 import { useStore } from "../store.ts";
 import { deleteSelection } from "../viewport/tools.ts";
 import { Field } from "./Field.tsx";
@@ -92,9 +93,9 @@ function ComponentSection({ doc, id }: { doc: Doc; id: string }) {
 
   if (component.type === "rod") {
     return (
-      <Section title={`Rod ${id}`} removable>
+      <Section title={titled("Rod", id)} removable>
         <p className="text-sm">
-          Pinned to {component.connect[0]} and {component.connect[1]}.
+          Pinned to {refLabel(component.connect[0])} and {refLabel(component.connect[1])}.
         </p>
         <Field label="Length" path={[...path, "length"]} value={component.length} />
         <Field
@@ -116,9 +117,9 @@ function ComponentSection({ doc, id }: { doc: Doc; id: string }) {
 
   const { at } = component;
   return (
-    <Section title={`Crank ${id}`} removable>
+    <Section title={titled("Crank", id)} removable>
       {typeof at === "string" ? (
-        <p className="text-sm">Pivots on {at}.</p>
+        <p className="text-sm">Pivots on {refLabel(at)}.</p>
       ) : (
         <div className="flex items-baseline gap-2">
           <span className="w-8 shrink-0 text-ink-soft text-sm">Pivot</span>
@@ -169,13 +170,13 @@ function PartOf({ title, component }: { title: string; component: string }) {
   const select = useStore((s) => s.select);
   return (
     <Section title={title}>
-      <p className="text-sm">This is part of {component}, and is changed through it.</p>
+      <p className="text-sm">This is part of {label(component)}, and is changed through it.</p>
       <button
         type="button"
         className={`${button} self-start`}
         onClick={() => select({ kind: "body", id: component })}
       >
-        Show {component}
+        Show {label(component)}
       </button>
     </Section>
   );
@@ -203,7 +204,7 @@ export function Inspector() {
     if (!body) return <ComponentSection doc={doc} id={selection.id} />;
     const ground = selection.id === GROUND;
     return (
-      <Section title={ground ? "Ground" : `Link ${selection.id}`} removable={!ground}>
+      <Section title={ground ? "Ground" : titled("Link", selection.id)} removable={!ground}>
         {Object.entries(body.points).map(([name, point]) => (
           <PointRow key={name} body={selection.id} name={name} point={point} />
         ))}
@@ -238,11 +239,11 @@ export function Inspector() {
     if (!point) {
       // A point of a crank or rod, or the ground point a crank pivots on.
       const owner = componentOf(doc, bodyId === GROUND ? name : bodyId);
-      return owner ? <PartOf title={`Point ${selection.ref}`} component={owner} /> : null;
+      return owner ? <PartOf title={`Point ${refLabel(selection.ref)}`} component={owner} /> : null;
     }
     const traced = doc.traces?.includes(selection.ref) ?? false;
     return (
-      <Section title={`Point ${selection.ref}`} removable>
+      <Section title={`Point ${refLabel(selection.ref)}`} removable>
         <PointRow body={bodyId} name={name} point={point} />
         {bodyId !== GROUND && (
           <button
@@ -278,18 +279,18 @@ export function Inspector() {
   const joint = doc.joints?.[selection.id];
   if (!joint) {
     const owner = componentOf(doc, selection.id);
-    return owner ? <PartOf title={`Pin ${selection.id}`} component={owner} /> : null;
+    return owner ? <PartOf title={titled("Pin", selection.id)} component={owner} /> : null;
   }
-  const refs = jointRefs(joint);
+  const named = jointRefs(joint).map(refLabel);
   const drivers = driversOf(doc, selection.id);
   return (
-    <Section title={`${joint.type === "revolute" ? "Pin" : "Joint"} ${selection.id}`} removable>
+    <Section title={titled(joint.type === "revolute" ? "Pin" : "Joint", selection.id)} removable>
       <p className="text-sm">
         {joint.type === "revolute" || joint.type === "weld"
-          ? `${joint.type === "weld" ? "Welds" : "Pins"} ${refs[0]} to ${refs[1]}.`
+          ? `${joint.type === "weld" ? "Welds" : "Pins"} ${named[0]} to ${named[1]}.`
           : joint.type === "slider" || joint.type === "pin-slot"
-            ? `Keeps ${refs[2]} on the line through ${refs[0]} and ${refs[1]}.`
-            : `Connects ${refs[0]} and ${refs[1]}.`}
+            ? `Keeps ${named[2]} on the line through ${named[0]} and ${named[1]}.`
+            : `Connects ${named[0]} and ${named[1]}.`}
       </p>
       {"angle" in joint && (
         <Field
@@ -303,7 +304,7 @@ export function Inspector() {
       {drivers.map((id) => (
         <div key={id} className="flex flex-col gap-1.5 border-rule border-t pt-2">
           <div className="flex items-center justify-between">
-            <span className="font-medium text-sm">Motor {id}</span>
+            <span className="font-medium text-sm">{titled("Motor", id)}</span>
             <button
               type="button"
               className={button}

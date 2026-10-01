@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { label } from "../names.ts";
 import { MAX_SWEEP_RUNS } from "../plot/charts.ts";
 import { LIVE, type Sweep, useStore } from "../store.ts";
 import { Field, toValue } from "./Field.tsx";
@@ -23,7 +24,7 @@ function Slider({ name, value, unit }: { name: string; value: number; unit: stri
   return (
     <input
       type="range"
-      aria-label={`Vary ${name}`}
+      aria-label={`Vary ${label(name)}`}
       className="w-full"
       min={low}
       max={high}
@@ -197,10 +198,10 @@ export function Parameters() {
         return (
           <div key={name} className="border-rule border-b px-3 py-1.5">
             <div className="flex items-baseline gap-1.5">
-              <Field label={name} path={["params", name]} value={value} />
+              <Field label={label(name)} path={["params", name]} value={value} />
               <button
                 type="button"
-                aria-label={`Remove parameter ${name}`}
+                aria-label={`Remove parameter ${label(name)}`}
                 className="shrink-0 px-1 text-ink-soft hover:text-red"
                 onClick={() => apply([{ op: "delete", path: ["params", name] }])}
               >

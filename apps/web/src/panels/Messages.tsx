@@ -1,4 +1,5 @@
 import type { Severity } from "@mekasim/core";
+import { useLayout } from "../layout.ts";
 import { useStore } from "../store.ts";
 
 const MARK: Record<Severity, { label: string; className: string }> = {
@@ -10,9 +11,14 @@ const MARK: Record<Severity, { label: string; className: string }> = {
 export function Messages() {
   const diagnostics = useStore((s) => s.simulation.diagnostics);
   const revealAt = useStore((s) => s.revealAt);
+  const height = useLayout((s) => s.messages);
 
   return (
-    <section aria-label="Messages" className="max-h-[32%] overflow-y-auto border-rule border-t">
+    <section
+      aria-label="Messages"
+      style={height === undefined ? undefined : { height, maxHeight: "none" }}
+      className="max-h-[32%] shrink-0 overflow-y-auto"
+    >
       {diagnostics.length === 0 ? (
         <p className="px-3 py-2 text-ink-soft text-sm">No problems found.</p>
       ) : (

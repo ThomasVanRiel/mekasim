@@ -1,5 +1,7 @@
 import { toCsv } from "@mekasim/core";
 import { useMemo } from "react";
+import { useLayout } from "../layout.ts";
+import { label } from "../names.ts";
 import { Chart } from "../plot/Chart.tsx";
 import { buildCharts, buildSweepCharts } from "../plot/charts.ts";
 import { PLOT_LEFT, PLOT_PAD } from "../plot/geometry.ts";
@@ -25,6 +27,7 @@ export function Plots() {
   const runs = useStore((s) => s.runs);
   const step = useStore((s) => s.step);
   const apply = useStore((s) => s.apply);
+  const height = useLayout((s) => s.plots);
   const charts = useMemo(() => {
     if (sweep && runs) return buildSweepCharts(sweep.param, runs);
     return shown ? buildCharts(shown) : [];
@@ -38,7 +41,7 @@ export function Plots() {
     message =
       "Nothing to plot yet. Select a point or a link and choose what to plot, or trace a point.";
   else if (sweep)
-    message = `Comparing ${sweep.param} at ${sweepValues(sweep)
+    message = `Comparing ${label(sweep.param)} at ${sweepValues(sweep)
       .map((v) => (sweep.unit ? `${v} ${sweep.unit}` : v))
       .join(", ")}`;
   else if (own.size === 0)
@@ -54,7 +57,9 @@ export function Plots() {
   return (
     <section
       aria-label="Plots"
-      className="max-h-[42vh] shrink-0 overflow-y-auto border-rule border-t bg-sheet"
+      // Its own height once the divider above it has been dragged; until then it follows its content.
+      style={height === undefined ? undefined : { height, maxHeight: "none" }}
+      className="max-h-[42vh] shrink-0 overflow-y-auto bg-sheet"
     >
       {/* Playback sits in the same scrolling box as the charts, so that a scrollbar
           narrows both alike and the slider stays in line with them. */}
@@ -92,8 +97,8 @@ export function Plots() {
           {own.has(spec.plot) && charts.findIndex((c) => c.plot === spec.plot) === i && (
             <button
               type="button"
-              aria-label={`Remove plot ${spec.plot}`}
-              title={`Remove plot ${spec.plot}`}
+              aria-label={`Remove plot ${spec.title}`}
+              title={`Remove plot ${spec.title}`}
               className="absolute top-1.5 right-3 px-1 text-ink-soft hover:text-red"
               onClick={() => apply([{ op: "delete", path: ["plots", spec.plot] }])}
             >
