@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Crank-rocker four-bar with a coupler point.
+# Bodies are given by their dimensions; `pose` says roughly where they start,
+# which selects the open (uncrossed) way of assembling the loop.
+mekasim: 1
+meta:
+  name: Four-bar with coupler point
+
+params:
+  r: 40 mm          # crank radius
+  rpm: 300
+
+bodies:
+  ground:
+    points: { O2: [0, 0], O4: [180, 0] }
+  crank:
+    points: { O: [0, 0], A: [r, 0] }
+  coupler:
+    points: { A: [0, 0], B: [160, 0], P: [80, 60] }
+    layer: 1
+  rocker:
+    points: { B: [0, 0], O: [110, 0] }
+
+joints:
+  main:  { type: revolute, connect: [ground.O2, crank.O] }
+  pin_a: { type: revolute, connect: [crank.A, coupler.A] }
+  pin_b: { type: revolute, connect: [coupler.B, rocker.B] }
+  rock:  { type: revolute, connect: [rocker.O, ground.O4] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+traces: [coupler.P]
+
+measures:
+  stroke_x: range(x(coupler.P))
+  stroke_y: range(y(coupler.P))
+  rocker_swing: range(angle(rocker))
+  peak_speed: max(v(coupler.P))
+  peak_accel: max(a(coupler.P))
+
+pose:
+  coupler: [40, 0, 40]
+  rocker: [160, 110, -80]

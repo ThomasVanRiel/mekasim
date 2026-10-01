@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Slider-crank. The rod end runs along the ground axis through a pin-slot joint,
+# so no separate slider body is needed.
+mekasim: 1
+meta:
+  name: Slider-crank
+
+params:
+  r: 15 mm
+  L: 420 mm
+  rpm: 300
+
+bodies:
+  ground:
+    points: { O: [0, 0], X: [1, 0] }
+  crank:
+    points: { O: [0, 0], A: [r, 0] }
+  rod:
+    points: { A: [0, 0], B: [L, 0] }
+    layer: 1
+
+joints:
+  main:  { type: revolute, connect: [ground.O, crank.O] }
+  pin:   { type: revolute, connect: [crank.A, rod.A] }
+  guide: { type: pin-slot, axis: [ground.O, ground.X], point: rod.B }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+traces: [rod.B]
+
+measures:
+  stroke: range(x(rod.B))
+  peak_speed: max(abs(vx(rod.B)))
+  peak_accel: max(abs(ax(rod.B)))
+  rod_swing: range(angle(rod))
+
+pose:
+  rod: [r, 0, 0]

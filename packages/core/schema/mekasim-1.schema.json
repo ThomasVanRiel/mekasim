@@ -1,0 +1,402 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "mekasim": {
+      "type": "number",
+      "const": 1,
+      "description": "Format version"
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "units": {
+          "description": "Units for bare numbers and for results; default mm and deg",
+          "type": "object",
+          "properties": {
+            "length": {
+              "type": "string",
+              "enum": [
+                "mm",
+                "cm",
+                "m",
+                "in"
+              ]
+            },
+            "angle": {
+              "type": "string",
+              "enum": [
+                "deg",
+                "rad"
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "params": {
+      "description": "Named values usable in any expression",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+        "type": [
+          "number",
+          "string"
+        ]
+      }
+    },
+    "bodies": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "points": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "additionalProperties": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                },
+                {
+                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "description": "Named points in the body's own frame, as [x, y]"
+          },
+          "layer": {
+            "description": "Depth order for the 3D view; higher is nearer the viewer",
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "additionalProperties": false
+      },
+      "description": "Rigid bodies. \"ground\" is the fixed one"
+    },
+    "joints": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "revolute"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The two points pinned together"
+              }
+            },
+            "required": [
+              "type",
+              "connect"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "weld"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The two points held together"
+              },
+              "angle": {
+                "description": "Angle of the second body relative to the first; default 0",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "connect"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "slider"
+              },
+              "axis": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Two points on one body defining the line of travel"
+              },
+              "point": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "Point on the sliding body that stays on the axis"
+              },
+              "angle": {
+                "description": "Angle of the sliding body relative to the axis body; default 0",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "axis",
+              "point"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "pin-slot"
+              },
+              "axis": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Two points on one body defining the line of travel"
+              },
+              "point": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "Pin that stays on the axis; its body remains free to rotate"
+              }
+            },
+            "required": [
+              "type",
+              "axis",
+              "point"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    },
+    "drivers": {
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "joint": {
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+            "description": "The revolute joint to drive"
+          },
+          "speed": {
+            "description": "Constant speed of the second body relative to the first; rpm unless a unit is given",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "phase": {
+            "description": "Relative angle at time 0; default 0",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        },
+        "required": [
+          "joint",
+          "speed"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "traces": {
+      "description": "Points whose paths are recorded",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+        "description": "A point on a body, written as body.point"
+      }
+    },
+    "measures": {
+      "description": "Named expressions evaluated over the motion cycle",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+        "type": [
+          "number",
+          "string"
+        ]
+      }
+    },
+    "cycle": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "description": "Samples per cycle; default 360",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "revolutions": {
+          "description": "Driver revolutions per cycle; default 1",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "pose": {
+      "description": "Starting position of bodies as [x, y, angle]; bodies left out start at [0, 0, 0]",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          {
+            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          {
+            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+            "type": [
+              "number",
+              "string"
+            ]
+          }
+        ],
+        "items": false,
+        "minItems": 3,
+        "maxItems": 3
+      }
+    }
+  },
+  "required": [
+    "mekasim",
+    "bodies"
+  ],
+  "additionalProperties": false
+}

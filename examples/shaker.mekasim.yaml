@@ -1,0 +1,69 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# Two decks shaken in opposite directions by one eccentric.
+# An eccentric drives a rocker through a pitman; the upper deck hangs on the
+# rocker's upper arm, the lower deck on its lower arm, and each deck is carried at
+# the rear by its own arm.
+#
+# This model is written "as drawn": every point is given where it sits in the world
+# at the starting position, so no `pose` is needed. The eccentric is drawn pointing
+# up, which puts the rocker at mid-swing.
+mekasim: 1
+meta:
+  name: Counter-moving shaker decks
+
+params:
+  ecc: 15 mm        # eccentric radius
+  rpm: 280
+  arm: 120 mm       # rocker and rear arm length
+  rear: 1300 mm     # x of the rear arms
+
+bodies:
+  ground:
+    points:
+      O: [0, 0]             # eccentric shaft
+      R: [500, 0]           # rocker pivot
+      G: [rear, 0]          # rear arm pivot
+  eccentric:
+    points: { O: [0, 0], A: [0, ecc] }
+  pitman:
+    points: { A: [0, ecc], D: [500, 60] }
+    layer: 1
+  rocker:
+    points: { R: [500, 0], D: [500, 60], U: [500, arm], L: [500, -arm] }
+  upper_deck:
+    points: { F: [500, arm], B: [rear, arm] }
+    layer: 1
+  lower_deck:
+    points: { F: [500, -arm], B: [rear, -arm] }
+    layer: 1
+  upper_arm:
+    points: { G: [rear, 0], B: [rear, arm] }
+  lower_arm:
+    points: { G: [rear, 0], B: [rear, -arm] }
+
+joints:
+  shaft:       { type: revolute, connect: [ground.O, eccentric.O] }
+  crankpin:    { type: revolute, connect: [eccentric.A, pitman.A] }
+  drive:       { type: revolute, connect: [pitman.D, rocker.D] }
+  rocker_pin:  { type: revolute, connect: [ground.R, rocker.R] }
+  upper_front: { type: revolute, connect: [rocker.U, upper_deck.F] }
+  upper_rear:  { type: revolute, connect: [upper_deck.B, upper_arm.B] }
+  upper_pivot: { type: revolute, connect: [ground.G, upper_arm.G] }
+  lower_front: { type: revolute, connect: [rocker.L, lower_deck.F] }
+  lower_rear:  { type: revolute, connect: [lower_deck.B, lower_arm.B] }
+  lower_pivot: { type: revolute, connect: [ground.G, lower_arm.G] }
+
+drivers:
+  motor: { joint: shaft, speed: rpm }
+
+traces: [upper_deck.F, lower_deck.F]
+
+measures:
+  rocker_swing: range(angle(rocker))
+  upper_stroke: range(x(upper_deck.F))
+  lower_stroke: range(x(lower_deck.F))
+  upper_lift: range(y(upper_deck.F))
+  # The decks move against each other, so their spacing varies by both strokes.
+  opposition: range(x(upper_deck.F) - x(lower_deck.F))
+  upper_peak_accel: max(a(upper_deck.F))
+  upper_peak_g: max(a(upper_deck.F)) / g
