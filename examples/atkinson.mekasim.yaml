@@ -35,7 +35,7 @@ bodies:
       cyl_a: [-80, 300]          # cylinder axis
       cyl_b: [-80, 500]
   piston:
-    points: { P: [0, 0], crown: [40, 0] }
+    points: { P: [0, 0], crown: [0, 40] }
 
 components:
   crank:
@@ -75,4 +75,4 @@ plots:
   piston_speed: vy(piston.P)
 
 pose:
-  piston: [-80, 443, 90]
+  piston: [-80, 443, 0]

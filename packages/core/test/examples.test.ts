@@ -33,9 +33,9 @@ function turningPoints(values: Float64Array): [number, number][] {
 }
 
 /** Solves through the whole cycle as a mechanism with one degree of freedom, driven. */
-function expectRuns(simulation: Simulation, redundant = 0): void {
+function expectRuns(simulation: Simulation, redundant = 0, steps = 360): void {
   expect(simulation.diagnostics.filter((d) => d.severity !== "info")).toEqual([]);
-  expect(simulation.cycle?.count).toBe(360);
+  expect(simulation.cycle?.count).toBe(steps);
   expect(simulation.mobility).toMatchObject({ mobility: 1, free: 0, redundant });
 }
 
@@ -226,5 +226,43 @@ describe("Atkinson engine", () => {
     expect(expansion).toBeCloseTo(0.0623, 3);
     expect(exhaust).toBeCloseTo(0.0688, 3);
     expect(exhaust).toBeCloseTo(measure(engine, "longest_stroke"), 12);
+  });
+});
+
+describe("four-stroke engine", () => {
+  const engine = example("four-stroke");
+  const piston = signal(engine, "piston_down");
+  const inlet = signal(engine, "inlet_open");
+  const exhaust = signal(engine, "exhaust_open");
+  /** The step at a crank angle: 720 steps over two turns is one to the degree. */
+  const at = (degrees: number): number => degrees % 720;
+
+  it("turns the camshafts once for two turns of the crank", () => {
+    expectRuns(engine, 0, 720);
+    expect(measure(engine, "stroke")).toBeCloseTo(0.08, 12);
+    expect(measure(engine, "camshaft_speed")).toBeCloseTo(-2 * Math.PI, 9);
+    expect(turningPoints(piston)).toHaveLength(4);
+  });
+
+  it("lifts each valve once, the inlet on the way down and the exhaust on the way up", () => {
+    expect(Math.max(...inlet)).toBeCloseTo(0.008, 9);
+    expect(Math.max(...exhaust)).toBeCloseTo(0.008, 9);
+    // The inlet is open from 10 before the top to 50 after the bottom: fully at 110.
+    expect(inlet[at(110)]).toBeCloseTo(0.008, 9);
+    expect(inlet[at(700)]).toBeLessThan(1e-9);
+    expect(inlet[at(240)]).toBeLessThan(1e-9);
+    // The exhaust is open from 50 before the bottom to 10 after the top: fully at 610.
+    expect(exhaust[at(610)]).toBeCloseTo(0.008, 9);
+    expect(exhaust[at(480)]).toBeLessThan(1e-9);
+    expect(exhaust[at(20)]).toBeLessThan(1e-9);
+  });
+
+  it("keeps both valves shut through compression and power", () => {
+    for (let degrees = 240; degrees <= 480; degrees++) {
+      expect(inlet[at(degrees)]).toBeLessThan(1e-9);
+      expect(exhaust[at(degrees)]).toBeLessThan(1e-9);
+    }
+    expect(measure(engine, "overlap")).toBeGreaterThan(0);
+    expect(measure(engine, "overlap")).toBeLessThan(0.0001);
   });
 });

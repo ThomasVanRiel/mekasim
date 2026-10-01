@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# A one-cylinder four-stroke engine with its valves at the sides.
+#
+# The crank moves the piston through the connecting rod, twice up and twice down
+# for the four strokes: intake, compression, power and exhaust. A camshaft on
+# either side is turned by a wheel with twice the teeth of the one on the crank,
+# so it goes round once in those two turns. Each cam lifts its valve once: the
+# inlet valve while the piston goes down the first time, the exhaust valve while
+# it comes up the second time. In between, both are shut.
+#
+# A valve does not open and shut exactly at the ends of a stroke. The inlet opens
+# a little before the piston is at the top and shuts well after it has turned at
+# the bottom; the exhaust opens well before the bottom and shuts a little after
+# the top. `early` and `late` set this, in degrees of the crank, and for a moment
+# at the top both valves are open together, if only by a hair: a cam starts and
+# ends its lift gently.
+#
+# The model starts there, with the piston at the top between exhaust and intake,
+# and runs for two turns of the crank. The cams turn clockwise, and a cam's
+# profile is written in degrees of the camshaft: half those of the crank.
+mekasim: 1
+meta:
+  name: Four-stroke engine with cams
+
+params:
+  rpm: 120
+  r: 40 mm          # crank radius: half the stroke
+  rod: 140 mm       # connecting rod
+  lift: 8 mm        # how far a cam lifts its valve
+  base: 25 mm       # cam centre to the follower's roller with the valve shut
+  early: 10         # crank degrees before a dead centre: inlet opens, exhaust shuts after
+  late: 50          # crank degrees after a dead centre: inlet shuts, exhaust opens before
+  side: 75 mm       # camshafts and valves, to either side of the crank
+
+bodies:
+  ground:
+    points:
+      cyl_a: [0, 120]            # cylinder axis
+      cyl_b: [0, 260]
+      inlet_a: [-side, 40]       # valve guides
+      inlet_b: [-side, 160]
+      exhaust_a: [side, 40]
+      exhaust_b: [side, 160]
+  piston:
+    points: { P: [0, 0], crown: [0, 35] }
+  inlet_valve:
+    points: { P: [0, 0], head: [0, 180] }
+  exhaust_valve:
+    points: { P: [0, 0], head: [0, 180] }
+
+components:
+  crank:
+    type: crank
+    at: [0, 0]
+    arms: { A: [r, 90] }
+    speed: rpm
+  connecting_rod:
+    type: rod
+    length: rod
+    connect: [crank.A, piston.P]
+  # Each camshaft starts a quarter turn round, which puts the start of its profile
+  # under the valve.
+  inlet_cam:
+    type: crank
+    at: [-side, 0]
+    arms: { mark: [15, 0] }
+    angle: 90
+  exhaust_cam:
+    type: crank
+    at: [side, 0]
+    arms: { mark: [15, 0] }
+    angle: 90
+
+joints:
+  cylinder: { type: slider, axis: [ground.cyl_a, ground.cyl_b], point: piston.P }
+  inlet_guide: { type: slider, axis: [ground.inlet_a, ground.inlet_b], point: inlet_valve.P }
+  exhaust_guide:
+    type: slider
+    axis: [ground.exhaust_a, ground.exhaust_b]
+    point: exhaust_valve.P
+  inlet_drive: { type: gear, connect: [crank.O, inlet_cam.O], sizes: [20, 40] }
+  exhaust_drive: { type: gear, connect: [crank.O, exhaust_cam.O], sizes: [20, 40] }
+  # Open from just before the top to well after the bottom of the first stroke down.
+  inlet_contact:
+    type: cam
+    cam: inlet_cam.O
+    follower: inlet_valve.P
+    base: base
+    roller: 6 mm
+    profile:
+      - [(180 + late - early) / 4, lift]
+      - [(180 + late) / 2, 0]
+      - [360 - early / 2, 0]
+  # Open from well before the bottom to just after the top of the second stroke up.
+  exhaust_contact:
+    type: cam
+    cam: exhaust_cam.O
+    follower: exhaust_valve.P
+    base: base
+    roller: 6 mm
+    profile:
+      - [early / 2, 0]
+      - [(540 - late) / 2, 0]
+      - [(1260 - late + early) / 4, lift]
+
+cycle: { steps: 720, revolutions: 2 }
+
+traces: [piston.crown]
+
+measures:
+  stroke: range(y(piston.P))
+  # How far the piston is below the top of its stroke, and how far each valve is open.
+  piston_down: max(y(piston.P)) - y(piston.P)
+  inlet_open: y(inlet_valve.P) - min(y(inlet_valve.P))
+  exhaust_open: y(exhaust_valve.P) - min(y(exhaust_valve.P))
+  # How far both valves are open at once, around the top between exhaust and intake.
+  overlap: max(min(inlet_open, exhaust_open))
+  valve_peak_accel: max(abs(ay(inlet_valve.P)))
+  camshaft_speed: mean(omega(inlet_cam))
+
+plots:
+  piston: piston_down
+  valves: [inlet_open, exhaust_open]
+
+pose:
+  piston: [0, r + rod, 0]
+  inlet_valve: [-side, base, 0]
+  exhaust_valve: [side, base, 0]
