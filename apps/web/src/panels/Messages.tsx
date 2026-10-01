@@ -5,8 +5,8 @@ import { KIND, messagesText, messageText } from "../messages.ts";
 import { useStore } from "../store.ts";
 
 const MARK: Record<Severity, string> = {
-  error: "bg-red text-white",
-  warning: "bg-[#e3c46a] text-ink",
+  error: "bg-red text-sheet",
+  warning: "bg-(--amber) text-ink",
   info: "bg-rule text-ink",
 };
 

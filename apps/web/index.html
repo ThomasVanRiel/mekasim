@@ -6,6 +6,18 @@
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>mekasim</title>
+    <script>
+      // Set the theme before the first paint; `src/theme.ts` takes over from here.
+      try {
+        const chosen = localStorage.getItem("mekasim.theme");
+        document.documentElement.dataset.theme =
+          chosen === "light" || chosen === "dark"
+            ? chosen
+            : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

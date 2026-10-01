@@ -13,21 +13,16 @@ import { label, refLabel } from "../names.ts";
 
 /**
  * Series colours, in the fixed order they are handed out. A series keeps its slot
- * wherever it is drawn. Checked for colour-blind separation on the sheet colour.
+ * wherever it is drawn. Their values are in `index.css`, one set for each theme, each
+ * checked for colour-blind separation on its sheet colour.
  */
-export const SERIES_COLORS = [
-  "#2a78d6",
-  "#eb6834",
-  "#1baf7a",
-  "#eda100",
-  "#e87ba4",
-  "#008300",
-  "#4a3aa7",
-  "#e34948",
-];
+export const SERIES_COLORS = Array.from({ length: 8 }, (_, i) => `var(--series-${i + 1})`);
 
-/** One hue from light to dark, for the ordered values of a sweep. Checked for visible steps. */
-export const SWEEP_COLORS = ["#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+/**
+ * One hue in ordered steps, for the ordered values of a sweep, from the faintest against
+ * the sheet to the strongest. Checked for visible steps in each theme.
+ */
+export const SWEEP_COLORS = Array.from({ length: 5 }, (_, i) => `var(--sweep-${i + 1})`);
 
 export const MAX_SWEEP_RUNS = SWEEP_COLORS.length;
 

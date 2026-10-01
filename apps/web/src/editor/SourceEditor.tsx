@@ -2,12 +2,14 @@ import { redo, undo } from "@codemirror/commands";
 import { yaml } from "@codemirror/lang-yaml";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { type Diagnostic as EditorDiagnostic, lintGutter, setDiagnostics } from "@codemirror/lint";
+import { Compartment } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { entityAt } from "@mekasim/core";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { editorBridge, useStore } from "../store.ts";
+import { useTheme } from "../theme.ts";
 import { undoGrouping } from "./history.ts";
 import { external, linkedNames } from "./linked.ts";
 
@@ -37,6 +39,9 @@ const theme = EditorView.theme({
   },
 });
 
+/** Tells the editor which of its own colours to use where the theme above names none. */
+const dark = new Compartment();
+
 const highlight = HighlightStyle.define([
   {
     tag: [tags.propertyName, tags.definition(tags.propertyName)],
@@ -45,7 +50,7 @@ const highlight = HighlightStyle.define([
   },
   { tag: [tags.string, tags.content], color: "var(--color-dye)" },
   { tag: [tags.number, tags.bool, tags.null], color: "var(--color-brass)" },
-  { tag: tags.comment, color: "#6b7d68", fontStyle: "italic" },
+  { tag: tags.comment, color: "var(--comment)", fontStyle: "italic" },
   { tag: [tags.punctuation, tags.separator, tags.bracket], color: "var(--color-ink-soft)" },
 ]);
 
@@ -68,6 +73,7 @@ export function SourceEditor() {
         lintGutter(),
         linkedNames(),
         theme,
+        dark.of(EditorView.darkTheme.of(useTheme.getState().theme === "dark")),
         EditorView.contentAttributes.of({ "aria-label": "Model source" }),
         undoGrouping(),
         EditorView.updateListener.of((update) => {
@@ -99,8 +105,12 @@ export function SourceEditor() {
     editorBridge.text = () => editor.state.doc.toString();
     editorBridge.undo = () => undo(editor);
     editorBridge.redo = () => redo(editor);
+    const unsubscribe = useTheme.subscribe(({ theme }) => {
+      editor.dispatch({ effects: dark.reconfigure(EditorView.darkTheme.of(theme === "dark")) });
+    });
     return () => {
       clearTimeout(timer);
+      unsubscribe();
       editorBridge.text = undefined;
       editorBridge.undo = undefined;
       editorBridge.redo = undefined;

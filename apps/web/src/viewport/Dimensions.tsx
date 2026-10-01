@@ -5,7 +5,7 @@ import { useEffect, useRef } from "react";
 import { Vector3 } from "three";
 import type { LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
-import { COLORS } from "../theme.ts";
+import { useColors } from "../theme.ts";
 import { toWorld } from "./pick.ts";
 import type { Scene } from "./scene.ts";
 
@@ -20,6 +20,7 @@ const HALO = "0 0 2px var(--color-paper), 0 0 2px var(--color-paper), 0 0 4px va
  * values follow the motion.
  */
 export function Dimensions({ scene }: { scene: Scene }) {
+  const colors = useColors();
   const gl = useThree((s) => s.gl);
   const units = useStore((s) => s.shown?.compiled?.units);
   const lines = useRef<LineSegments2>(null);
@@ -88,13 +89,13 @@ export function Dimensions({ scene }: { scene: Scene }) {
         ref={lines}
         points={blank(2)}
         segments
-        color={COLORS.ink}
+        color={colors.ink}
         lineWidth={1}
         dashed
         dashSize={scene.sizes.half * 0.6}
         gapSize={scene.sizes.half * 0.4}
       />
-      <Line ref={ticks} points={blank(4)} segments color={COLORS.ink} lineWidth={1} />
+      <Line ref={ticks} points={blank(4)} segments color={colors.ink} lineWidth={1} />
     </>
   );
 }

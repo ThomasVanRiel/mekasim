@@ -16,7 +16,7 @@ import {
   Vector3,
 } from "three";
 import { useStore } from "../store.ts";
-import { COLORS } from "../theme.ts";
+import { bodyColor, useColors } from "../theme.ts";
 import { Dimensions } from "./Dimensions.tsx";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
@@ -48,9 +48,10 @@ function loop(outline: Point[], z: number): Vec3[] {
 
 /** A ring that marks the selected thing. */
 function Halo({ at, radius }: { at: Vec3; radius: number }) {
+  const colors = useColors();
   return (
     <group position={at}>
-      <Line points={circle(radius, 0)} color={COLORS.dye} lineWidth={3} />
+      <Line points={circle(radius, 0)} color={colors.dye} lineWidth={3} />
     </group>
   );
 }
@@ -69,6 +70,7 @@ function Plate({
   /** Let a picture underneath show through, for tracing over it. */
   seeThrough: boolean;
 }) {
+  const colors = useColors();
   const shape = useMemo(
     () => new Shape(body.outline.map(([x, y]) => new Vector2(x, y))),
     [body.outline],
@@ -81,21 +83,21 @@ function Plate({
         <extrudeGeometry args={[shape, { depth: sizes.thickness, bevelEnabled: false }]} />
         <meshLambertMaterial
           key={seeThrough ? "see-through" : "solid"}
-          color={body.color}
+          color={bodyColor(colors, body.index)}
           transparent={seeThrough}
           opacity={seeThrough ? 0.5 : 1}
         />
       </mesh>
       <Line
         points={loop(body.outline, front + lift)}
-        color={selected ? COLORS.dye : COLORS.ink}
+        color={selected ? colors.dye : colors.ink}
         lineWidth={selected ? 3 : 1.4}
       />
-      <Line points={loop(body.outline, body.z - lift)} color={COLORS.ink} lineWidth={1.4} />
+      <Line points={loop(body.outline, body.z - lift)} color={colors.ink} lineWidth={1.4} />
       {body.points.map((p) => (
         <mesh key={p.name} position={[p.u, p.v, front + lift]}>
           <circleGeometry args={[sizes.half * 0.16, 16]} />
-          <meshBasicMaterial color={COLORS.ink} />
+          <meshBasicMaterial color={colors.ink} />
         </mesh>
       ))}
       {body.points
@@ -108,6 +110,7 @@ function Plate({
 }
 
 function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: boolean }) {
+  const colors = useColors();
   const { radius } = pin;
   const length = pin.zFront - pin.zBack;
   const lift = sizes.thickness * 0.03;
@@ -116,9 +119,9 @@ function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: b
     <group position={[pin.u, pin.v, 0]}>
       <mesh position-z={(pin.zFront + pin.zBack) / 2} rotation-x={Math.PI / 2}>
         <cylinderGeometry args={[radius, radius, length, 28]} />
-        <meshLambertMaterial color={COLORS.brass} />
+        <meshLambertMaterial color={colors.brass} />
       </mesh>
-      <Line points={circle(radius, pin.zFront + lift)} color={COLORS.ink} lineWidth={1.2} />
+      <Line points={circle(radius, pin.zFront + lift)} color={colors.ink} lineWidth={1.2} />
       {(pin.kind === "weld" || pin.kind === "slider") && (
         // A square around the pin marks a joint that does not let the bodies turn.
         <Line
@@ -129,14 +132,14 @@ function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: b
             [-square, square, pin.zFront + lift],
             [-square, -square, pin.zFront + lift],
           ]}
-          color={COLORS.ink}
+          color={colors.ink}
           lineWidth={1.2}
         />
       )}
       {pin.driven && (
         <Line
           points={circle(Math.min(sizes.half * 0.85, radius * 2), pin.zFront + lift)}
-          color={COLORS.red}
+          color={colors.red}
           lineWidth={2.5}
         />
       )}
@@ -151,13 +154,14 @@ function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: b
 }
 
 function Axis({ axis, sizes }: { axis: DrawAxis; sizes: Sizes }) {
+  const colors = useColors();
   return (
     <Line
       points={[
         [...axis.from, axis.z],
         [...axis.to, axis.z],
       ]}
-      color={COLORS.inkSoft}
+      color={colors.inkSoft}
       lineWidth={1.2}
       dashed
       dashSize={sizes.half * 2.4}
@@ -168,6 +172,7 @@ function Axis({ axis, sizes }: { axis: DrawAxis; sizes: Sizes }) {
 
 /** The drafting symbol for a fixed pivot: a triangle standing on hatched ground. */
 function Support({ at, z, sizes }: { at: Point; z: number; sizes: Sizes }) {
+  const colors = useColors();
   const h = sizes.half;
   const base = -2.3 * h;
   const strokes: Vec3[] = [];
@@ -184,7 +189,7 @@ function Support({ at, z, sizes }: { at: Point; z: number; sizes: Sizes }) {
           [1.4 * h, base, 0],
           [0, 0, 0],
         ]}
-        color={COLORS.ink}
+        color={colors.ink}
         lineWidth={1.4}
       />
       <Line
@@ -192,15 +197,16 @@ function Support({ at, z, sizes }: { at: Point; z: number; sizes: Sizes }) {
           [-2.2 * h, base, 0],
           [2.2 * h, base, 0],
         ]}
-        color={COLORS.ink}
+        color={colors.ink}
         lineWidth={1.4}
       />
-      <Line points={strokes} segments color={COLORS.ink} lineWidth={1} />
+      <Line points={strokes} segments color={colors.ink} lineWidth={1} />
     </group>
   );
 }
 
 function Ground({ scene, selectedPoint }: { scene: Scene; selectedPoint: string | undefined }) {
+  const colors = useColors();
   const { sizes, groundZ } = scene;
   return (
     <>
@@ -217,7 +223,7 @@ function Ground({ scene, selectedPoint }: { scene: Scene; selectedPoint: string 
               [0, sizes.half * 0.5, 0],
             ]}
             segments
-            color={COLORS.ink}
+            color={colors.ink}
             lineWidth={1}
           />
           {p.name === selectedPoint && <Halo at={[0, 0, 0]} radius={sizes.half * 0.7} />}
@@ -228,6 +234,7 @@ function Ground({ scene, selectedPoint }: { scene: Scene; selectedPoint: string 
 }
 
 function Grid({ scene }: { scene: Scene }) {
+  const colors = useColors();
   const { bounds, gridStep } = scene;
   const major = gridStep * 5;
   const x = Math.round((bounds.minX + bounds.maxX) / 2 / major) * major;
@@ -239,11 +246,11 @@ function Grid({ scene }: { scene: Scene }) {
       {/* Every fifth light line lies under a heavy one. The light lines are drawn first and
           leave no depth behind, so the heavy ones always end up on top of them. */}
       <gridHelper
-        args={[size, 200, COLORS.grid, COLORS.grid]}
+        args={[size, 200, colors.grid, colors.grid]}
         renderOrder={-2}
         material-depthWrite={false}
       />
-      <gridHelper args={[size, 40, COLORS.gridMajor, COLORS.gridMajor]} renderOrder={-1} />
+      <gridHelper args={[size, 40, colors.gridMajor, colors.gridMajor]} renderOrder={-1} />
     </group>
   );
 }
@@ -289,6 +296,7 @@ function UnderlayImage({ scene }: { scene: Scene }) {
 }
 
 function Mechanism({ scene }: { scene: Scene }) {
+  const colors = useColors();
   const labels = useStore((s) => s.labels);
   const seeThrough = useStore((s) => s.underlay !== undefined);
   // What the source cursor is on takes the highlight while the source is being worked in.
@@ -367,7 +375,7 @@ function Mechanism({ scene }: { scene: Scene }) {
                 key={cam.id}
                 cam={cam}
                 sizes={scene.sizes}
-                color={body.color}
+                color={bodyColor(colors, body.index)}
                 selected={cam.id === selectedJoint}
               />
             ))}
@@ -392,7 +400,7 @@ function Mechanism({ scene }: { scene: Scene }) {
         <Tie key={tie.id} scene={scene} tie={tie} selected={tie.id === selectedJoint} />
       ))}
       {scene.traces.map((trace) => (
-        <Line key={trace.ref} points={trace.points} color={COLORS.dye} lineWidth={1.8} />
+        <Line key={trace.ref} points={trace.points} color={colors.dye} lineWidth={1.8} />
       ))}
       {scene.dimensions.length > 0 && <Dimensions scene={scene} />}
       {labels && <Labels scene={scene} />}
@@ -452,6 +460,7 @@ function Camera({ scene }: { scene: Scene | undefined }) {
 }
 
 export function Viewport() {
+  const colors = useColors();
   const scene = useStore((s) => s.scene);
 
   return (
@@ -462,7 +471,7 @@ export function Viewport() {
       camera={{ position: [0, 0, CAMERA_DISTANCE], near: 0.1, far: 2 * CAMERA_DISTANCE, zoom: 500 }}
       aria-label="Drawing of the mechanism"
     >
-      <color attach="background" args={[COLORS.paper]} />
+      <color attach="background" args={[colors.paper]} />
       <ambientLight intensity={2.2} />
       <directionalLight position={[3, 5, 8]} intensity={1.6} />
       {scene && <Mechanism scene={scene} />}

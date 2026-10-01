@@ -4,7 +4,7 @@ import { useMemo, useRef } from "react";
 import { Shape, Vector2 } from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
-import { COLORS } from "../theme.ts";
+import { useColors } from "../theme.ts";
 import { beltRuns, toWorld } from "./pick.ts";
 import type { DrawCam, DrawRoller, DrawTie, DrawWheel, Scene, Sizes } from "./scene.ts";
 
@@ -19,7 +19,8 @@ function circle(radius: number, z: number, segments = 64): Vec3[] {
 
 /** A gear or pulley on its body: the pitch circle, and marks round it that show it turning. */
 export function Wheel({ wheel, selected }: { wheel: DrawWheel; selected: boolean }) {
-  const color = selected ? COLORS.dye : COLORS.ink;
+  const colors = useColors();
+  const color = selected ? colors.dye : colors.ink;
   const marks = useMemo(() => {
     const count = Math.max(8, Math.min(48, Math.round(wheel.radius * 400)));
     const points: Vec3[] = [];
@@ -43,7 +44,7 @@ export function Wheel({ wheel, selected }: { wheel: DrawWheel; selected: boolean
           [0, 0, wheel.z],
           [wheel.radius, 0, wheel.z],
         ]}
-        color={COLORS.ink}
+        color={colors.ink}
         lineWidth={1}
       />
     </group>
@@ -62,6 +63,7 @@ export function CamPlate({
   color: string;
   selected: boolean;
 }) {
+  const colors = useColors();
   const shape = useMemo(
     () => new Shape(cam.outline.map(([x, y]) => new Vector2(x, y))),
     [cam.outline],
@@ -79,7 +81,7 @@ export function CamPlate({
       </mesh>
       <Line
         points={edge}
-        color={selected ? COLORS.dye : COLORS.ink}
+        color={selected ? colors.dye : colors.ink}
         lineWidth={selected ? 3 : 1.4}
       />
     </>
@@ -96,17 +98,18 @@ export function Roller({
   sizes: Sizes;
   selected: boolean;
 }) {
+  const colors = useColors();
   // A follower without a roller is a point; show it as a small one.
   const radius = roller.radius > 0 ? roller.radius : sizes.half * 0.3;
   return (
     <group position={[roller.u, roller.v, 0]}>
       <mesh position-z={roller.z}>
         <circleGeometry args={[radius, 48]} />
-        <meshBasicMaterial color={COLORS.paper} />
+        <meshBasicMaterial color={colors.paper} />
       </mesh>
       <Line
         points={circle(radius, roller.z)}
-        color={selected ? COLORS.dye : COLORS.ink}
+        color={selected ? colors.dye : colors.ink}
         lineWidth={selected ? 3 : 1.4}
       />
     </group>
@@ -118,6 +121,7 @@ export function Roller({
  * distance, the two straight runs of a belt for a belt.
  */
 export function Tie({ scene, tie, selected }: { scene: Scene; tie: DrawTie; selected: boolean }) {
+  const colors = useColors();
   const line = useRef<Line2 | LineSegments2>(null);
 
   useFrame(() => {
@@ -147,7 +151,7 @@ export function Tie({ scene, tie, selected }: { scene: Scene; tie: DrawTie; sele
         [0, 0, 0],
         [1, 0, 0],
       ]}
-      color={selected ? COLORS.dye : COLORS.inkSoft}
+      color={selected ? colors.dye : colors.inkSoft}
       lineWidth={selected ? 3 : 1.6}
       dashed
       dashSize={scene.sizes.half * 1.2}
@@ -163,7 +167,7 @@ export function Tie({ scene, tie, selected }: { scene: Scene; tie: DrawTie; sele
         [1, 1, 0],
       ]}
       segments
-      color={selected ? COLORS.dye : COLORS.ink}
+      color={selected ? colors.dye : colors.ink}
       lineWidth={selected ? 3 : 1.6}
     />
   );

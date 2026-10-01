@@ -3,7 +3,7 @@ import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
 import { type OrthographicCamera, Vector3 } from "three";
 import { type DraftPoint, useStore } from "../store.ts";
-import { COLORS } from "../theme.ts";
+import { useColors } from "../theme.ts";
 import { type Hit, pick } from "./pick.ts";
 import {
   clickCam,
@@ -83,6 +83,7 @@ function ring(x: number, y: number, z: number, radius: number): [number, number,
  * on the sheet.
  */
 export function Interaction() {
+  const colors = useColors();
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as OrthographicCamera;
   const controls = useThree((s) => s.controls) as { enabled: boolean } | null;
@@ -224,14 +225,14 @@ export function Interaction() {
   return (
     <>
       {path.length > 1 && (
-        <Line points={path.map((p) => [p.x, p.y, z])} color={COLORS.dye} lineWidth={2.5} />
+        <Line points={path.map((p) => [p.x, p.y, z])} color={colors.dye} lineWidth={2.5} />
       )}
       {path.map((p, i) => (
         <Line
           // biome-ignore lint/suspicious/noArrayIndexKey: draft points have no identity beyond their order
           key={i}
           points={ring(p.x, p.y, z, scene.sizes.half * (p.ref ? 0.9 : 0.4))}
-          color={p.ref ? COLORS.brass : COLORS.dye}
+          color={p.ref ? colors.brass : colors.dye}
           lineWidth={p.ref ? 3 : 2}
         />
       ))}

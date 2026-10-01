@@ -4,6 +4,7 @@ import { EXAMPLES } from "../examples.ts";
 import { download, fileStem } from "../io/download.ts";
 import { encodeModel, exampleFragment } from "../io/share.ts";
 import { useStore } from "../store.ts";
+import { useTheme } from "../theme.ts";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2.5 py-1 text-sm hover:border-ink-soft active:bg-paper";
@@ -14,6 +15,8 @@ const editing = `${button} hidden lg:inline-block`;
 export function Header() {
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const load = useStore((s) => s.load);
+  const theme = useTheme((s) => s.theme);
+  const toggleTheme = useTheme((s) => s.toggle);
   const input = useRef<HTMLInputElement>(null);
   const [shared, setShared] = useState<"copied" | "failed">();
 
@@ -71,6 +74,9 @@ export function Header() {
       </button>
       <button type="button" className={editing} onClick={copyLink}>
         {shared === "copied" ? "Link copied" : shared === "failed" ? "Could not copy" : "Copy link"}
+      </button>
+      <button type="button" className={button} onClick={toggleTheme}>
+        {theme === "dark" ? "Light theme" : "Dark theme"}
       </button>
       <input
         ref={input}

@@ -20,6 +20,63 @@
   --color-red: #b52d24;
 }
 
+/* Colours that no utility class names: the editor's comments, the warning mark, the
+   brass of the scrubber, and the lines of the plots. */
+:root {
+  color-scheme: light;
+  --comment: #6b7d68;
+  --amber: #e3c46a;
+  --marker: #b58a2e;
+
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+
+  --sweep-1: #6da7ec;
+  --sweep-2: #3987e5;
+  --sweep-3: #256abf;
+  --sweep-4: #184f95;
+  --sweep-5: #0d366b;
+}
+
+/* The same pad after dark: slate paper, chalk ink. Set on the root element by `theme.ts`. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-paper: #151a18;
+  --color-sheet: #1d2321;
+  --color-rule: #3a4541;
+  --color-ink: #e2e8e1;
+  --color-ink-soft: #9aa8a2;
+  --color-dye: #7d9cff;
+  --color-brass: #d3a94a;
+  --color-red: #ee7468;
+
+  --comment: #7f917c;
+  --amber: #6e5a1e;
+  --marker: #c79a3a;
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+
+  /* Still from the faintest against the sheet to the strongest, so here from dark to light. */
+  --sweep-1: #1c5cab;
+  --sweep-2: #2a78d6;
+  --sweep-3: #5598e7;
+  --sweep-4: #86b6ef;
+  --sweep-5: #b7d3f6;
+}
+
 html,
 body,
 #root {
@@ -63,7 +120,7 @@ input[type="range"]::-webkit-slider-thumb {
   margin-top: -9px;
   border: 1px solid var(--color-ink);
   border-radius: 2px;
-  background: #b58a2e;
+  background: var(--marker);
 }
 
 input[type="range"]::-moz-range-thumb {
@@ -71,7 +128,7 @@ input[type="range"]::-moz-range-thumb {
   height: 20px;
   border: 1px solid var(--color-ink);
   border-radius: 2px;
-  background: #b58a2e;
+  background: var(--marker);
 }
 
 input[type="range"]:disabled {

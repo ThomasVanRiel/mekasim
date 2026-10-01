@@ -16,7 +16,6 @@ import {
   type Simulation,
 } from "@mekasim/core";
 import { label } from "../names.ts";
-import { BODY_COLORS } from "../theme.ts";
 
 export type { Bounds };
 
@@ -33,7 +32,6 @@ export interface DrawBody {
   id: string;
   /** Index into the solver coordinates; -1 for ground. */
   index: number;
-  color: string;
   /** Back face of the plate. */
   z: number;
   outline: Point[];
@@ -250,7 +248,6 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     bodies.push({
       id: body.id,
       index: body.index,
-      color: BODY_COLORS[body.index % BODY_COLORS.length] as string,
       z,
       outline: plateOutline(
         points.map((p): Point => [p.u, p.v]),
