@@ -1,3 +1,4 @@
+import { type Path, paramValue, UNITS } from "@mekasim/core";
 import { useState } from "react";
 import { label } from "../names.ts";
 import { MAX_SWEEP_RUNS } from "../plot/charts.ts";
@@ -8,16 +9,38 @@ import { Field, toValue } from "./Field.tsx";
 const LITERAL = /^(-?(?:\d+\.?\d*|\.\d+))\s*([A-Za-z/]*)$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** From nothing to twice the value: room to explore either way. */
-function rangeFor(value: number): [number, number] {
-  if (value === 0) return [-10, 10];
-  return value > 0 ? [0, 2 * value] : [2 * value, 0];
+/** The least and most a parameter may be, in the unit its value is written in. */
+interface Limits {
+  min?: number;
+  max?: number;
 }
 
-function Slider({ name, value, unit }: { name: string; value: number; unit: string }) {
+/**
+ * How far a slider reaches: to the parameter's bounds where it has them, and
+ * otherwise from nothing to twice the value, which leaves room either way.
+ */
+function rangeFor(value: number, limits: Limits): [number, number] {
+  const [low, high] = value === 0 ? [-10, 10] : value > 0 ? [0, 2 * value] : [2 * value, 0];
+  return [limits.min ?? low, limits.max ?? high];
+}
+
+function Slider({
+  name,
+  path,
+  value,
+  unit,
+  limits,
+}: {
+  name: string;
+  /** Where the value is written in the model. */
+  path: Path;
+  value: number;
+  unit: string;
+  limits: Limits;
+}) {
   // The range is fixed while the slider is held, so that it does not grow under the pointer.
   const [held, setHeld] = useState<[number, number]>();
-  const [low, high] = held ?? rangeFor(value);
+  const [low, high] = held ?? rangeFor(value, limits);
   const step = 10 ** Math.floor(Math.log10((high - low) / 200));
   const decimals = Math.max(0, -Math.floor(Math.log10(step)));
 
@@ -30,17 +53,14 @@ function Slider({ name, value, unit }: { name: string; value: number; unit: stri
       max={high}
       step={step}
       value={value}
-      onPointerDown={() => setHeld(rangeFor(value))}
+      onPointerDown={() => setHeld(rangeFor(value, limits))}
       onPointerUp={() => setHeld(undefined)}
       onBlur={() => setHeld(undefined)}
       onChange={(event) => {
         const next = Number(Number(event.target.value).toFixed(decimals));
         useStore
           .getState()
-          .apply(
-            [{ op: "set", path: ["params", name], value: unit ? `${next} ${unit}` : next }],
-            LIVE,
-          );
+          .apply([{ op: "set", path, value: unit ? `${next} ${unit}` : next }], LIVE);
       }}
     />
   );
@@ -79,7 +99,17 @@ function NumberBox({
 }
 
 /** Compare the model at several values of a parameter. */
-function SweepControls({ name, value, unit }: { name: string; value: number; unit: string }) {
+function SweepControls({
+  name,
+  value,
+  unit,
+  limits,
+}: {
+  name: string;
+  value: number;
+  unit: string;
+  limits: Limits;
+}) {
   const sweep = useStore((s) => (s.sweep?.param === name ? s.sweep : undefined));
   const setSweep = useStore((s) => s.setSweep);
   const change = (part: Partial<Sweep>): void => {
@@ -100,8 +130,9 @@ function SweepControls({ name, value, unit }: { name: string; value: number; uni
               ? undefined
               : {
                   param: name,
-                  from: Number((value * 0.5).toPrecision(4)),
-                  to: Number((value * 1.5).toPrecision(4)),
+                  // Across the whole allowed range where there is one.
+                  from: limits.min ?? Number((value * 0.5).toPrecision(4)),
+                  to: limits.max ?? Number((value * 1.5).toPrecision(4)),
                   count: 5,
                   unit,
                 },
@@ -180,6 +211,7 @@ function AddParameter({ taken }: { taken: string[] }) {
 /** Named values of the model, each with a slider where it is a plain number. */
 export function Parameters() {
   const params = useStore((s) => s.simulation.doc?.params);
+  const bounds = useStore((s) => s.simulation.compiled?.bounds);
   const hasDoc = useStore((s) => s.simulation.doc !== undefined);
   const apply = useStore((s) => s.apply);
   const entries = Object.entries(params ?? {});
@@ -193,12 +225,36 @@ export function Parameters() {
           Slide it to see what it does.
         </p>
       )}
-      {entries.map(([name, value]) => {
+      {entries.map(([name, entry]) => {
+        const value = paramValue(entry);
+        const bounded = typeof entry === "object";
+        const path = bounded ? ["params", name, "value"] : ["params", name];
         const literal = LITERAL.exec(String(value));
+        const unit = literal?.[2] ?? "";
+        // The bounds in the unit the value is written in, to set against the slider.
+        const scale = unit in UNITS ? (UNITS[unit] as { factor: number }).factor : 1;
+        const compiledLimits = bounds?.get(name);
+        const limits: Limits = {
+          min: compiledLimits?.min === undefined ? undefined : compiledLimits.min / scale,
+          max: compiledLimits?.max === undefined ? undefined : compiledLimits.max / scale,
+        };
+        /** Write a bound, turning a plain value into one with bounds when it gets its first. */
+        const setBound = (side: "min" | "max") => (bound: number | string | undefined) => {
+          if (bounded) {
+            const at = ["params", name, side];
+            apply([
+              bound === undefined
+                ? { op: "delete", path: at }
+                : { op: "set", path: at, value: bound },
+            ]);
+          } else if (bound !== undefined) {
+            apply([{ op: "set", path: ["params", name], value: { value, [side]: bound } }]);
+          }
+        };
         return (
           <div key={name} className="border-rule border-b px-3 py-1.5">
             <div className="flex items-baseline gap-1.5">
-              <Field label={label(name)} path={["params", name]} value={value} />
+              <Field label={label(name)} path={path} value={value} />
               <button
                 type="button"
                 aria-label={`Remove parameter ${label(name)}`}
@@ -208,9 +264,35 @@ export function Parameters() {
                 ×
               </button>
             </div>
-            {literal && <Slider name={name} value={Number(literal[1])} unit={literal[2] ?? ""} />}
             {literal && (
-              <SweepControls name={name} value={Number(literal[1])} unit={literal[2] ?? ""} />
+              <Slider
+                name={name}
+                path={path}
+                value={Number(literal[1])}
+                unit={unit}
+                limits={limits}
+              />
+            )}
+            <div className="flex items-baseline gap-2">
+              <Field
+                label="from"
+                path={["params", name, "min"]}
+                value={bounded ? entry.min : undefined}
+                optional
+                hint="no limit"
+                onCommit={setBound("min")}
+              />
+              <Field
+                label="to"
+                path={["params", name, "max"]}
+                value={bounded ? entry.max : undefined}
+                optional
+                hint="no limit"
+                onCommit={setBound("max")}
+              />
+            </div>
+            {literal && (
+              <SweepControls name={name} value={Number(literal[1])} unit={unit} limits={limits} />
             )}
           </div>
         );

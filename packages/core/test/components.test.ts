@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { pointMotion } from "../src/analysis/measures.ts";
+import { sweep } from "../src/analysis/sweep.ts";
 import { type Simulation, simulate } from "../src/simulate.ts";
 import { camOutlines, camProfile } from "../src/solver/cam.ts";
 
@@ -332,7 +333,7 @@ describe("Walschaerts valve gear", () => {
   );
   /** Valve travel with the reverser at a setting. */
   const travel = (gear: number): number =>
-    measure(simulate(text.replace("gear: 1 ", `gear: ${gear} `)), "valve_travel");
+    measure(simulate(text.replace("value: 1,", `value: ${gear},`)), "valve_travel");
 
   it("runs through a full turn as one mechanism of nine bodies", () => {
     const gear = simulate(text);
@@ -352,5 +353,63 @@ describe("Walschaerts valve gear", () => {
     expect(travel(1)).toBeGreaterThan(travel(0.5) * 1.3);
     expect(travel(-1) / travel(1)).toBeCloseTo(1, 1);
     expect(travel(-0.5) / travel(0.5)).toBeCloseTo(1, 1);
+  });
+});
+
+describe("parameter bounds", () => {
+  const model = (gear: string) => `
+mekasim: 1
+params:
+  gear: ${gear}
+  r: { value: 40 mm, min: 20, max: 6 cm }
+bodies:
+  crank: { points: { O: [0, 0], A: [r * gear, 0] } }
+`;
+  const messages = (gear: string) => simulate(model(gear)).diagnostics.map((d) => d.message);
+
+  it("accepts a value within its bounds, and reads the bounds in the value's own unit", () => {
+    const simulation = simulate(model("{ value: 0.5, min: -1, max: 1 }"));
+    expect(simulation.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    expect(simulation.compiled?.bounds.get("gear")).toEqual({ min: -1, max: 1 });
+    // A bare 20 beside a value in millimetres is 20 mm; 6 cm is read as written.
+    expect(simulation.compiled?.bounds.get("r")).toEqual({
+      min: 0.02,
+      max: expect.closeTo(0.06, 12),
+    });
+    expect(simulation.compiled?.params.get("gear")?.value).toBe(0.5);
+  });
+
+  it("allows a bound on one side only", () => {
+    expect(simulate(model("{ value: 5, min: 0 }")).compiled?.bounds.get("gear")).toEqual({
+      min: 0,
+    });
+  });
+
+  it("refuses a value outside its bounds, on the value's own line", () => {
+    expect(messages("{ value: 1.5, min: -1, max: 1 }")).toContain(
+      "1.5 is above the most allowed, 1",
+    );
+    expect(messages("{ value: -2, min: -1, max: 1 }")).toContain(
+      "-2 is below the least allowed, -1",
+    );
+    const [error] = simulate(model("{ value: 1.5, min: -1, max: 1 }")).diagnostics;
+    expect(error?.path).toEqual(["params", "gear", "value"]);
+    expect(error?.position?.line).toBe(4);
+  });
+
+  it("refuses bounds the wrong way round or of the wrong kind", () => {
+    expect(messages("{ value: 0, min: 1, max: -1 }")).toContain(
+      "The least allowed, 1, is more than the most, -1",
+    );
+    expect(messages("{ value: 0, max: 30 deg }")).toContain(
+      "Expected a plain number, got an angle",
+    );
+  });
+
+  it("keeps the bounds when the parameter is varied for a comparison", () => {
+    const runs = sweep(model("{ value: 0, min: -1, max: 1 }"), "gear", [-1, 1, 2]);
+    expect(
+      runs.map((r) => r.simulation.diagnostics.filter((d) => d.severity === "error").length),
+    ).toEqual([0, 0, 1]);
   });
 });

@@ -17,6 +17,7 @@ export function Field({
   value,
   optional,
   hint,
+  onCommit,
 }: {
   label: string;
   path: Path;
@@ -24,6 +25,8 @@ export function Field({
   /** Clearing an optional field removes it from the model. */
   optional?: boolean;
   hint?: string;
+  /** Write the new value some other way than setting `path`. Undefined means it was cleared. */
+  onCommit?(value: number | string | undefined): void;
 }) {
   const id = useId();
   const current = value === undefined ? "" : String(value);
@@ -34,11 +37,13 @@ export function Field({
     const text = draft.trim();
     if (text === current) return;
     if (text === "") {
-      if (optional) useStore.getState().apply([{ op: "delete", path }]);
-      else setDraft(current);
+      if (!optional) setDraft(current);
+      else if (onCommit) onCommit(undefined);
+      else useStore.getState().apply([{ op: "delete", path }]);
       return;
     }
-    useStore.getState().apply([{ op: "set", path, value: toValue(text) }]);
+    if (onCommit) onCommit(toValue(text));
+    else useStore.getState().apply([{ op: "set", path, value: toValue(text) }]);
   }
 
   return (

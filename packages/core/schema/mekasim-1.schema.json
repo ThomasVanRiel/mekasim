@@ -43,17 +43,51 @@
       "additionalProperties": false
     },
     "params": {
-      "description": "Named values usable in any expression",
+      "description": "Named values usable in any expression, each optionally with bounds",
       "type": "object",
       "propertyNames": {
         "type": "string",
         "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
       },
       "additionalProperties": {
-        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-        "type": [
-          "number",
-          "string"
+        "anyOf": [
+          {
+            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "value": {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "min": {
+                "description": "The least the value may be",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              "max": {
+                "description": "The most the value may be",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          }
         ]
       }
     },

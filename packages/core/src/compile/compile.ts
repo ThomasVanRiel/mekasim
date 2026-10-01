@@ -7,12 +7,13 @@ import {
   compatible,
   DEFAULT_UNITS,
   type Dim,
+  formatQuantity,
   LENGTH,
   NONE,
   type Units,
 } from "../expr/units.ts";
 import type { Fabrication } from "../fabricate/parts.ts";
-import { type Document, type Expr, GROUND, type Joint } from "../schema/document.ts";
+import { type Document, type Expr, GROUND, type Joint, paramValue } from "../schema/document.ts";
 import { camOutlines, camProfile } from "../solver/cam.ts";
 import {
   angleCoupling,
@@ -83,6 +84,8 @@ export interface CompiledPlot {
 export interface Compiled {
   units: Units;
   params: Map<string, Quantity>;
+  /** The bounds of the parameters that have them, in the same terms as their values. */
+  bounds: Map<string, { min?: number; max?: number }>;
   bodies: Map<string, CompiledBody>;
   model: SolverModel;
   joints: CompiledJoint[];
@@ -151,7 +154,8 @@ function compileExpanded(
   function param(name: string, node: Node): Quantity {
     const known = params.get(name);
     if (known) return known;
-    const source = doc.params?.[name];
+    const entry = doc.params?.[name];
+    const source = entry === undefined ? undefined : paramValue(entry);
     if (source === undefined) {
       const hint = name.includes(".") ? "; points can only be used in measures" : "";
       throw new ExprError(`Unknown parameter "${name}"${hint}`, node.pos);
@@ -160,7 +164,8 @@ function compileExpanded(
     if (failed.has(name)) throw new Reported();
     resolving.add(name);
     try {
-      const value = quantity(source, ["params", name]);
+      const path = typeof entry === "object" ? ["params", name, "value"] : ["params", name];
+      const value = quantity(source, path);
       params.set(name, value);
       return value;
     } catch (error) {
@@ -172,6 +177,8 @@ function compileExpanded(
   }
 
   const context: EvalContext = { units, resolve: param };
+  /** The bounds of the parameters that have them, in SI. */
+  const bounds = new Map<string, { min?: number; max?: number }>();
 
   function parse(source: string, path: Path): Node {
     try {
@@ -209,7 +216,46 @@ function compileExpanded(
     attempt(() => {
       if (RESERVED.has(name))
         throw fail(`"${name}" is a built-in name and cannot be a parameter`, ["params", name]);
-      param(name, { kind: "ref", name, pos: 0 });
+      const value = param(name, { kind: "ref", name, pos: 0 });
+      const entry = doc.params?.[name];
+      if (typeof entry !== "object") return;
+
+      // Bounds are read in the value's own kind of quantity, and the value must lie within them.
+      const limits: { min?: number; max?: number } = {};
+      for (const side of ["min", "max"] as const) {
+        const written = entry[side];
+        if (written === undefined) continue;
+        const path = ["params", name, side];
+        const bound = quantity(written, path);
+        try {
+          limits[side] = toSI(bound, value.dim, units) as number;
+        } catch (error) {
+          if (error instanceof ExprError) throw fail(error.message, path);
+          throw error;
+        }
+      }
+      bounds.set(name, limits);
+      const show = (size: number): string => formatQuantity(size, value.dim, units);
+      const { min, max } = limits;
+      if (min !== undefined && max !== undefined && min > max)
+        throw fail(`The least allowed, ${show(min)}, is more than the most, ${show(max)}`, [
+          "params",
+          name,
+          "min",
+        ]);
+      const now = value.value as number;
+      if (min !== undefined && now < min)
+        throw fail(`${show(now)} is below the least allowed, ${show(min)}`, [
+          "params",
+          name,
+          "value",
+        ]);
+      if (max !== undefined && now > max)
+        throw fail(`${show(now)} is above the most allowed, ${show(max)}`, [
+          "params",
+          name,
+          "value",
+        ]);
     });
   }
 
@@ -507,6 +553,7 @@ function compileExpanded(
     compiled: {
       units,
       params,
+      bounds,
       bodies,
       model: { bodies: moving, constraints, q0 },
       joints,

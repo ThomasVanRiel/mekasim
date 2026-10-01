@@ -17,6 +17,15 @@ const Expr = z
   .union([z.number(), z.string()])
   .describe("A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r");
 
+const Param = z.union([
+  Expr,
+  z.strictObject({
+    value: Expr,
+    min: Expr.optional().describe("The least the value may be"),
+    max: Expr.optional().describe("The most the value may be"),
+  }),
+]);
+
 const PointRef = z
   .string()
   .regex(POINT_REF, "Expected a point written as body.point")
@@ -149,7 +158,10 @@ export const Document = z.strictObject({
         .describe("Units for bare numbers and for results; default mm and deg"),
     })
     .optional(),
-  params: z.record(Id, Expr).optional().describe("Named values usable in any expression"),
+  params: z
+    .record(Id, Param)
+    .optional()
+    .describe("Named values usable in any expression, each optionally with bounds"),
   bodies: z.record(Id, Body).default({}).describe(`Rigid bodies. "${GROUND}" is the fixed one`),
   components: z
     .record(Id, Component)
@@ -194,6 +206,12 @@ export const Document = z.strictObject({
 export type Document = z.infer<typeof Document>;
 export type Joint = z.infer<typeof Joint>;
 export type Expr = z.infer<typeof Expr>;
+export type Param = z.infer<typeof Param>;
+
+/** The value of a parameter, whether it is written plainly or with bounds. */
+export function paramValue(param: Param): Expr {
+  return typeof param === "object" ? param.value : param;
+}
 
 export function jsonSchema(): unknown {
   return z.toJSONSchema(Document);

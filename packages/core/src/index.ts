@@ -61,6 +61,7 @@ export {
   docFactor,
   formatQuantity,
   LENGTH,
+  UNITS,
   type Units,
   unitLabel,
 } from "./expr/units.ts";
@@ -76,7 +77,14 @@ export {
   slotOutline,
 } from "./fabricate/parts.ts";
 export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
-export { Document, FORMAT_VERSION, GROUND, jsonSchema } from "./schema/document.ts";
+export {
+  Document,
+  FORMAT_VERSION,
+  GROUND,
+  jsonSchema,
+  type Param,
+  paramValue,
+} from "./schema/document.ts";
 export { type Loaded, load } from "./schema/load.ts";
 export { type Simulation, simulate } from "./simulate.ts";
 export type { BodyPoint } from "./solver/constraints.ts";

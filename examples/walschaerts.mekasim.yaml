@@ -18,7 +18,8 @@ meta:
 
 params:
   rpm: 60
-  gear: 1            # reverser: 1 forward, 0 mid gear, -1 reverse
+  # The reverser: 1 forward, 0 mid gear, -1 reverse. It cannot go beyond either end.
+  gear: { value: 1, min: -1, max: 1 }
   crank: 150 mm      # main crank radius: half the piston stroke
   return: 50 mm      # return crank radius
   die: 90 mm         # how far from the link's pivot the radius rod sits in full gear

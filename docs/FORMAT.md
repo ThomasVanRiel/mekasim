@@ -85,6 +85,18 @@ number next to a quantity takes that quantity's document unit, so `r + 10` adds
 **Functions:** `sin cos tan asin acos atan atan2 sqrt abs hypot min max`.
 `pi` and `g` (standard gravity, 9.80665 m/s²) are built in.
 
+A parameter can be given bounds, the least and the most it may be:
+
+```yaml
+params:
+  gear: { value: 1, min: -1, max: 1 }
+  r: { value: 40 mm, min: 20 }
+```
+
+Either bound may be left out. A bound without a unit is read in the unit of the
+value. A value outside its bounds is an error. In the app the parameter's slider
+runs between its bounds, and comparing values starts with the whole allowed range.
+
 Parameters may refer to each other in any order. `pi`, `g` and `t` cannot be used
 as parameter names.
 
