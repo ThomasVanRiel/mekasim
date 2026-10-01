@@ -119,13 +119,18 @@ export function App() {
   return (
     <div
       style={columns}
-      className="flex min-h-full flex-col lg:grid lg:h-full lg:grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] lg:grid-rows-[auto_minmax(0,1fr)]"
+      className="flex h-full flex-col lg:grid lg:grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] lg:grid-rows-[auto_minmax(0,1fr)]"
     >
       <div className="lg:col-span-5">
         <Header />
+        {/* A small screen shows the mechanism moving and nothing else. */}
+        <p className="border-rule border-b bg-paper px-4 py-1.5 text-sm lg:hidden">
+          On a screen this size you can watch the mechanism move. Open this page on a larger screen
+          for the full editor.
+        </p>
       </div>
 
-      <div className="order-last flex h-[70vh] min-h-0 flex-col border-rule lg:order-none lg:h-auto">
+      <div className="hidden min-h-0 flex-col lg:flex">
         <div className="relative min-h-0 flex-1">
           <div className="absolute inset-0">
             <SourceEditor />
@@ -151,7 +156,7 @@ export function App() {
         className="hidden lg:block"
       />
 
-      <main className="flex h-[80vh] min-h-0 flex-col lg:h-auto">
+      <main className="flex min-h-0 flex-1 flex-col">
         {/* The drawing fills this box by position, not by a percentage height: a canvas
             sized in percent does not shrink when the plots take room below it. */}
         <div className="relative min-h-0 flex-1 overflow-hidden bg-paper">
@@ -178,6 +183,7 @@ export function App() {
           min={90}
           max={(height) => height * 0.8}
           label="Height of the plots"
+          className="hidden lg:block"
         />
         <Plots />
       </main>
@@ -191,7 +197,7 @@ export function App() {
         className="hidden lg:block"
       />
 
-      <div className="min-h-0 lg:overflow-y-auto">
+      <div className="hidden min-h-0 lg:block lg:overflow-y-auto">
         <Inspector />
         <Parameters />
         <Measures />

@@ -37,7 +37,7 @@ export function TitleBlock() {
   const gridStep = Number((scene.gridStep / docFactor(LENGTH, units)).toPrecision(3));
 
   return (
-    <dl className="pointer-events-none absolute right-3 bottom-3 grid max-w-[min(26rem,calc(100%-1.5rem))] grid-cols-3 border-ink border-r border-b bg-paper/90 text-sm">
+    <dl className="pointer-events-none absolute right-3 bottom-3 hidden max-w-[min(26rem,calc(100%-1.5rem))] grid-cols-3 border-ink border-r border-b bg-paper/90 text-sm lg:grid">
       <Cell label="Model" wide>
         <span className="font-semibold">{shown.doc?.meta?.name ?? "Untitled model"}</span>
       </Cell>

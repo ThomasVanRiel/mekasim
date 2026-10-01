@@ -117,8 +117,10 @@ frame. The distances between its points are the body's dimensions.
 `ground` is the fixed body; its points are world coordinates.
 
 `layer` (an integer) orders bodies in depth for the 3D view and does not affect the
-motion. Leave it out and bodies that share a joint are put on different layers
-automatically, each on the lowest layer its neighbours leave free.
+motion. Leave it out and layers are worked out so that no two bodies on one layer
+run into each other: bodies that share a joint are kept apart, and so are bodies
+whose plates overlap at any instant of the cycle. Each takes the lowest layer that
+leaves free.
 
 A point is referred to elsewhere as `body.point`, for example `coupler.P`.
 
@@ -396,6 +398,10 @@ fabrication:
 The real dimensions of the parts. Each is optional. Where one is given, the
 drawing uses it, so links are shown true to size; where it is left out, the
 drawing picks a size that suits the model on screen. They do not affect the motion.
+
+Where two pinned points of one body are closer together than a pin is wide, as on
+an eccentric with a small throw, those pins and their holes are made smaller so
+that they fit side by side.
 
 The app exports the parts as flat pieces with these dimensions: a DXF drawing to
 cut and an STL solid to print. Each moving body becomes a plate round its points

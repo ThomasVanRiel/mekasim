@@ -1,5 +1,6 @@
 export { toCsv } from "./analysis/csv.ts";
 export { type Cycle, type CycleFailure, solveCycle } from "./analysis/cycle.ts";
+export { assignLayers, hullDistance } from "./analysis/layers.ts";
 export {
   centreOf,
   cycleAxis,
@@ -10,6 +11,14 @@ export {
   type PointMotion,
   pointMotion,
 } from "./analysis/measures.ts";
+export {
+  type Bounds,
+  modelExtent,
+  motionBounds,
+  type PartSizes,
+  partSizes,
+  pinDiameters,
+} from "./analysis/sizes.ts";
 export { type SweepRun, sweep } from "./analysis/sweep.ts";
 export {
   type Compiled,

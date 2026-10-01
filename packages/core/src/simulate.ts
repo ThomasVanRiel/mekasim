@@ -1,5 +1,7 @@
 import { type Cycle, solveCycle } from "./analysis/cycle.ts";
+import { assignLayers } from "./analysis/layers.ts";
 import { evaluateMeasures, type MeasureResult, type PlotResult } from "./analysis/measures.ts";
+import { modelExtent, motionBounds, partSizes } from "./analysis/sizes.ts";
 import { type Compiled, compile } from "./compile/compile.ts";
 import { type Diagnostic, hasErrors } from "./diagnostics.ts";
 import type { Document } from "./schema/document.ts";
@@ -72,6 +74,9 @@ export function simulate(text: string): Simulation {
     simulation.cycle = cycle;
 
     if (cycle.count > 0) {
+      // Layers depend on where the bodies go, so they are settled once the motion is known.
+      const sizes = partSizes(compiled, modelExtent(compiled, motionBounds(compiled, cycle)));
+      assignLayers(compiled, cycle, sizes.half);
       simulation.mobility = analyzeMobility(compiled.model, cycle.q.subarray(0, cycle.width));
       diagnostics.push(...mobilityDiagnostics(simulation.mobility, compiled));
       const results = evaluateMeasures(compiled, cycle);

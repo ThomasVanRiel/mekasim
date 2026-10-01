@@ -37,7 +37,10 @@ export interface CompiledBody {
   index: number;
   /** Points in the body frame, in metres. */
   points: Map<string, { u: number; v: number }>;
+  /** Depth order. Set by the model, or else worked out once the motion is known. */
   layer: number;
+  /** Whether the model itself says which layer the body is on. */
+  layerGiven: boolean;
 }
 
 export interface CompiledMeasure {
@@ -270,7 +273,13 @@ function compileExpanded(
       if (u !== undefined && v !== undefined) points.set(name, { u, v });
     }
     const index = id === GROUND ? GROUND_INDEX : moving.push(id) - 1;
-    bodies.set(id, { id, index, points, layer: body.layer ?? 0 });
+    bodies.set(id, {
+      id,
+      index,
+      points,
+      layer: body.layer ?? 0,
+      layerGiven: body.layer !== undefined,
+    });
   }
   if (!bodies.has(GROUND)) {
     diagnostics.push({
@@ -455,35 +464,6 @@ function compileExpanded(
       if (joint.type === "slider") constraints.push(relativeAngle(id, from.body, pin.body, angle));
       joints.push({ id, type: joint.type, points: [...joint.axis, joint.point] });
     });
-  }
-
-  // Bodies that share a joint overlap, so they go on different layers unless the
-  // model says where they go. Each takes the lowest layer its neighbours leave free.
-  const neighbours = new Map<string, Set<string>>();
-  for (const joint of joints) {
-    const ids = [...new Set(joint.points.map((ref) => ref.split(".")[0] as string))];
-    for (const id of ids) {
-      const others = neighbours.get(id) ?? new Set<string>();
-      for (const other of ids) if (other !== id && other !== GROUND) others.add(other);
-      neighbours.set(id, others);
-    }
-  }
-  const layered = new Set(
-    Object.entries(doc.bodies)
-      .filter(([, body]) => body.layer !== undefined)
-      .map(([id]) => id),
-  );
-  for (const body of bodies.values()) {
-    if (body.index < 0 || layered.has(body.id)) continue;
-    const taken = new Set(
-      [...(neighbours.get(body.id) ?? [])]
-        .filter((id) => layered.has(id))
-        .map((id) => (bodies.get(id) as CompiledBody).layer),
-    );
-    let layer = 0;
-    while (taken.has(layer)) layer++;
-    body.layer = layer;
-    layered.add(body.id);
   }
 
   let period = 0;

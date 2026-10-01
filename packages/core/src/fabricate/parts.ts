@@ -1,4 +1,5 @@
 import { pointMotion } from "../analysis/measures.ts";
+import { pinDiameters } from "../analysis/sizes.ts";
 import { type Point, plateOutline } from "../geometry/outline.ts";
 import { GROUND } from "../schema/document.ts";
 import type { Simulation } from "../simulate.ts";
@@ -48,7 +49,10 @@ const SMOOTH = 96;
 export function buildParts(simulation: Simulation, fabrication: Fabrication): Part[] {
   const { compiled, cycle } = simulation;
   if (!compiled || !cycle || cycle.count === 0) return [];
-  const bore = fabrication.hole + fabrication.clearance;
+  // A hole is the pin's size plus the clearance; the pin is smaller where pins crowd.
+  const pins = pinDiameters(compiled, fabrication.hole);
+  const boreOf = (joint: string): number =>
+    (pins.get(joint) ?? fabrication.hole) + fabrication.clearance;
 
   const holes = new Map<string, Map<string, Hole>>();
   const slots = new Map<string, Slot[]>();
@@ -59,20 +63,23 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
     if (!body || !at) throw new Error(`Unknown point "${ref}"`);
     return { bodyId, name, index: body.index, ...at };
   };
-  const drill = (ref: string): void => {
+  const drill = (ref: string, bore: number): void => {
     const p = local(ref);
     const ofBody = holes.get(p.bodyId) ?? new Map<string, Hole>();
-    ofBody.set(p.name, { x: p.u, y: p.v, diameter: bore });
+    // Several joints on one point share one hole, of the smallest pin among them.
+    const known = ofBody.get(p.name)?.diameter ?? Number.POSITIVE_INFINITY;
+    ofBody.set(p.name, { x: p.u, y: p.v, diameter: Math.min(known, bore) });
     holes.set(p.bodyId, ofBody);
   };
 
   const cams: Part[] = [];
   for (const joint of compiled.joints) {
     if (joint.type === "revolute" || joint.type === "weld") {
-      for (const ref of joint.points) drill(ref);
+      for (const ref of joint.points) drill(ref, boreOf(joint.id));
     } else if (joint.type === "slider" || joint.type === "pin-slot") {
       const [fromRef, toRef, pinRef] = joint.points as [string, string, string];
-      drill(pinRef);
+      const bore = boreOf(joint.id);
+      drill(pinRef, bore);
       // The slot covers the travel of the pin along the axis, seen from the axis's body.
       const from = local(fromRef);
       const to = local(toRef);
@@ -110,7 +117,7 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
       cams.push({
         id: joint.id,
         outline: joint.detail.surface,
-        holes: [{ x: 0, y: 0, diameter: bore }],
+        holes: [{ x: 0, y: 0, diameter: fabrication.hole + fabrication.clearance }],
         slots: [],
       });
     }

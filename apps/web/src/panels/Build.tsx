@@ -5,6 +5,7 @@ import {
   type Fabrication,
   LENGTH,
   layoutParts,
+  pinDiameters,
   toDxf,
 } from "@mekasim/core";
 import { useMemo } from "react";
@@ -43,6 +44,15 @@ export function Build() {
     if (!shown || !sizes || checkFabrication(sizes).length > 0) return [];
     // Parts lie a few millimetres apart, enough for a cut or a print to keep them separate.
     return layoutParts(buildParts(shown, sizes), Math.max(sizes.width / 4, 0.003));
+  }, [shown, sizes]);
+
+  // Pins that had to be made smaller than asked for, as on an eccentric with a small throw.
+  const crowded = useMemo(() => {
+    const compiled = shown?.compiled;
+    if (!compiled || !sizes) return [];
+    return [...pinDiameters(compiled, sizes.hole)]
+      .filter(([, diameter]) => diameter < sizes.hole - 1e-9)
+      .map(([id]) => id);
   }, [shown, sizes]);
 
   const units = shown?.compiled?.units;
@@ -92,6 +102,12 @@ export function Build() {
           A size left empty is the one the drawing uses now. Fill them in to draw the links true to
           size. Holes are the pin diameter plus the clearance.
         </p>
+        {crowded.length > 0 && (
+          <p className="border border-rule bg-paper px-2 py-1 text-sm">
+            Some pins sit closer together than a pin is wide, so they and their holes are made
+            smaller to fit: {crowded.map(label).join(", ")}.
+          </p>
+        )}
         {problems.map((problem) => (
           <p key={problem} className="border border-red px-2 py-1 text-sm">
             {problem}

@@ -42,12 +42,38 @@ say more.
 - A more general form of the same idea: the position of a point as seen from
   another body, not only from the ground.
 
+### Eccentrics
+
+Think through how an eccentric should be modelled, drawn and made. Today it is a
+crank like any other: a body with a point at the shaft and a point at the throw,
+each with a pin. That solves correctly, but it is not what an eccentric is.
+
+- A real eccentric is a disc fixed on the shaft, its centre off the shaft's centre
+  by the throw, with the rod's eye running round the disc. The throw is usually
+  smaller than the shaft is thick, so there is no room for a separate crank pin.
+- As a crank with pins, the pins at the shaft and at the throw overlap once the
+  throw is smaller than a pin. For now such pins are shrunk to fit, which keeps the
+  drawing and the export consistent but cannot be built at full size.
+- Several eccentrics on one shaft, as on a combine's sieve drive, sit side by side
+  along the shaft, each with its own rod. Layers now keep the rods apart, but the
+  shaft itself is not a part that runs through them.
+- Questions to settle: whether an eccentric becomes a component of its own (shaft
+  position, throw, phase, disc diameter), written as one entry for all throws on a
+  shaft; how it is drawn (disc and ring instead of two pins); what is exported (a
+  disc with an off-centre shaft hole, and a rod with a large eye and clearance);
+  and how the shaft and its bearing appear.
+
 Done so far:
 
 - **Export links for 3D printing and laser cutting.** "Parts to make" in the side
   panel; real dimensions in the model's `fabrication:` section.
 
 ## Open points on the export
+
+- **An eccentric is made as a crank with small pins;** see "Eccentrics" under Ideas.
+- **Pins that pass through other layers.** Layers keep plates from running into
+  each other, but a pin joining a body on one layer to a body several layers away
+  passes through the layers between, and nothing checks what is there.
 
 - **Gears have no teeth.** A gear is not exported as a part; only the body it sits
   on is.
@@ -76,8 +102,8 @@ Left out of the phases built so far, noted as each was handed over.
   drawn as its two straight runs.
 - **Cam followers never lift off.** Contact is kept even where a real follower
   would leave the cam.
-- **3D view:** links are layered automatically, but shafts, spacers and the depth
-  of pins are not modelled, and nothing can be selected or drawn in 3D.
+- **3D view:** links are layered so that plates do not run into each other, but
+  shafts and spacers are not modelled, and nothing can be selected or drawn in 3D.
 - **Measured distances** are not drawn on the sheet as dimension lines; they only
   appear in the measures panel.
 - **Point names** can overlap where points sit close together.

@@ -107,7 +107,7 @@ function Plate({
 }
 
 function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: boolean }) {
-  const radius = sizes.pin;
+  const { radius } = pin;
   const length = pin.zFront - pin.zBack;
   const lift = sizes.thickness * 0.03;
   const square = radius * 1.5;
@@ -134,12 +134,17 @@ function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: b
       )}
       {pin.driven && (
         <Line
-          points={circle(sizes.half * 0.85, pin.zFront + lift)}
+          points={circle(Math.min(sizes.half * 0.85, radius * 2), pin.zFront + lift)}
           color={COLORS.red}
           lineWidth={2.5}
         />
       )}
-      {selected && <Halo at={[0, 0, pin.zFront + 2 * lift]} radius={sizes.half * 1.15} />}
+      {selected && (
+        <Halo
+          at={[0, 0, pin.zFront + 2 * lift]}
+          radius={Math.min(sizes.half * 1.15, radius * 2.7)}
+        />
+      )}
     </group>
   );
 }

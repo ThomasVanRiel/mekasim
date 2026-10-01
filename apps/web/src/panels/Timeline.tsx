@@ -1,5 +1,5 @@
 import { ANGLE, formatQuantity } from "@mekasim/core";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { label } from "../names.ts";
 import { PLOT_LEFT, PLOT_PAD, PLOT_RIGHT } from "../plot/geometry.ts";
 import { RATES, useStore } from "../store.ts";
@@ -35,10 +35,15 @@ export function Timeline({ aside }: { aside?: ReactNode }) {
   return (
     <section
       aria-label="Playback"
-      className="grid items-center gap-y-1 py-2"
-      style={{
-        gridTemplateColumns: `${PLOT_PAD + PLOT_LEFT}px minmax(0, 1fr) ${PLOT_RIGHT + PLOT_PAD}px`,
-      }}
+      // On a wide screen the columns are those of the charts; on a small one the
+      // slider gets all the room the button and the speed leave.
+      className="grid grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-y-1 py-2 lg:grid-cols-[var(--before)_minmax(0,1fr)_var(--after)]"
+      style={
+        {
+          "--before": `${PLOT_PAD + PLOT_LEFT}px`,
+          "--after": `${PLOT_RIGHT + PLOT_PAD}px`,
+        } as CSSProperties
+      }
     >
       <div className="flex justify-center">
         <button

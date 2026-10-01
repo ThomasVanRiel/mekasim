@@ -1,9 +1,15 @@
 import {
+  type Bounds,
   type Cycle,
   docFactor,
   GROUND,
   LENGTH,
+  modelExtent,
+  motionBounds,
+  type PartSizes,
   type Point,
+  partSizes,
+  pinDiameters,
   plateOutline,
   pointMotion,
   type Simulation,
@@ -11,17 +17,10 @@ import {
 import { label } from "../names.ts";
 import { BODY_COLORS } from "../theme.ts";
 
-/** Drawing sizes in metres, chosen from the size of the mechanism. */
-export interface Sizes {
-  /** Half the width of a link. */
-  half: number;
-  /** Thickness of a body plate. */
-  thickness: number;
-  /** Distance between the back faces of neighbouring layers. */
-  pitch: number;
-  /** Radius of a pin. */
-  pin: number;
-}
+export type { Bounds };
+
+/** Drawing sizes in metres: the real ones where the model gives them. */
+export type Sizes = PartSizes;
 
 export interface DrawPoint {
   name: string;
@@ -51,6 +50,7 @@ export interface DrawPin {
   v: number;
   zBack: number;
   zFront: number;
+  radius: number;
   driven: boolean;
 }
 
@@ -125,13 +125,6 @@ export interface DrawLabel {
   u: number;
   v: number;
   z: number;
-}
-
-export interface Bounds {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
 }
 
 export interface Scene {
@@ -223,44 +216,14 @@ export function buildScene(simulation: Simulation): Scene | undefined {
   const { compiled, cycle } = simulation;
   if (!compiled || !cycle || cycle.count === 0) return undefined;
 
-  const bounds: Bounds = {
-    minX: Number.POSITIVE_INFINITY,
-    maxX: Number.NEGATIVE_INFINITY,
-    minY: Number.POSITIVE_INFINITY,
-    maxY: Number.NEGATIVE_INFINITY,
-  };
-  for (const body of compiled.bodies.values()) {
-    for (const name of body.points.keys()) {
-      const motion = pointMotion(compiled, cycle, `${body.id}.${name}`);
-      for (let k = 0; k < cycle.count; k++) {
-        bounds.minX = Math.min(bounds.minX, motion.x[k]);
-        bounds.maxX = Math.max(bounds.maxX, motion.x[k]);
-        bounds.minY = Math.min(bounds.minY, motion.y[k]);
-        bounds.maxY = Math.max(bounds.maxY, motion.y[k]);
-      }
-    }
-  }
+  const bounds = motionBounds(compiled, cycle);
   const unit = docFactor(LENGTH, compiled.units);
-  if (!Number.isFinite(bounds.minX)) {
-    // Nothing is drawn yet: show an empty sheet of a workable size to start on.
-    bounds.minX = -150 * unit;
-    bounds.maxX = 150 * unit;
-    bounds.minY = -100 * unit;
-    bounds.maxY = 100 * unit;
-  }
-  // Links and grid are sized from the model, but not below what suits a sheet of about
-  // 100 units, so the first link drawn on an empty sheet is not a hairline.
-  const extent = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 100 * unit);
-  // Real dimensions where the model gives them; otherwise sizes that suit the model on screen.
-  const made = compiled.fabrication;
-  const half = made.width === undefined ? extent * 0.013 : made.width / 2;
-  const thickness = made.thickness ?? half * 1.2;
-  const sizes: Sizes = {
-    half,
-    thickness,
-    pitch: made.thickness === undefined ? half * 1.9 : thickness * 1.5,
-    pin: made.hole === undefined ? half * 0.42 : made.hole / 2,
-  };
+  const extent = modelExtent(compiled, bounds);
+  const sizes = partSizes(compiled, extent);
+  const { half } = sizes;
+  // A pin is smaller where pins crowd, as on an eccentric with a small throw.
+  const pinSizes = pinDiameters(compiled, 2 * sizes.pin);
+  const radiusOf = (joint: string): number => (pinSizes.get(joint) ?? 2 * sizes.pin) / 2;
   const backOf = (layer: number): number => layer * sizes.pitch;
 
   const groundBody = compiled.bodies.get(GROUND);
@@ -341,6 +304,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
         v: carrier.v,
         zBack: Math.min(a.z, b.z) - margin,
         zFront: Math.max(a.z, b.z) + sizes.thickness + margin,
+        radius: radiusOf(joint.id),
         driven: driven.has(joint.id),
       });
       continue;
@@ -421,6 +385,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
       v: pin.v,
       zBack: Math.min(from.z, pin.z) - margin,
       zFront: Math.max(from.z, pin.z) + sizes.thickness + margin,
+      radius: radiusOf(joint.id),
       driven: false,
     });
 

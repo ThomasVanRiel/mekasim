@@ -1,5 +1,5 @@
 import { toCsv } from "@mekasim/core";
-import { useMemo } from "react";
+import { type CSSProperties, useMemo } from "react";
 import { download, fileStem } from "../io/download.ts";
 import { useLayout } from "../layout.ts";
 import { label } from "../names.ts";
@@ -49,9 +49,12 @@ export function Plots() {
   return (
     <section
       aria-label="Plots"
-      // Its own height once the divider above it has been dragged; until then it follows its content.
-      style={height === undefined ? undefined : { height, maxHeight: "none" }}
-      className="max-h-[42vh] shrink-0 overflow-y-auto bg-sheet"
+      // On a wide screen: its own height once the divider above it has been dragged, and
+      // until then that of its content. A small screen shows the playback row alone.
+      style={{ "--plots": height === undefined ? undefined : `${height}px` } as CSSProperties}
+      className={`shrink-0 overflow-y-auto bg-sheet ${
+        height === undefined ? "lg:max-h-[42vh]" : "lg:h-[var(--plots)]"
+      }`}
     >
       {/* Playback sits in the same scrolling box as the charts, so that a scrollbar
           narrows both alike and the slider stays in line with them. */}
@@ -60,7 +63,7 @@ export function Plots() {
           aside={
             <button
               type="button"
-              className={button}
+              className={`${button} hidden lg:inline-block`}
               disabled={!shown?.cycle || !moving}
               onClick={() => {
                 if (!shown) return;
@@ -73,7 +76,7 @@ export function Plots() {
         />
         {message && moving && (
           <p
-            className="pb-1.5 text-ink-soft text-sm"
+            className="hidden pb-1.5 text-ink-soft text-sm lg:block"
             style={{ paddingLeft: PLOT_PAD + PLOT_LEFT, paddingRight: PLOT_PAD }}
           >
             {message}
@@ -81,7 +84,10 @@ export function Plots() {
         )}
       </div>
       {charts.map((spec, i) => (
-        <div key={spec.key} className="relative border-rule border-b last:border-b-0">
+        <div
+          key={spec.key}
+          className="relative hidden border-rule border-b last:border-b-0 lg:block"
+        >
           <Chart spec={spec} step={step} onScrub={scrub} />
           {own.has(spec.plot) && charts.findIndex((c) => c.plot === spec.plot) === i && (
             <button

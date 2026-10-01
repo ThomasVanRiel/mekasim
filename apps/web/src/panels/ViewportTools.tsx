@@ -147,7 +147,7 @@ function UnderlayControls() {
   const ready = tool === "calibrate" && a && b && real > 0;
 
   return (
-    <div className="pointer-events-auto flex flex-wrap items-center gap-2">
+    <div className="pointer-events-auto hidden flex-wrap items-center gap-2 lg:flex">
       <button
         type="button"
         onClick={() => input.current?.click()}
@@ -289,7 +289,8 @@ export function ViewportTools() {
         </button>
       </div>
 
-      <div className="pointer-events-auto flex flex-wrap gap-2">
+      {/* Drawing and editing need room and a pointer; a small screen only looks. */}
+      <div className="pointer-events-auto hidden flex-wrap gap-2 lg:flex">
         {GROUPS.map((group) => {
           const options = TOOLS.filter((option) => option.group === group);
           return (
@@ -336,13 +337,13 @@ export function ViewportTools() {
       {(notice || (hint && view === "2d")) && (
         <p
           role="status"
-          className={`max-w-xl border bg-sheet/95 px-2.5 py-1 text-sm ${notice ? "border-red" : "border-rule"}`}
+          className={`hidden max-w-xl border bg-sheet/95 px-2.5 py-1 text-sm lg:block ${notice ? "border-red" : "border-rule"}`}
         >
           {notice ?? hint}
         </p>
       )}
       {view === "3d" && !notice && (
-        <p className="max-w-xl border border-rule bg-sheet/95 px-2.5 py-1 text-sm">
+        <p className="hidden max-w-xl border border-rule bg-sheet/95 px-2.5 py-1 text-sm lg:block">
           The 3D view is for looking. Drag to turn it, right-drag to move it. Switch to 2D to
           select, move and draw.
         </p>
