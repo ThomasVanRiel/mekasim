@@ -787,6 +787,41 @@
         ]
       }
     },
+    "fabrication": {
+      "description": "Real dimensions of the parts, for drawing them true to size and exporting them",
+      "type": "object",
+      "properties": {
+        "width": {
+          "description": "Width of a link",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "thickness": {
+          "description": "Thickness of the sheet or print",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "hole": {
+          "description": "Diameter of the pins",
+          "type": [
+            "number",
+            "string"
+          ]
+        },
+        "clearance": {
+          "description": "Added to the hole diameter so that a pin turns freely",
+          "type": [
+            "number",
+            "string"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "cycle": {
       "type": "object",
       "properties": {

@@ -3,27 +3,61 @@
 Ideas and known gaps that are not scheduled in a phase of [PLAN.md](PLAN.md).
 Nothing here is committed to; it is a place to keep things from being forgotten.
 
+## Phases still to build
+
+The two phases of [PLAN.md](PLAN.md) that are not built. They wait until the
+backlog below has been worked through.
+
+### Forces (phase 5)
+
+Give links a mass, then compute over a cycle what the motion demands: the loads in
+the joints, the torque the motor must deliver, and the shaking force and moment on
+the frame. Springs come in as applied forces. It builds on the constraint equations
+already in the solver.
+
+### Spatial mechanisms (phase 6)
+
+Ball joints, universal joints and linkages that leave the plane, with bodies
+positioned in three dimensions. The largest piece left: a new solver formulation,
+and a 3D view that can be drawn and selected in.
+
 ## Ideas
 
-### Export links for 3D printing and laser cutting
+### Plot in coordinates that suit the joint
 
-Export the links of a mechanism as STL (to print) or DXF (to cut), to build a real
-prototype of what was drawn.
+Positions are plotted as x and y on the sheet. For some joints other coordinates
+say more.
 
-- DXF: the outline of each link with a hole at every pinned point, laid out flat
-  side by side, in the model's length unit.
-- STL: the same outline extruded to a thickness, holes included; one file per link
-  or all links arranged on one plate.
-- The app already computes each link's outline for the drawing, so the geometry is
-  mostly there.
-- What is missing is real dimensions. Link width, plate thickness and pin size on
-  screen are picked from the size of the model to look right; they are not part of
-  the model. Exporting needs them as actual values: link width, thickness, hole
-  diameter, and a clearance for the fit of pin in hole. These would be new settings
-  in the model file.
-- Open points: whether ground gets a base plate with the fixed pivots on it; how
-  layers map to spacers or standoffs so links clear each other; what to do with
-  sliders and pin-slots, which need a slot rather than a hole.
+- **Slider and pin-slot:** the pin can only move along its axis, so one number
+  tells it all: the travel along the axis. Two curves in x and y hide that,
+  and for a sloping axis neither of them is the travel. Plot the travel, and its
+  speed and acceleration, as single curves.
+- **Cam:** seen from the cam, the follower is at an angle round the cam and a
+  distance from its centre. Plotting that distance against the cam angle gives the
+  lift diagram as it really runs; drawn in polar form it gives the shape of the cam.
+- What it would take: measure functions for these (for example the travel of a
+  slider joint, and the radius and angle of a cam's follower), "Plot" buttons on
+  those joints once they can be selected, and a polar chart alongside the line
+  chart.
+- A more general form of the same idea: the position of a point as seen from
+  another body, not only from the ground.
+
+Done so far:
+
+- **Export links for 3D printing and laser cutting.** "Parts to make" in the side
+  panel; real dimensions in the model's `fabrication:` section.
+
+## Open points on the export
+
+- **Gears have no teeth.** A gear is not exported as a part; only the body it sits
+  on is.
+- **Layers are not spacers.** Links on different layers are exported as flat plates
+  of one thickness; nothing is added to hold them apart.
+- **The base plate** covers all fixed pivots in one piece, which for a long
+  mechanism is a large plate. It can be deleted in the cutting program.
+- **Parts are stacked in one column,** not nested to save material.
+- **One STL holds all parts** on one bed; there is no file per part.
+- **Outlines are polygons,** with 96 corners to a full turn, not true arcs.
 
 ## Known gaps
 

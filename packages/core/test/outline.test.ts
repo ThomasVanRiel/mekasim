@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { convexHull, type Point, plateOutline } from "./outline.ts";
+import { convexHull, type Point, plateOutline } from "../src/geometry/outline.ts";
 
 /** Signed area; positive when counter-clockwise. */
 function area(polygon: Point[]): number {

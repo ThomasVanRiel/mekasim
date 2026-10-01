@@ -2,6 +2,7 @@ import { type CSSProperties, useEffect } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { decodeModel } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
+import { Build } from "./panels/Build.tsx";
 import { Header } from "./panels/Header.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
 import { Measures } from "./panels/Measures.tsx";
@@ -169,6 +170,7 @@ export function App() {
         <Inspector />
         <Parameters />
         <Measures />
+        <Build />
       </div>
     </div>
   );

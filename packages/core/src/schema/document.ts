@@ -166,6 +166,15 @@ export const Document = z.strictObject({
     .record(Id, z.union([z.string(), z.array(z.string()).min(1)]))
     .optional()
     .describe("Named charts; each is one expression or a list of them, drawn over the cycle"),
+  fabrication: z
+    .strictObject({
+      width: Expr.optional().describe("Width of a link"),
+      thickness: Expr.optional().describe("Thickness of the sheet or print"),
+      hole: Expr.optional().describe("Diameter of the pins"),
+      clearance: Expr.optional().describe("Added to the hole diameter so that a pin turns freely"),
+    })
+    .optional()
+    .describe("Real dimensions of the parts, for drawing them true to size and exporting them"),
   cycle: z
     .strictObject({
       steps: z.int().min(1).max(100000).optional().describe("Samples per cycle; default 360"),

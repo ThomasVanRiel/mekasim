@@ -1,5 +1,6 @@
 import { toCsv } from "@mekasim/core";
 import { useMemo } from "react";
+import { download, fileStem } from "../io/download.ts";
 import { useLayout } from "../layout.ts";
 import { label } from "../names.ts";
 import { Chart } from "../plot/Chart.tsx";
@@ -10,15 +11,6 @@ import { Timeline } from "./Timeline.tsx";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm enabled:hover:border-ink-soft disabled:opacity-40";
-
-export function download(name: string, text: string, type: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = name;
-  link.click();
-  URL.revokeObjectURL(url);
-}
 
 /** Playback, the charts of the model over the cycle, and the export of the motion as a table. */
 export function Plots() {
@@ -72,10 +64,7 @@ export function Plots() {
               disabled={!shown?.cycle || !moving}
               onClick={() => {
                 if (!shown) return;
-                const name = (shown.doc?.meta?.name ?? "model")
-                  .toLowerCase()
-                  .replace(/[^a-z0-9]+/g, "-");
-                download(`${name}.csv`, toCsv(shown), "text/csv");
+                download(`${fileStem(shown.doc?.meta?.name)}.csv`, toCsv(shown), "text/csv");
               }}
             >
               Export CSV

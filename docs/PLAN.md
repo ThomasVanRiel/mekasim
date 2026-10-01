@@ -3,7 +3,8 @@
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
 reference). **Phase 1, the viewer, is built** and deployed to Netlify.
 **Phase 2, the editor, is built.** **Phase 3, analysis, is built.** **Phase 4,
-components, is built.** Phase 5, forces, is next.
+components, is built.** Phases 5 and 6 are parked in [BACKLOG.md](BACKLOG.md) while
+the backlog is worked through.
 
 Phase 4 as built: gear, belt, cam and distance joints in the solver; crank and rod
 components that expand to bodies and joints; bodies layered automatically for the

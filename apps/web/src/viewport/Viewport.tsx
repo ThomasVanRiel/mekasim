@@ -1,3 +1,4 @@
+import type { Point } from "@mekasim/core";
 import { GROUND } from "@mekasim/core";
 import { Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
@@ -19,7 +20,6 @@ import { COLORS } from "../theme.ts";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
-import type { Point } from "./outline.ts";
 import {
   type DrawAxis,
   type DrawBody,
@@ -107,7 +107,7 @@ function Plate({
 }
 
 function Pin({ pin, sizes, selected }: { pin: DrawPin; sizes: Sizes; selected: boolean }) {
-  const radius = sizes.half * 0.42;
+  const radius = sizes.pin;
   const length = pin.zFront - pin.zBack;
   const lift = sizes.thickness * 0.03;
   const square = radius * 1.5;

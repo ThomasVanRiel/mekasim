@@ -1,19 +1,12 @@
 import { NEW_MODEL } from "@mekasim/core";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
+import { download, fileStem } from "../io/download.ts";
 import { encodeModel } from "../io/share.ts";
 import { useStore } from "../store.ts";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2.5 py-1 text-sm hover:border-ink-soft active:bg-paper";
-
-function fileName(name: string | undefined): string {
-  const slug = (name ?? "model")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  return `${slug || "model"}.mekasim.yaml`;
-}
 
 export function Header() {
   const name = useStore((s) => s.shown?.doc?.meta?.name);
@@ -32,13 +25,8 @@ export function Header() {
     setTimeout(() => setShared(undefined), 2500);
   }
 
-  function download(): void {
-    const url = URL.createObjectURL(new Blob([useStore.getState().text], { type: "text/yaml" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName(name);
-    link.click();
-    URL.revokeObjectURL(url);
+  function save(): void {
+    download(`${fileStem(name)}.mekasim.yaml`, useStore.getState().text, "text/yaml");
   }
 
   return (
@@ -69,7 +57,7 @@ export function Header() {
       <button type="button" className={button} onClick={() => input.current?.click()}>
         Open file
       </button>
-      <button type="button" className={button} onClick={download}>
+      <button type="button" className={button} onClick={save}>
         Download
       </button>
       <button type="button" className={button} onClick={copyLink}>

@@ -38,6 +38,9 @@ the cycle; "Export CSV" saves the motion as a table. "Compare values" on a
 parameter solves the model for several values and draws them together. "Trace over
 a picture" lays an image under the drawing, which is not saved with the model.
 
+"Parts to make" in the side panel takes the real width, thickness and pin size of
+the links, and downloads them as flat pieces: a DXF to laser cut, an STL to print.
+
 From the command line:
 
 ```
@@ -82,6 +85,8 @@ packages/core/src
   compile/    document -> solver model
   solver/     constraints, position/velocity/acceleration, degrees of freedom
   analysis/   motion cycle, measures and plots, CSV, parameter sweeps
+  fabricate/  parts as flat pieces, sheet layout, DXF
+  geometry/   outlines of plates
   edit/       changes to model text in place, model operations
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
@@ -92,7 +97,7 @@ apps/web/src
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, plots, messages, timeline
   plot/       chart geometry and drawing
-  io/         share links
+  io/         share links, downloads, STL
 ```
 
 The app deploys to Netlify from `netlify.toml` as a static site.

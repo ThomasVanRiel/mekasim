@@ -13,6 +13,7 @@ export const SECTION_ORDER = [
   "traces",
   "measures",
   "plots",
+  "fabrication",
   "cycle",
   "pose",
 ];

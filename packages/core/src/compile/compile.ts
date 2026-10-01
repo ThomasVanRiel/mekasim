@@ -11,6 +11,7 @@ import {
   NONE,
   type Units,
 } from "../expr/units.ts";
+import type { Fabrication } from "../fabricate/parts.ts";
 import { type Document, type Expr, GROUND, type Joint } from "../schema/document.ts";
 import { camOutlines, camProfile } from "../solver/cam.ts";
 import {
@@ -93,6 +94,8 @@ export interface Compiled {
   traces: string[];
   measures: CompiledMeasure[];
   plots: CompiledPlot[];
+  /** Real dimensions of the parts where the model gives them, in metres. */
+  fabrication: Partial<Fabrication>;
 }
 
 export interface CompileResult {
@@ -487,6 +490,18 @@ function compileExpanded(
     plots.push({ id, series });
   }
 
+  const fabrication: Partial<Fabrication> = {};
+  for (const key of ["width", "thickness", "hole", "clearance"] as const) {
+    const value = doc.fabrication?.[key];
+    if (value === undefined) continue;
+    attempt(() => {
+      const size = scalar(value, LENGTH, ["fabrication", key]);
+      if (size < 0 || (size === 0 && key !== "clearance"))
+        throw fail("This must be more than zero", ["fabrication", key]);
+      fabrication[key] = size;
+    });
+  }
+
   if (diagnostics.some((d) => d.severity === "error")) return { diagnostics };
   return {
     compiled: {
@@ -501,6 +516,7 @@ function compileExpanded(
       traces,
       measures,
       plots,
+      fabrication,
     },
     diagnostics,
   };

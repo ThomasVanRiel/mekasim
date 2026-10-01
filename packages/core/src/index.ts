@@ -51,6 +51,18 @@ export {
   type Units,
   unitLabel,
 } from "./expr/units.ts";
+export { toDxf } from "./fabricate/dxf.ts";
+export {
+  buildParts,
+  checkFabrication,
+  type Fabrication,
+  type Hole,
+  layoutParts,
+  type Part,
+  type Slot,
+  slotOutline,
+} from "./fabricate/parts.ts";
+export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
 export { Document, FORMAT_VERSION, GROUND, jsonSchema } from "./schema/document.ts";
 export { type Loaded, load } from "./schema/load.ts";
 export { type Simulation, simulate } from "./simulate.ts";

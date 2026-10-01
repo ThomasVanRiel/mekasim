@@ -1,7 +1,15 @@
-import { type Cycle, docFactor, GROUND, LENGTH, pointMotion, type Simulation } from "@mekasim/core";
+import {
+  type Cycle,
+  docFactor,
+  GROUND,
+  LENGTH,
+  type Point,
+  plateOutline,
+  pointMotion,
+  type Simulation,
+} from "@mekasim/core";
 import { label } from "../names.ts";
 import { BODY_COLORS } from "../theme.ts";
-import { type Point, plateOutline } from "./outline.ts";
 
 /** Drawing sizes in metres, chosen from the size of the mechanism. */
 export interface Sizes {
@@ -11,6 +19,8 @@ export interface Sizes {
   thickness: number;
   /** Distance between the back faces of neighbouring layers. */
   pitch: number;
+  /** Radius of a pin. */
+  pin: number;
 }
 
 export interface DrawPoint {
@@ -239,8 +249,16 @@ export function buildScene(simulation: Simulation): Scene | undefined {
   // Links and grid are sized from the model, but not below what suits a sheet of about
   // 100 units, so the first link drawn on an empty sheet is not a hairline.
   const extent = Math.max(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY, 100 * unit);
-  const half = extent * 0.013;
-  const sizes: Sizes = { half, thickness: half * 1.2, pitch: half * 1.9 };
+  // Real dimensions where the model gives them; otherwise sizes that suit the model on screen.
+  const made = compiled.fabrication;
+  const half = made.width === undefined ? extent * 0.013 : made.width / 2;
+  const thickness = made.thickness ?? half * 1.2;
+  const sizes: Sizes = {
+    half,
+    thickness,
+    pitch: made.thickness === undefined ? half * 1.9 : thickness * 1.5,
+    pin: made.hole === undefined ? half * 0.42 : made.hole / 2,
+  };
   const backOf = (layer: number): number => layer * sizes.pitch;
 
   const groundBody = compiled.bodies.get(GROUND);

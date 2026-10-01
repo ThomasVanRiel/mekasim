@@ -361,6 +361,26 @@ scales cannot be compared on one chart. Up to eight expressions per plot are dra
 
 Every plotted expression is also a column of the CSV output.
 
+## Fabrication
+
+```yaml
+fabrication:
+  width: 20 mm        # width of a link
+  thickness: 5 mm     # thickness of the sheet or print
+  hole: 6 mm          # diameter of the pins
+  clearance: 0.2 mm   # added to each hole so that a pin turns freely
+```
+
+The real dimensions of the parts. Each is optional. Where one is given, the
+drawing uses it, so links are shown true to size; where it is left out, the
+drawing picks a size that suits the model on screen. They do not affect the motion.
+
+The app exports the parts as flat pieces with these dimensions: a DXF drawing to
+cut and an STL solid to print. Each moving body becomes a plate round its points
+with a hole at every pinned point; a slider or pin-slot gives a slot as long as the
+pin travels; a cam becomes a plate of its own; the ground becomes a base plate
+carrying the fixed pivots.
+
 ## Messages
 
 Every problem is reported with the line it comes from.
