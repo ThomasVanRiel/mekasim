@@ -122,8 +122,9 @@ export function Help() {
       id={HELP_ID}
       aria-label="Help on the model format"
       // Placed on the grid of the page by position, so that it takes no cell from the panels under it.
-      className={`absolute inset-0 z-40 hidden flex-col bg-sheet/95 transition-[clip-path,visibility] duration-500 ease-out motion-reduce:transition-none lg:col-start-3 lg:col-end-6 lg:row-start-2 lg:row-end-3 lg:flex ${open ? "visible [clip-path:inset(0)]" : "invisible [clip-path:inset(0_100%_0_0)]"
-        }`}
+      className={`absolute inset-0 z-40 hidden flex-col bg-sheet/95 transition-[clip-path,visibility] duration-500 ease-out motion-reduce:transition-none lg:col-start-3 lg:col-end-6 lg:row-start-2 lg:row-end-3 lg:flex ${
+        open ? "visible [clip-path:inset(0)]" : "invisible [clip-path:inset(0_100%_0_0)]"
+      }`}
     >
       <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
         <h2 className="font-semibold">Writing a model</h2>

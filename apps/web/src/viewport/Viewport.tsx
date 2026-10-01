@@ -17,6 +17,7 @@ import {
 } from "three";
 import { useStore } from "../store.ts";
 import { COLORS } from "../theme.ts";
+import { Dimensions } from "./Dimensions.tsx";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
@@ -393,6 +394,7 @@ function Mechanism({ scene }: { scene: Scene }) {
       {scene.traces.map((trace) => (
         <Line key={trace.ref} points={trace.points} color={COLORS.dye} lineWidth={1.8} />
       ))}
+      {scene.dimensions.length > 0 && <Dimensions scene={scene} />}
       {labels && <Labels scene={scene} />}
       <Interaction />
     </>

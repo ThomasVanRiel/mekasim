@@ -1,7 +1,8 @@
-// Solve a model from the command line: node packages/core/src/cli.ts model.mekasim.yaml [--csv out.csv]
+// Solve a model from the command line: node packages/core/src/cli.ts model.mekasim.yaml [--csv out.csv] [--dxf out.dxf]
 import { readFileSync, writeFileSync } from "node:fs";
 import { toCsv } from "./analysis/csv.ts";
 import { formatQuantity } from "./expr/units.ts";
+import { toPointsDxf } from "./fabricate/dxf.ts";
 import { simulate } from "./simulate.ts";
 
 function plural(count: number, noun: string): string {
@@ -12,9 +13,11 @@ function main(): number {
   const args = process.argv.slice(2);
   const csvAt = args.indexOf("--csv");
   const csvPath = csvAt >= 0 ? args.splice(csvAt, 2)[1] : undefined;
+  const dxfAt = args.indexOf("--dxf");
+  const dxfPath = dxfAt >= 0 ? args.splice(dxfAt, 2)[1] : undefined;
   const file = args[0];
-  if (!file || (csvAt >= 0 && !csvPath)) {
-    console.error("Usage: mekasim <model.mekasim.yaml> [--csv <out.csv>]");
+  if (!file || (csvAt >= 0 && !csvPath) || (dxfAt >= 0 && !dxfPath)) {
+    console.error("Usage: mekasim <model.mekasim.yaml> [--csv <out.csv>] [--dxf <out.dxf>]");
     return 2;
   }
 
@@ -65,6 +68,10 @@ function main(): number {
   if (csvPath && cycle) {
     writeFileSync(csvPath, toCsv(simulation));
     console.log(`\nWrote ${cycle.count} rows to ${csvPath}`);
+  }
+  if (dxfPath && cycle && cycle.count > 0) {
+    writeFileSync(dxfPath, toPointsDxf(simulation));
+    console.log(`${csvPath ? "" : "\n"}Wrote the joints at the start of the cycle to ${dxfPath}`);
   }
   return simulation.diagnostics.some((d) => d.severity === "error") ? 1 : 0;
 }

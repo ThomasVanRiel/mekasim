@@ -75,7 +75,7 @@ export {
   type Units,
   unitLabel,
 } from "./expr/units.ts";
-export { toDxf } from "./fabricate/dxf.ts";
+export { toDxf, toPointsDxf } from "./fabricate/dxf.ts";
 export {
   buildParts,
   checkFabrication,

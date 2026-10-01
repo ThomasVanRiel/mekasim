@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { toDxf } from "../src/fabricate/dxf.ts";
+import { toDxf, toPointsDxf } from "../src/fabricate/dxf.ts";
 import {
   buildParts,
   checkFabrication,
@@ -198,5 +198,74 @@ describe("fabrication in the model", () => {
   it("rejects a size of zero", () => {
     const simulation = simulate(`${example("slider-crank")}\nfabrication: { width: 0 }\n`);
     expect(simulation.diagnostics.map((d) => d.message)).toEqual(["This must be more than zero"]);
+  });
+});
+
+describe("toPointsDxf", () => {
+  const dxf = toPointsDxf(simulate(example("four-bar")), (id) => id.toUpperCase());
+  const lines = dxf.split("\n");
+  /** The entities of a kind, each as its group codes and values. */
+  const entities = (kind: string): Map<string, string>[] => {
+    const found: Map<string, string>[] = [];
+    for (let i = lines.indexOf("ENTITIES") + 1; i < lines.length - 1; i += 2) {
+      if (lines[i] === "0") found.push(new Map([["0", lines[i + 1] as string]]));
+      else found.at(-1)?.set(lines[i] as string, lines[i + 1] as string);
+    }
+    return found.filter((entity) => entity.get("0") === kind);
+  };
+  const points = entities("POINT");
+
+  it("is a complete drawing in the model's unit", () => {
+    expect(dxf.startsWith("0\nSECTION\n2\nHEADER\n")).toBe(true);
+    expect(dxf.endsWith("0\nENDSEC\n0\nEOF\n")).toBe(true);
+    expect(dxf).toContain("9\n$INSUNITS\n70\n4\n");
+  });
+
+  it("has one point for every joint, and the fixed pivots where the model puts them", () => {
+    const joints = points.filter((p) => p.get("8") === "joints");
+    expect(joints).toHaveLength(4);
+    expect(joints.map((p) => `${p.get("10")},${p.get("20")}`)).toEqual(
+      expect.arrayContaining(["0,0", "180,0"]),
+    );
+  });
+
+  it("places the joints as the links stand at the start of the cycle", () => {
+    const simulation = simulate(example("four-bar"));
+    const { compiled, cycle } = simulation;
+    if (!compiled || !cycle) throw new Error("the four-bar should solve");
+    const crank = compiled.bodies.get("crank");
+    const tip = [...(crank?.points.values() ?? [])].find((p) => p.u !== 0 || p.v !== 0);
+    if (!crank || !tip) throw new Error("the crank should have a tip");
+    const at = 3 * crank.index;
+    const phi = cycle.q[at + 2];
+    const x = cycle.q[at] + tip.u * Math.cos(phi) - tip.v * Math.sin(phi);
+    const y = cycle.q[at + 1] + tip.u * Math.sin(phi) + tip.v * Math.cos(phi);
+    const near = points.filter(
+      (p) =>
+        Math.abs(Number(p.get("10")) - x * 1000) < 1e-3 &&
+        Math.abs(Number(p.get("20")) - y * 1000) < 1e-3,
+    );
+    expect(near).toHaveLength(1);
+  });
+
+  it("keeps a point that carries no joint apart from the joints", () => {
+    // The coupler's point P is the only one without a pin.
+    expect(points.filter((p) => p.get("8") === "points")).toHaveLength(1);
+    expect(entities("TEXT").map((t) => t.get("1"))).toContain("COUPLER P");
+  });
+
+  it("draws every link through its points, and the ground apart", () => {
+    // Crank and rocker are lines, the coupler with its third point a triangle.
+    expect(
+      entities("LINE")
+        .map((l) => l.get("8"))
+        .sort(),
+    ).toEqual(["ground", "links", "links"]);
+    expect(entities("POLYLINE").map((l) => l.get("8"))).toEqual(["links"]);
+    expect(entities("VERTEX")).toHaveLength(3);
+  });
+
+  it("is empty for a model that cannot be drawn", () => {
+    expect(toPointsDxf(simulate("not a model"))).toBe("");
   });
 });

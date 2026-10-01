@@ -142,8 +142,9 @@ Left out of the phases built so far, noted as each was handed over.
   would leave the cam.
 - **3D view:** links are layered so that plates do not run into each other, but
   shafts and spacers are not modelled, and nothing can be selected or drawn in 3D.
-- **Measured distances** are not drawn on the sheet as dimension lines; they only
-  appear in the measures panel.
+- **Measured distances** are drawn on the sheet only where the measure is a plain
+  `dist(a, b)`; a distance inside a larger expression is not, and neither are
+  angles.
 - **Point names** can overlap where points sit close together.
 - **Removing a link** leaves measures and plots that mention it, which then show up
   as errors.

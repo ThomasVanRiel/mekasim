@@ -1,4 +1,4 @@
-import { toCsv } from "@mekasim/core";
+import { toCsv, toPointsDxf } from "@mekasim/core";
 import { type CSSProperties, useMemo } from "react";
 import { download, fileStem } from "../io/download.ts";
 import { useLayout } from "../layout.ts";
@@ -12,7 +12,10 @@ import { Timeline } from "./Timeline.tsx";
 const button =
   "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm enabled:hover:border-ink-soft disabled:opacity-40";
 
-/** Playback, the charts of the model over the cycle, and the export of the motion as a table. */
+/**
+ * Playback, the charts of the model over the cycle, and the export of the motion as a
+ * table and of the joints as a drawing.
+ */
 export function Plots() {
   const shown = useStore((s) => s.shown);
   const sweep = useStore((s) => s.sweep);
@@ -61,17 +64,35 @@ export function Plots() {
       <div className="sticky top-0 z-20 border-rule border-b bg-sheet">
         <Timeline
           aside={
-            <button
-              type="button"
-              className={`${button} hidden lg:inline-block`}
-              disabled={!shown?.cycle || !moving}
-              onClick={() => {
-                if (!shown) return;
-                download(`${fileStem(shown.doc?.meta?.name)}.csv`, toCsv(shown), "text/csv");
-              }}
-            >
-              Export CSV
-            </button>
+            <div className="hidden gap-1.5 lg:flex">
+              <button
+                type="button"
+                className={button}
+                disabled={!shown?.cycle || !moving}
+                onClick={() => {
+                  if (!shown) return;
+                  download(`${fileStem(shown.doc?.meta?.name)}.csv`, toCsv(shown), "text/csv");
+                }}
+              >
+                Export CSV
+              </button>
+              <button
+                type="button"
+                className={button}
+                title="The joints at the start of the cycle, and the links as lines, for a CAD program"
+                disabled={!shown?.cycle?.count}
+                onClick={() => {
+                  if (!shown) return;
+                  download(
+                    `${fileStem(shown.doc?.meta?.name)}-points.dxf`,
+                    toPointsDxf(shown, label),
+                    "image/vnd.dxf",
+                  );
+                }}
+              >
+                Export DXF
+              </button>
+            </div>
           }
         />
         {message && moving && (

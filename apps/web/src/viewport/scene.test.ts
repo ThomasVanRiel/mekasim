@@ -50,6 +50,22 @@ describe("buildScene", () => {
     expect(shaker.labels.filter((l) => l.body)).toHaveLength(7);
   });
 
+  it("draws a measured distance between the places it is measured between", () => {
+    const url = new URL("../../../../examples/four-bar.mekasim.yaml", import.meta.url);
+    const text = readFileSync(url, "utf8").replace(
+      "measures:\n",
+      "measures:\n  reach: dist(ground.O2, coupler.P)\n  apart: dist(crank, rocker)\n  twice: 2 * dist(ground.O2, coupler.P)\n",
+    );
+    const scene = buildScene(simulate(text));
+    // Only a plain distance is a line on the drawing; a link stands for its centre.
+    expect(scene?.dimensions.map((d) => d.text)).toEqual(["Reach", "Apart"]);
+    const [reach, apart] = scene?.dimensions ?? [];
+    expect(reach?.a).toEqual({ body: -1, u: 0, v: 0 });
+    expect(reach?.b.body).toBeGreaterThanOrEqual(0);
+    expect(apart?.a).toEqual({ body: 0, u: 0.02, v: 0 });
+    expect(example("four-bar").dimensions).toEqual([]);
+  });
+
   it("recognises a repeating cycle and closes its traces", () => {
     expect(shaker.periodic).toBe(true);
     const trace = shaker.traces[0];

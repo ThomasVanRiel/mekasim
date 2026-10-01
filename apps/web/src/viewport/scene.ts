@@ -1,6 +1,7 @@
 import {
   type Bounds,
   type Cycle,
+  centreOf,
   docFactor,
   GROUND,
   LENGTH,
@@ -110,6 +111,15 @@ export interface DrawRoller {
   z: number;
 }
 
+/** A measured distance, drawn as a line between the two places it is measured between. */
+export interface DrawDimension {
+  /** The measure it shows. */
+  id: string;
+  text: string;
+  a: Omit<Anchor, "radius">;
+  b: Omit<Anchor, "radius">;
+}
+
 export interface DrawTrace {
   ref: string;
   points: [number, number, number][];
@@ -155,6 +165,7 @@ export interface Scene {
   cams: DrawCam[];
   rollers: DrawRoller[];
   traces: DrawTrace[];
+  dimensions: DrawDimension[];
   labels: DrawLabel[];
 }
 
@@ -432,6 +443,21 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     return { ref, points };
   });
 
+  // A measure that is the distance between two places is drawn where it is measured.
+  const dimensions: DrawDimension[] = [];
+  const anchorOf = (ref: string): DrawDimension["a"] | undefined => {
+    const [bodyId, name] = ref.split(".");
+    const body = compiled.bodies.get(bodyId as string);
+    // A link on its own stands for its centre, as it does in the measure.
+    const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
+    return body && local ? { body: body.index, u: local.u, v: local.v } : undefined;
+  };
+  for (const { id, ast } of compiled.measures) {
+    if (ast.kind !== "call" || ast.name !== "dist" || ast.args.length !== 2) continue;
+    const [a, b] = ast.args.map((arg) => (arg.kind === "ref" ? anchorOf(arg.name) : undefined));
+    if (a && b) dimensions.push({ id, text: label(id), a, b });
+  }
+
   // Two points pinned together need one name, not two on top of each other. The
   // ground's name is kept, since ground points are what a reader looks up first.
   const unnamed = new Set<string>();
@@ -488,6 +514,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     cams,
     rollers,
     traces,
+    dimensions,
     labels,
   };
 }
