@@ -1,7 +1,7 @@
 # mekasim — design plan
 
 Status (2026-10-01): **phase 0 is built** (core package, command-line solver, format
-reference). **Phase 1, the viewer, is built** but not yet deployed to Netlify.
+reference). **Phase 1, the viewer, is built** and deployed to Netlify.
 **Phase 2, the editor, is built.** **Phase 3, analysis, is built.** Phase 4,
 components and the refined 3D view, is next.
 

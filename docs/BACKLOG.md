@@ -29,7 +29,6 @@ prototype of what was drawn.
 
 Left out of the phases built so far, noted as each was handed over.
 
-- **Deploy:** `netlify.toml` exists but nothing is deployed.
 - **Drawing tools:** sliders, welds and pin-slots cannot be drawn, only written in
   the source. Links, points and joints cannot be renamed from the drawing.
 - **Measured distances** are not drawn on the sheet as dimension lines; they only
