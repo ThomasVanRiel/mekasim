@@ -25,13 +25,14 @@ import { Viewport } from "./viewport/Viewport.tsx";
  * typed, or a control reached with the keyboard. A control that was only clicked is
  * done with, and holds on to no keys.
  */
-function keepsKey(control: Element | null, key: string): boolean {
+function keepsKey(control: Element | null, key: string, reached: boolean): boolean {
   if (!control) return false;
   if (control.matches("textarea, .cm-editor")) return true;
   // A slider moves with the arrow keys and has no use for Space.
   if (control.matches('input[type="range"]')) return key !== " ";
   if (control.matches("input")) return true;
-  if (!control.matches(":focus-visible")) return false;
+  // Not `:focus-visible`: a list that was clicked matches it in some browsers.
+  if (!reached) return false;
   return control.matches("select") || key === " " || key === "Enter";
 }
 
@@ -42,11 +43,17 @@ function keepsKey(control: Element | null, key: string): boolean {
  */
 function useKeys(): void {
   useEffect(() => {
+    /** Whether the focus was last moved with Tab rather than by a click. */
+    let reached = false;
+    function onPointer(): void {
+      reached = false;
+    }
     function onKey(event: KeyboardEvent): void {
+      if (event.key === "Tab") reached = true;
       const target = event.target as HTMLElement;
       const control = target.closest<HTMLElement>("input, select, button, textarea, .cm-editor");
       const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
-      if (keepsKey(control, key)) return;
+      if (keepsKey(control, key, reached)) return;
       const state = useStore.getState();
       const count = state.scene?.cycle.count ?? 0;
       const tool = TOOLS.find((t) => t.key === key);
@@ -82,7 +89,11 @@ function useKeys(): void {
       if (control?.matches("button, select")) control.blur();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
   }, []);
 }
 
