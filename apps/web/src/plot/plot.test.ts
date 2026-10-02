@@ -44,6 +44,21 @@ describe("extentScale", () => {
     expect(extentScale(0, 359, 8, true).ticks).toEqual([0, 45, 90, 135, 180, 225, 270, 315]);
     expect(extentScale(0, 719, 8, true).ticks).toEqual([0, 90, 180, 270, 360, 450, 540, 630]);
   });
+
+  it("runs from the first value to the last, also when the values fall", () => {
+    // A driver turning clockwise: its angle goes from 0 down to -359.
+    const scale = extentScale(0, -359, 8, true);
+    expect(scale).toEqual({
+      min: 0,
+      max: -359,
+      ticks: [0, -45, -90, -135, -180, -225, -270, -315],
+    });
+    const x = mapper(scale, 100, 500);
+    expect(x(0)).toBe(100);
+    expect(x(-359)).toBe(500);
+    expect(x(-90)).toBeLessThan(x(-180));
+    expect(extentScale(5, 5)).toEqual({ min: 5, max: 6, ticks: [5] });
+  });
 });
 
 describe("drawing helpers", () => {

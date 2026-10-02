@@ -12,6 +12,7 @@ export const PLOT_RIGHT = 132;
 export const PLOT_PAD = 12;
 
 export interface Scale {
+  /** The values at the two ends of the axis. On a horizontal axis `min` may be the greater. */
   min: number;
   max: number;
   ticks: number[];
@@ -53,10 +54,18 @@ export function valueScale(low: number, high: number, target = 4): Scale {
   return { min, max, ticks: ticksBetween(min, max, step) };
 }
 
-/** A scale for the horizontal axis: exactly the extent of the data, with round ticks inside. */
-export function extentScale(min: number, max: number, target = 8, degrees = false): Scale {
-  if (!(max > min)) return { min, max: min + 1, ticks: [min] };
-  return { min, max, ticks: ticksBetween(min, max, niceStep((max - min) / target, degrees)) };
+/**
+ * A scale for the horizontal axis: exactly the extent of the data, from its first
+ * value at `min` to its last at `max`, with round ticks inside. The extent may fall,
+ * as the angle of a driver that turns clockwise does; the ticks then fall with it.
+ */
+export function extentScale(first: number, last: number, target = 8, degrees = false): Scale {
+  if (first === last || !Number.isFinite(last - first))
+    return { min: first, max: first + 1, ticks: [first] };
+  const low = Math.min(first, last);
+  const high = Math.max(first, last);
+  const ticks = ticksBetween(low, high, niceStep((high - low) / target, degrees));
+  return { min: first, max: last, ticks: last > first ? ticks : ticks.reverse() };
 }
 
 /** A function from a value on a scale to a pixel position. */
