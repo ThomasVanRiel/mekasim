@@ -316,3 +316,8 @@ export const useStore = create<State>((set, get) => {
       set({ reveal: { line, col, request: (get().reveal?.request ?? 0) + 1, focus: true } }),
   };
 });
+
+// In the dev server, a change to this module or to anything it is built from, such as
+// an example file, would make a second store beside the one the open editor writes to.
+// The page then no longer follows the source, so start it afresh instead.
+import.meta.hot?.accept(() => location.reload());
