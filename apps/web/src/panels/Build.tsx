@@ -7,6 +7,7 @@ import {
   layoutParts,
   pinDiameters,
   toDxf,
+  toPointsDxf,
 } from "@mekasim/core";
 import { useMemo } from "react";
 import { download, fileStem } from "../io/download.ts";
@@ -20,8 +21,8 @@ const button =
   "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm enabled:hover:border-ink-soft disabled:opacity-40";
 
 /**
- * The real sizes of the parts, and their export as flat pieces to cut or print.
- * A size left empty is the one the drawing already uses.
+ * The real sizes of the parts, and their export as flat pieces to cut or print, or
+ * as the joints alone to draw on. A size left empty is the one the drawing already uses.
  */
 export function Build() {
   const shown = useStore((s) => s.shown);
@@ -135,6 +136,17 @@ export function Build() {
             onClick={() => download(`${stem}.stl`, toStl(parts, sizes.thickness), "model/stl")}
           >
             Download STL to print
+          </button>
+          <button
+            type="button"
+            className={button}
+            title="The joints at the start of the cycle, and the links as lines, for a CAD program"
+            disabled={!shown.cycle?.count}
+            onClick={() =>
+              download(`${stem}-points.dxf`, toPointsDxf(shown, label), "image/vnd.dxf")
+            }
+          >
+            Download DXF of the points
           </button>
         </div>
       </div>

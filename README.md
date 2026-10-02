@@ -44,9 +44,7 @@ pin, a parameter, a measure): every place that uses it is marked, and what you t
 into the name is typed into all of them.
 
 Select a point or a link to plot its position, speed, acceleration or angle over
-the cycle; "Export CSV" saves the motion as a table, and "Export DXF" the joints
-at the start of the cycle as points, with the links as lines between them, to
-build on in a CAD program. "Compare values" on a parameter solves the model for
+the cycle; "Export CSV" saves the motion as a table. "Compare values" on a parameter solves the model for
 several values and draws them together. "Trace over a picture" lays an image under
 the drawing, which is not saved with the model.
 
@@ -58,6 +56,8 @@ added.
 
 "Parts to make" in the side panel takes the real width, thickness and pin size of
 the links, and downloads them as flat pieces: a DXF to laser cut, an STL to print.
+"Download DXF of the points" there saves the joints at the start of the cycle as
+points, with the links as lines between them, to build on in a CAD program.
 
 From the command line:
 
