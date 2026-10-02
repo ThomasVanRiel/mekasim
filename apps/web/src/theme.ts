@@ -12,7 +12,10 @@ export interface Palette {
   dye: string;
   brass: string;
   red: string;
-  /** Steel-like tones for bodies, assigned in order. */
+  /**
+   * Steel-like tones for bodies, assigned in order: six of one depth, then three deeper
+   * and three paler ones in the hues between them, taking turns.
+   */
   bodies: string[];
 }
 
@@ -27,7 +30,20 @@ export const PALETTES: Record<Theme, Palette> = {
     dye: "#2046c4",
     brass: "#b58a2e",
     red: "#c2362c",
-    bodies: ["#6f8ea8", "#9aa573", "#b39274", "#8586b3", "#62a39c", "#b08794"],
+    bodies: [
+      "#6f8ea8",
+      "#9aa573",
+      "#b39274",
+      "#8586b3",
+      "#62a39c",
+      "#b08794",
+      "#966259",
+      "#7cbdcd",
+      "#537d5c",
+      "#c2b07e",
+      "#81658e",
+      "#a0b0df",
+    ],
   },
   dark: {
     paper: "#151a18",
@@ -39,7 +55,20 @@ export const PALETTES: Record<Theme, Palette> = {
     brass: "#c79a3a",
     red: "#ee7468",
     // The same tones, deep enough for the chalk outlines to stand out on them.
-    bodies: ["#4a6379", "#69744a", "#7d6149", "#585a82", "#3d726c", "#7b5863"],
+    bodies: [
+      "#4a6379",
+      "#69744a",
+      "#7d6149",
+      "#585a82",
+      "#3d726c",
+      "#7b5863",
+      "#673e37",
+      "#548a97",
+      "#315439",
+      "#8e7f56",
+      "#574061",
+      "#727fa5",
+    ],
   },
 };
 

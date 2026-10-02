@@ -29,5 +29,8 @@ describe("the theme", () => {
   it("has every scene colour in both themes", () => {
     expect(Object.keys(PALETTES.dark)).toEqual(Object.keys(PALETTES.light));
     expect(PALETTES.dark.bodies).toHaveLength(PALETTES.light.bodies.length);
+    for (const { bodies } of Object.values(PALETTES)) {
+      expect(new Set(bodies).size).toBe(bodies.length);
+    }
   });
 });
