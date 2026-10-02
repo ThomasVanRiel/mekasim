@@ -33,6 +33,10 @@ joints:
     roller: 8
     profile: [[0, 0], [120, lift], [180, lift], [300, 0]]
 
+frames:
+  # The follower as the cam sees it: going round, at the base radius plus the lift.
+  from_cam: { origin: camshaft.O, body: camshaft }
+
 measures:
   travel: range(y(lifter.P))
   peak_speed: max(abs(vy(lifter.P)))
@@ -42,3 +46,6 @@ plots:
   follower: y(lifter.P)
   follower_speed: vy(lifter.P)
   follower_accel: ay(lifter.P)
+  seen_from_cam:
+    - r(lifter.P, from_cam)
+    - theta(lifter.P, from_cam)

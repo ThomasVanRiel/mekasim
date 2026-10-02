@@ -75,6 +75,11 @@ three or more pins that is not on a fixed pivot.
 `measures` and `plots` for what the mechanism is for: a stroke with `range(...)`,
 a swing, a peak speed, the position over the cycle.
 
+Where x and y on the sheet do not say it, add a frame under `frames` and name it
+after the point: `x(p, slope)` for the travel along a sloping slide, with
+`slope: { origin: ground.O, along: [ground.O, ground.S] }`, or `r(p, from_cam)` for
+a follower seen from its cam, with `from_cam: { origin: cam.O, body: cam }`.
+
 **7. Read it through once more** against the list of mistakes below.
 
 ## A worked example

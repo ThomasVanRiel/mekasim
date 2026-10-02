@@ -41,6 +41,9 @@ drivers:                    # what makes it move
 
 traces: [rod.B]             # points whose paths are recorded
 
+frames:                     # other coordinates to measure in, optional
+  from_pin: { origin: crank.A }
+
 measures:                   # what to compute
   stroke: range(x(rod.B))
 
@@ -54,7 +57,7 @@ pose:                       # where bodies start
 In `meta`, `name` is the title the model goes by and `description` a note kept
 with it; `units` is explained below.
 
-Names of parameters, bodies, points, joints, drivers and measures may contain
+Names of parameters, bodies, points, joints, drivers, frames and measures may contain
 letters, digits and `_`, and must not start with a digit. Unknown keys are errors,
 so a typo is reported instead of ignored.
 
@@ -324,9 +327,13 @@ and give a value at every sample of the cycle:
 | Function | Result |
 |---|---|
 | `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
+| `r(p)`, `theta(p)` | The same position as a radius and an angle: how far the point is from the origin, and in which direction |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
+| `vr(p)`, `vt(p)` | Velocity along the radius, and across it |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |
+| `ar(p)`, `at(p)` | Acceleration along the radius, and across it |
 | `jx(p)`, `jy(p)`, `j(p)` | Jerk components and magnitude of a point: how fast its acceleration changes |
+| `jr(p)`, `jt(p)` | Jerk along the radius, and across it |
 | `dist(p, q)` | Distance between two points |
 | `moved(p)` | How far a point is from where it started, whichever way it went |
 | `angle(body)` | Angle of a body |
@@ -370,6 +377,49 @@ A measure that is not reduced is a signal: the command line shows its starting
 value and writes the whole signal as a CSV column.
 
 Results are shown in document units: `mm`, `deg`, `mm/s`, `mm/s²`, `mm/s³`, `deg/s`.
+
+## Frames
+
+```yaml
+frames:
+  slope:    { origin: ground.O, along: [ground.O, ground.S] }
+  tilted:   { angle: 30 }
+  from_cam: { origin: camshaft.O, body: camshaft }
+
+measures:
+  travel: range(x(ram.P, slope))
+  lift: r(lifter.P, from_cam)
+```
+
+Positions are counted from the origin of the sheet, along its x and y. A frame is
+another set of coordinates to give them in. Name it as a second argument of any
+function of one point: `x(p, frame)`, `vr(p, frame)`, `moved(p, frame)`.
+
+| Key | Meaning |
+|---|---|
+| `origin` | The point positions are counted from. Left out, it is the origin of the sheet |
+| `angle` | How far the x axis is turned, anticlockwise. Left out, it is 0 |
+| `along` | Two points. The x axis points from the first to the second, and `angle` turns it on from there |
+| `body` | A body. The x axis is that of the body's own frame and turns with it, and `angle` turns it on from there |
+
+Give `along` or `body`, not both. Without either the axes keep to the sheet.
+
+A frame may stand still or move. With its origin on a point of a moving body, or
+turning with one, it shows the motion as seen from there: the velocity is the rate
+at which the coordinates in the frame change, not the velocity over the sheet. A
+point of a body, seen from a frame on that body, stands still. Seen from a cam, its
+follower goes round at a radius of the base circle plus the lift.
+
+A sloping slide is read along its own axis this way: `x(p, slope)` is the travel,
+`vx(p, slope)` its speed, and `y(p, slope)` stays 0.
+
+The functions `r`, `theta`, `vr`, `vt`, `ar`, `at`, `jr` and `jt` give the same
+motion in polar coordinates about the frame's origin, with the angle counted from
+the frame's x axis. `vr` is how fast the radius grows and `vt` the speed across it,
+the radius times the rate of the angle. `ar` and `at` are the parts of the
+acceleration in those two directions, so `ar` includes the pull towards the centre
+of a point going round, and `at` the Coriolis term. `theta` runs on past a full
+turn instead of jumping back, like `angle`.
 
 ## Plots
 

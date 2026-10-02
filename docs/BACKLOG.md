@@ -25,22 +25,21 @@ and a 3D view that can be drawn and selected in.
 
 ### Plot in coordinates that suit the joint
 
-Positions are plotted as x and y on the sheet. For some joints other coordinates
-say more.
+A motion can be measured and plotted in a frame of the model (`frames:`), along
+x and y or as a radius and an angle, also as seen from a moving body. What is
+left:
 
-- **Slider and pin-slot:** the pin can only move along its axis, so one number
-  tells it all: the travel along the axis. Two curves in x and y hide that,
-  and for a sloping axis neither of them is the travel. Plot the travel, and its
-  speed and acceleration, as single curves.
-- **Cam:** seen from the cam, the follower is at an angle round the cam and a
-  distance from its centre. Plotting that distance against the cam angle gives the
-  lift diagram as it really runs; drawn in polar form it gives the shape of the cam.
-- What it would take: measure functions for these (for example the travel of a
-  slider joint, and the radius and angle of a cam's follower), "Plot" buttons on
-  those joints once they can be selected, and a polar chart alongside the line
-  chart.
-- A more general form of the same idea: the position of a point as seen from
-  another body, not only from the ground.
+- **Draw a frame on the sheet:** its origin and its two axes, moving with the
+  mechanism, so that it can be seen where it is and how it is turned.
+- **"Plot" buttons on joints:** the travel along the axis of a slider or pin-slot,
+  and the radius and angle of a cam's follower as seen from the cam, with the
+  frame they need made along with them.
+- **A polar chart** alongside the line chart: the radius drawn against the angle
+  gives the shape of a cam.
+- **An angle that stays within one turn,** for a lift diagram read against the
+  angle round the cam. `theta` runs on past a full turn, like `angle`.
+- **Turning seen from a frame:** `angle`, `omega` and `alpha` of a body are always
+  those over the sheet.
 
 ### Eccentrics
 

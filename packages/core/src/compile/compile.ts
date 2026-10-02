@@ -79,6 +79,18 @@ export interface CompiledDriver {
   phase: number;
 }
 
+/** A coordinate system that positions can be given in. */
+export interface CompiledFrame {
+  id: string;
+  /** The point positions are counted from, as `body.point`; the origin of the sheet when left out. */
+  origin?: string;
+  /** How far its x axis is turned from what it follows, in rad. */
+  angle: number;
+  /** What its x axis follows: the line from one point to another, or the x axis of a body. */
+  along?: [string, string];
+  body?: string;
+}
+
 export interface CompiledPlot {
   id: string;
   series: { source: string; ast: Node }[];
@@ -98,6 +110,7 @@ export interface Compiled {
   /** Samples per cycle. */
   steps: number;
   traces: string[];
+  frames: Map<string, CompiledFrame>;
   measures: CompiledMeasure[];
   plots: CompiledPlot[];
   /** Real dimensions of the parts where the model gives them, in metres. */
@@ -500,6 +513,31 @@ function compileExpanded(
     });
   });
 
+  const frames = new Map<string, CompiledFrame>();
+  for (const [id, frame] of Object.entries(doc.frames ?? {})) {
+    const path = ["frames", id];
+    attempt(() => {
+      if (frame.origin !== undefined) point(frame.origin, [...path, "origin"]);
+      if (frame.along && frame.body !== undefined)
+        throw fail("A frame follows either two points or a body, not both", [...path, "body"]);
+      if (frame.along) {
+        const from = point(frame.along[0], [...path, "along", 0]);
+        const to = point(frame.along[1], [...path, "along", 1]);
+        if (from.body === to.body && Math.hypot(to.u - from.u, to.v - from.v) < 1e-12)
+          throw fail("The two points coincide, so they define no direction", [...path, "along"]);
+      }
+      if (frame.body !== undefined && !bodies.has(frame.body))
+        throw fail(`Unknown body "${frame.body}"`, [...path, "body"]);
+      frames.set(id, {
+        id,
+        origin: frame.origin,
+        angle: scalar(frame.angle ?? 0, ANGLE, [...path, "angle"]),
+        along: frame.along,
+        body: frame.body,
+      });
+    });
+  }
+
   const measures: CompiledMeasure[] = [];
   for (const [id, source] of Object.entries(doc.measures ?? {})) {
     attempt(() => measures.push({ id, ast: parse(String(source), ["measures", id]) }));
@@ -541,6 +579,7 @@ function compileExpanded(
       period,
       steps: doc.cycle?.steps ?? 360,
       traces,
+      frames,
       measures,
       plots,
       fabrication,

@@ -133,6 +133,51 @@ describe("linkedAt", () => {
   });
 });
 
+describe("linkedAt with frames", () => {
+  const text = `mekasim: 1
+params:
+  tilt: 30
+bodies:
+  ground:
+    points: { O: [0, 0] }
+  rod:
+    points: { A: [0, 0], B: [tilt, 0] }
+frames:
+  tilt: { origin: ground.O, angle: tilt }
+  on_rod: { origin: rod.A, along: [rod.A, rod.B] }
+  with_rod: { body: rod }
+measures:
+  reach: x(rod.B, tilt) + max(tilt, x(rod.B, on_rod))
+`;
+  /** The references to the name at the first place `needle` occurs, each bracketed in its line. */
+  const lines = (needle: string, skip = 0): string[] =>
+    (linkedAt(text, text.indexOf(needle) + skip)?.references ?? []).map(({ from, to }) => {
+      const start = text.lastIndexOf("\n", from - 1) + 1;
+      return `${text.slice(start, from)}[${text.slice(from, to)}]${text.slice(to, text.indexOf("\n", to))}`.trim();
+    });
+
+  it("finds a frame where a measure sees a point from it", () => {
+    expect(linkedAt(text, text.indexOf("on_rod:"))).toMatchObject({ kind: "frame" });
+    expect(lines("on_rod:")).toEqual(["reach: x(rod.B, tilt) + max(tilt, x(rod.B, [on_rod]))"]);
+  });
+
+  it("finds the points and the body a frame stands on", () => {
+    expect(lines("  rod:", 2)).toEqual([
+      "on_rod: { origin: [rod].A, along: [rod.A, rod.B] }",
+      "on_rod: { origin: rod.A, along: [[rod].A, rod.B] }",
+      "on_rod: { origin: rod.A, along: [rod.A, [rod].B] }",
+      "with_rod: { body: [rod] }",
+      "reach: x([rod].B, tilt) + max(tilt, x(rod.B, on_rod))",
+      "reach: x(rod.B, tilt) + max(tilt, x([rod].B, on_rod))",
+    ]);
+    expect(lines("B: [tilt")).toEqual([
+      "on_rod: { origin: rod.A, along: [rod.A, rod.[B]] }",
+      "reach: x(rod.[B], tilt) + max(tilt, x(rod.B, on_rod))",
+      "reach: x(rod.B, tilt) + max(tilt, x(rod.[B], on_rod))",
+    ]);
+  });
+});
+
 describe("entityAt", () => {
   const at = (needle: string, n = 1, shift = 0) => entityAt(MODEL, nth(needle, n) + shift);
 

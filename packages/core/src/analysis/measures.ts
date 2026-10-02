@@ -1,8 +1,9 @@
-import type { Compiled, CompiledBody } from "../compile/compile.ts";
+import type { Compiled, CompiledBody, CompiledFrame } from "../compile/compile.ts";
 import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
 import { ANGLE, type Dim, LENGTH, TIME } from "../expr/units.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
+import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
 
 const SPEED: Dim = [1, -1, 0, 0];
 const ACCELERATION: Dim = [1, -2, 0, 0];
@@ -18,6 +19,12 @@ export interface PointMotion {
   vy: Float64Array;
   ax: Float64Array;
   ay: Float64Array;
+}
+
+/** The jerk of one point at every sample. */
+export interface PointJerk {
+  jx: Float64Array;
+  jy: Float64Array;
 }
 
 function splitRef(ref: string): [body: string, point: string | undefined] {
@@ -89,14 +96,14 @@ export function pointJerk(
   cycle: Cycle,
   qddd: Float64Array,
   ref: string,
-): { jx: Float64Array; jy: Float64Array } {
+): PointJerk {
   const [bodyId, name] = splitRef(ref);
   const body = compiled.bodies.get(bodyId);
   const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
   if (!body || !local) throw new Error(`Unknown point "${ref}"`);
 
   const n = cycle.count;
-  const jerk = { jx: new Float64Array(n), jy: new Float64Array(n) };
+  const jerk: PointJerk = { jx: new Float64Array(n), jy: new Float64Array(n) };
   if (body.index < 0) return jerk;
 
   const { q, qd, qdd, width } = cycle;
@@ -146,25 +153,32 @@ export interface MeasureResult {
   error?: string;
 }
 
-/** Kinematic functions take bodies and points, not values, as arguments. */
-const KINEMATIC = new Set([
+/** Functions of one point. Each takes a frame to see the point from as a second argument. */
+const OF_POINT = new Set([
   "x",
   "y",
-  "dist",
+  "r",
+  "theta",
   "moved",
-  "angle",
   "v",
   "vx",
   "vy",
+  "vr",
+  "vt",
   "a",
   "ax",
   "ay",
+  "ar",
+  "at",
   "j",
   "jx",
   "jy",
-  "omega",
-  "alpha",
+  "jr",
+  "jt",
 ]);
+
+/** Kinematic functions take bodies and points, not values, as arguments. */
+const KINEMATIC = new Set([...OF_POINT, "dist", "angle", "omega", "alpha"]);
 
 /** Evaluate the measures and plots of a model over a solved cycle. */
 export function evaluateMeasures(
@@ -175,7 +189,9 @@ export function evaluateMeasures(
   /** Measures evaluated so far; later measures and plots can use them by name. */
   const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
-  const jerks = new Map<string, { jx: Float64Array; jy: Float64Array }>();
+  const jerks = new Map<string, PointJerk>();
+  /** Motions as seen from frames, by point, frame and whether the jerk is among them. */
+  const views = new Map<string, Path>();
   let qddd: Float64Array | undefined;
 
   function refName(node: Node | undefined, fn: Node): string {
@@ -208,7 +224,7 @@ export function evaluateMeasures(
     return result;
   }
 
-  function jerk(node: Node | undefined, fn: Node): { jx: Float64Array; jy: Float64Array } {
+  function jerk(node: Node | undefined, fn: Node): PointJerk {
     // Checks the point, and says what is wrong with it.
     motion(node, fn);
     const ref = refName(node, fn);
@@ -239,6 +255,96 @@ export function evaluateMeasures(
     return new Float64Array(n).map((_, k) => f(k));
   }
 
+  /** A point of a frame, which the model has already checked, as if it were written at `at`. */
+  function framePoint(ref: string, at: Node, fn: Node, withJerk: boolean): Path {
+    const node: Node = { kind: "ref", name: ref, pos: at.pos };
+    return withJerk ? { ...motion(node, fn), ...jerk(node, fn) } : motion(node, fn);
+  }
+
+  /** How a frame's x axis is turned over the cycle; undefined when it stays that of the sheet. */
+  function turningOf(
+    frame: CompiledFrame,
+    at: Node,
+    fn: Node,
+    withJerk: boolean,
+  ): Turning | undefined {
+    if (frame.along) {
+      const [from, to] = frame.along.map((ref) => framePoint(ref, at, fn, withJerk)) as [
+        Path,
+        Path,
+      ];
+      const turning = lineTurning(from, to, frame.angle);
+      if (!turning)
+        throw new ExprError(
+          `The two points that frame "${frame.id}" points along come together, so it has no direction there`,
+          at.pos,
+        );
+      return turning;
+    }
+    if (frame.body !== undefined) {
+      const turned = compiled.bodies.get(frame.body) as CompiledBody;
+      if (withJerk) qddd ??= cycleJerk(compiled.model, cycle);
+      return {
+        angle: coordinate(cycle.q, turned, 2).map((angle) => angle + frame.angle),
+        w: coordinate(cycle.qd, turned, 2),
+        alpha: coordinate(cycle.qdd, turned, 2),
+        beta: withJerk && qddd ? coordinate(qddd, turned, 2) : undefined,
+      };
+    }
+    if (frame.angle === 0) return undefined;
+    const still = new Float64Array(n);
+    return { angle: new Float64Array(n).fill(frame.angle), w: still, alpha: still, beta: still };
+  }
+
+  /**
+   * The motion of the point a function is given, on the sheet or, when a frame is
+   * named after the point, as seen from that frame.
+   */
+  function seen(call: Node & { kind: "call" }, withJerk = false): Path {
+    const { args } = call;
+    if (args.length < 1 || args.length > 2)
+      throw wrongArity(call, "a point, and a frame to see it from if wanted");
+    const world: Path = withJerk
+      ? { ...motion(args[0], call), ...jerk(args[0], call) }
+      : motion(args[0], call);
+    const named = args[1];
+    if (!named) return world;
+    const frame = named.kind === "ref" ? compiled.frames.get(named.name) : undefined;
+    if (!frame) {
+      throw new ExprError(
+        named.kind === "ref"
+          ? `Unknown frame "${named.name}"`
+          : `${call.name}() takes a point, and the name of a frame to see it from if wanted`,
+        named.pos,
+      );
+    }
+    const key = `${refName(args[0], call)} ${frame.id} ${withJerk}`;
+    const known = views.get(key);
+    if (known) return known;
+    const origin =
+      frame.origin === undefined ? undefined : framePoint(frame.origin, named, call, withJerk);
+    const view = seenFrom(world, origin, turningOf(frame, named, call, withJerk));
+    views.set(key, view);
+    return view;
+  }
+
+  /** The part of a vector along the line from the frame's origin to the point, and the part across it. */
+  function polar(
+    m: Path,
+    vx: Float64Array,
+    vy: Float64Array,
+    part: "radial" | "transverse",
+  ): Float64Array {
+    return signal((k) => {
+      const r = Math.hypot(m.x[k], m.y[k]);
+      // On the origin itself there is no such line.
+      if (r < 1e-12) return 0;
+      return part === "radial"
+        ? (m.x[k] * vx[k] + m.y[k] * vy[k]) / r
+        : (m.x[k] * vy[k] - m.y[k] * vx[k]) / r;
+    });
+  }
+
   function wrongArity(fn: Node & { kind: "call" }, wanted: string): ExprError {
     return new ExprError(`${fn.name}() takes ${wanted}, got ${fn.args.length}`, fn.pos);
   }
@@ -249,47 +355,64 @@ export function evaluateMeasures(
     const one = (): void => {
       if (args.length !== 1) throw wrongArity(call, "1 argument");
     };
+    if (OF_POINT.has(name)) {
+      const size = (xs: Float64Array, ys: Float64Array): Float64Array =>
+        signal((k) => Math.hypot(xs[k], ys[k]));
+      const part = name.endsWith("r") ? "radial" : "transverse";
+      switch (name) {
+        case "x":
+        case "y":
+          return { value: seen(call)[name], dim: LENGTH };
+        case "r": {
+          const m = seen(call);
+          return { value: size(m.x, m.y), dim: LENGTH };
+        }
+        case "theta": {
+          const m = seen(call);
+          return { value: unwrap(signal((k) => Math.atan2(m.y[k], m.x[k]))), dim: ANGLE };
+        }
+        case "moved": {
+          // How far a point is from where it started, whichever way it went.
+          const m = seen(call);
+          return {
+            value: signal((k) => Math.hypot(m.x[k] - m.x[0], m.y[k] - m.y[0])),
+            dim: LENGTH,
+          };
+        }
+        case "vx":
+        case "vy":
+          return { value: seen(call)[name], dim: SPEED };
+        case "v": {
+          const m = seen(call);
+          return { value: size(m.vx, m.vy), dim: SPEED };
+        }
+        case "vr":
+        case "vt": {
+          const m = seen(call);
+          return { value: polar(m, m.vx, m.vy, part), dim: SPEED };
+        }
+        case "ax":
+        case "ay":
+          return { value: seen(call)[name], dim: ACCELERATION };
+        case "a": {
+          const m = seen(call);
+          return { value: size(m.ax, m.ay), dim: ACCELERATION };
+        }
+        case "ar":
+        case "at": {
+          const m = seen(call);
+          return { value: polar(m, m.ax, m.ay, part), dim: ACCELERATION };
+        }
+        default: {
+          // The jerk, in one of its forms.
+          const m = seen(call, true);
+          const { jx, jy } = m as Path & PointJerk;
+          if (name === "jx" || name === "jy") return { value: name === "jx" ? jx : jy, dim: JERK };
+          return { value: name === "j" ? size(jx, jy) : polar(m, jx, jy, part), dim: JERK };
+        }
+      }
+    }
     switch (name) {
-      case "x":
-      case "y":
-        one();
-        return { value: motion(args[0], fn)[name], dim: LENGTH };
-      case "vx":
-      case "vy":
-        one();
-        return { value: motion(args[0], fn)[name], dim: SPEED };
-      case "ax":
-      case "ay":
-        one();
-        return { value: motion(args[0], fn)[name], dim: ACCELERATION };
-      case "v": {
-        one();
-        const m = motion(args[0], fn);
-        return { value: signal((k) => Math.hypot(m.vx[k], m.vy[k])), dim: SPEED };
-      }
-      case "a": {
-        one();
-        const m = motion(args[0], fn);
-        return { value: signal((k) => Math.hypot(m.ax[k], m.ay[k])), dim: ACCELERATION };
-      }
-      case "jx":
-      case "jy":
-        one();
-        return { value: jerk(args[0], fn)[name], dim: JERK };
-      case "j": {
-        one();
-        const m = jerk(args[0], fn);
-        return { value: signal((k) => Math.hypot(m.jx[k], m.jy[k])), dim: JERK };
-      }
-      case "moved": {
-        // How far a point is from where it started, whichever way it went.
-        one();
-        const m = motion(args[0], fn);
-        return {
-          value: signal((k) => Math.hypot(m.x[k] - m.x[0], m.y[k] - m.y[0])),
-          dim: LENGTH,
-        };
-      }
       case "dist": {
         if (args.length !== 2) throw wrongArity(call, "2 points");
         const p = motion(args[0], fn);

@@ -2,8 +2,8 @@ import { isMap, isScalar, isSeq, parseDocument, type Scalar } from "yaml";
 import { UNITS } from "../expr/units.ts";
 
 /**
- * Finding everywhere a name is used. A link, a point, a pin, a parameter or a
- * measure is named once, where it is defined, and referred to by that name
+ * Finding everywhere a name is used. A link, a point, a pin, a parameter, a frame
+ * or a measure is named once, where it is defined, and referred to by that name
  * elsewhere: in joints, in expressions, in the pose. Given the place of a
  * definition in the text, this finds all the places that refer to it, so that an
  * editor can change them together.
@@ -15,7 +15,7 @@ export interface Span {
   to: number;
 }
 
-export type NameKind = "body" | "point" | "joint" | "param" | "measure";
+export type NameKind = "body" | "point" | "joint" | "param" | "measure" | "frame";
 
 export interface LinkedName {
   kind: NameKind;
@@ -48,6 +48,9 @@ function fieldAt(path: Path): Field {
       return key === "type" ? "none" : "expr";
     case "traces":
       return "ref";
+    case "frames":
+      if (key === "origin" || key === "along") return "ref";
+      return key === "body" ? "body" : "expr";
     case "drivers":
       return key === "joint" ? "joint" : "expr";
     case "mekasim":
@@ -105,6 +108,7 @@ export function linkedAt(text: string, offset: number): LinkedName | undefined {
           if (section === "bodies" || section === "components") define("body", pair.key, section);
           if (section === "joints") define("joint", pair.key, "joints");
           if (section === "measures") define("measure", pair.key, "measures");
+          if (section === "frames") define("frame", pair.key, "frames");
           if (section === "pose" && isScalar(pair.key)) {
             const from = contentStart(text, pair.key as Scalar);
             if (from !== undefined)
@@ -164,6 +168,13 @@ export function linkedAt(text: string, offset: number): LinkedName | undefined {
       // Not a name: a function, or a unit after a number.
       if (/^\s*\(/.test(value.slice(match.index + word.length))) continue;
       if (word in UNITS && /\d\s*$/.test(value.slice(0, match.index))) continue;
+
+      if (kind === "frame") {
+        // A frame is named after the point it is to be seen from: x(rod.B, frame).
+        if (measuring && word === name && /,\s*$/.test(value.slice(0, match.index)))
+          add(start, name.length);
+        continue;
+      }
 
       if (point === undefined) {
         if (kind === "param" && word === name && !(measuring && bodies.has(word)))

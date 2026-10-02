@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addBody,
   addDriver,
+  addFrame,
   addPoint,
   addRevolute,
   editText,
@@ -163,5 +164,37 @@ describe("removing", () => {
     expect(doc.pose).toEqual({ link2: [0, 0, 0] });
     // What is left is still a valid model.
     expect(simulate(text).diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+  });
+
+  it("takes the frames on a point or a body with it, and leaves the others", () => {
+    let framed = fourBar();
+    framed = step(framed, (d) => addFrame(d, "frame", { origin: "link2.B", angle: 30 }).edits);
+    framed = step(framed, (d) => addFrame(d, "frame", { body: "link1" }).edits);
+    framed = step(
+      framed,
+      (d) => addFrame(d, "frame", { origin: "ground.G1", along: ["link3.A", "link3.B"] }).edits,
+    );
+    framed = step(framed, (d) => addFrame(d, "frame", { origin: "ground.G2" }).edits);
+    expect(framed).toContain(
+      "traces: [link2.B]\n\nframes:\n  frame1: { origin: link2.B, angle: 30 }\n  frame2: { body: link1 }\n",
+    );
+    expect(simulate(framed).diagnostics).toEqual([]);
+
+    const frames = (text: string): string[] => Object.keys(read(text).frames ?? {});
+    expect(frames(step(framed, (d) => removePoint(d, "link2", "B")))).toEqual([
+      "frame2",
+      "frame3",
+      "frame4",
+    ]);
+    expect(frames(step(framed, (d) => removeBody(d, "link1")))).toEqual([
+      "frame1",
+      "frame3",
+      "frame4",
+    ]);
+    expect(frames(step(framed, (d) => removeBody(d, "link3")))).toEqual([
+      "frame1",
+      "frame2",
+      "frame4",
+    ]);
   });
 });

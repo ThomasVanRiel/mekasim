@@ -11,6 +11,7 @@ export const SECTION_ORDER = [
   "joints",
   "drivers",
   "traces",
+  "frames",
   "measures",
   "plots",
   "fabrication",
@@ -156,6 +157,18 @@ function removeTraces(doc: Document, matches: (ref: string) => boolean): Edit[] 
     .map(({ index }): Edit => ({ op: "delete", path: ["traces", index] }));
 }
 
+/** Remove the frames that stand on, or point along, what is being removed. */
+function removeFrames(doc: Document, matches: (ref: string) => boolean, body?: string): Edit[] {
+  return Object.entries(doc.frames ?? {})
+    .filter(
+      ([, frame]) =>
+        (frame.origin !== undefined && matches(frame.origin)) ||
+        (frame.along?.some(matches) ?? false) ||
+        (body !== undefined && frame.body === body),
+    )
+    .map(([id]): Edit => ({ op: "delete", path: ["frames", id] }));
+}
+
 /** Remove joints, and the drivers that act on them. */
 function removeJoints(doc: Document, ids: string[]): Edit[] {
   return [
@@ -176,7 +189,10 @@ function jointsUsing(doc: Document, matches: (ref: string) => boolean): string[]
     .map(([id]) => id);
 }
 
-/** Remove a point with everything that depends on it: its joints, their drivers, its trace. */
+/**
+ * Remove a point with everything that depends on it: its joints, their drivers, its
+ * trace, and the frames on it.
+ */
 export function removePoint(doc: Document, body: string, point: string): Edit[] {
   const ref = `${body}.${point}`;
   return [
@@ -185,6 +201,7 @@ export function removePoint(doc: Document, body: string, point: string): Edit[] 
       jointsUsing(doc, (r) => r === ref),
     ),
     ...removeTraces(doc, (r) => r === ref),
+    ...removeFrames(doc, (r) => r === ref),
     { op: "delete", path: ["bodies", body, "points", point] },
   ];
 }
@@ -195,6 +212,7 @@ export function removeBody(doc: Document, id: string): Edit[] {
   return [
     ...removeJoints(doc, jointsUsing(doc, mine)),
     ...removeTraces(doc, mine),
+    ...removeFrames(doc, mine, id),
     ...(doc.pose?.[id] ? [{ op: "delete", path: ["pose", id] } satisfies Edit] : []),
     { op: "delete", path: ["bodies", id] },
   ];
@@ -226,6 +244,16 @@ export function addPlot(
   const taken = Object.keys(doc.plots ?? {});
   const id = taken.includes(base) ? freeName(taken, `${base}_`) : base;
   return { id, edits: [{ op: "set", path: ["plots", id], value: series }] };
+}
+
+/** Add a frame under a free name starting with `base`. */
+export function addFrame(
+  doc: Document,
+  base: string,
+  frame: NonNullable<Document["frames"]>[string],
+): { id: string; edits: Edit[] } {
+  const id = freeName(Object.keys(doc.frames ?? {}), base);
+  return { id, edits: [{ op: "set", path: ["frames", id], value: frame as unknown as Value }] };
 }
 
 /** Add a joint of any kind under a free name starting with `base`. */

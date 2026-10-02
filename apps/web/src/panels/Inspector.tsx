@@ -9,9 +9,18 @@ import {
   toggleTrace,
 } from "@mekasim/core";
 import type { ReactNode } from "react";
+import {
+  type MeasureChoice,
+  motionPlots,
+  type PlotChoice,
+  positionMeasures,
+  speedMeasure,
+} from "../coordinates.ts";
 import { label, refLabel, titled } from "../names.ts";
 import { useStore } from "../store.ts";
 import { deleteSelection, linkMeasures } from "../viewport/tools.ts";
+import { Choice } from "./Choice.tsx";
+import { CoordinatePicker, useCoordinates } from "./Coordinates.tsx";
 import { Field } from "./Field.tsx";
 
 const button = "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft";
@@ -77,52 +86,8 @@ const JOINT_NAMES = {
   cam: "Cam",
 } as const;
 
-/** A choice between a few named options, shown as buttons side by side. */
-function Choice<T extends string>({
-  label,
-  current,
-  options,
-  onPick,
-}: {
-  label: string;
-  current: T;
-  options: { value: T; label: string }[];
-  onPick(value: T): void;
-}) {
-  return (
-    <fieldset className="flex flex-col gap-1">
-      <legend className="text-ink-soft text-sm">{label}</legend>
-      <div className="flex flex-wrap">
-        {options.map((option, i) => (
-          <button
-            key={option.value}
-            type="button"
-            aria-pressed={option.value === current}
-            onClick={() => option.value !== current && onPick(option.value)}
-            className={`border px-2 py-0.5 text-sm ${i > 0 ? "-ml-px" : ""} ${
-              option.value === current
-                ? "border-ink bg-ink text-sheet"
-                : "border-rule bg-sheet hover:border-ink-soft"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-}
-
-/**
- * The series of a chart of a velocity, an acceleration or a jerk: its two signed parts,
- * which say which way it points, and its size, which is never negative.
- */
-function vector(fn: "v" | "a" | "j", ref: string): string[] {
-  return [`${fn}x(${ref})`, `${fn}y(${ref})`, `${fn}(${ref})`];
-}
-
 /** Buttons that add a chart of something to the model. */
-function PlotButtons({ plots }: { plots: { label: string; name: string; series: string[] }[] }) {
+function PlotButtons({ plots }: { plots: PlotChoice[] }) {
   const transact = useStore((s) => s.transact);
   return (
     <div className="flex flex-wrap items-baseline gap-1.5">
@@ -238,11 +203,7 @@ function PartOf({ title, component }: { title: string; component: string }) {
 }
 
 /** Buttons that add live measures to the model. */
-function MeasureButtons({
-  measures,
-}: {
-  measures: { label: string; items: [name: string, expr: string][] }[];
-}) {
+function MeasureButtons({ measures }: { measures: MeasureChoice[] }) {
   const transact = useStore((s) => s.transact);
   return (
     <div className="flex flex-wrap items-baseline gap-1.5">
@@ -267,35 +228,54 @@ function MeasureButtons({
 
 /** What can be plotted and measured of a link as a whole: where it is and how it is turned. */
 function LinkActions({ id }: { id: string }) {
-  const [dx, dy, moved, turn] = linkMeasures(id) as [
-    [string, string],
-    [string, string],
-    [string, string],
-    [string, string],
+  const coordinates = useCoordinates();
+  const turn = linkMeasures(id).at(-1) as [string, string];
+  const [place, speed, ...rates] = motionPlots(id, id, coordinates) as [
+    PlotChoice,
+    PlotChoice,
+    ...PlotChoice[],
   ];
   return (
     <>
+      <CoordinatePicker />
       <PlotButtons
         plots={[
-          { label: "movement", name: `${id}_movement`, series: [dx[1], dy[1], moved[1]] },
+          place,
           { label: "turning", name: `${id}_turn`, series: [turn[1]] },
-          { label: "speed", name: `${id}_speed`, series: vector("v", id) },
+          speed,
           { label: "turning speed", name: `${id}_omega`, series: [`omega(${id})`] },
-          { label: "acceleration", name: `${id}_accel`, series: vector("a", id) },
-          { label: "jerk", name: `${id}_jerk`, series: vector("j", id) },
+          ...rates,
         ]}
       />
       <MeasureButtons
         measures={[
-          { label: "movement", items: [dx, dy, moved] },
+          positionMeasures(id, id, coordinates),
           { label: "turning", items: [turn] },
           { label: "swing", items: [[`${id}_swing`, `range(angle(${id}))`]] },
         ]}
       />
       <p className="text-ink-soft text-sm">
-        Movement and turning are counted from where the link starts. Movement is that of its centre,
-        the middle of its points, where its name is written.
+        Movement and turning are counted from where the link starts. Its place is that of its
+        centre, the middle of its points, where its name is written.
       </p>
+    </>
+  );
+}
+
+/** What can be plotted and measured of a point: where it is and how fast it goes. */
+function PointActions({ point }: { point: string }) {
+  const coordinates = useCoordinates();
+  const base = point.replace(".", "_");
+  return (
+    <>
+      <CoordinatePicker />
+      <PlotButtons plots={motionPlots(point, base, coordinates)} />
+      <MeasureButtons
+        measures={[
+          positionMeasures(point, base, coordinates),
+          speedMeasure(point, base, coordinates),
+        ]}
+      />
     </>
   );
 }
@@ -362,47 +342,7 @@ export function Inspector() {
             {traced ? "Stop recording its path" : "Record its path"}
           </button>
         )}
-        {bodyId !== GROUND && (
-          <PlotButtons
-            plots={[
-              {
-                label: "movement",
-                name: `${bodyId}_${name}_movement`,
-                series: [
-                  `change(x(${selection.ref}))`,
-                  `change(y(${selection.ref}))`,
-                  `moved(${selection.ref})`,
-                ],
-              },
-              {
-                label: "speed",
-                name: `${bodyId}_${name}_speed`,
-                series: vector("v", selection.ref),
-              },
-              {
-                label: "acceleration",
-                name: `${bodyId}_${name}_accel`,
-                series: vector("a", selection.ref),
-              },
-              { label: "jerk", name: `${bodyId}_${name}_jerk`, series: vector("j", selection.ref) },
-            ]}
-          />
-        )}
-        {bodyId !== GROUND && (
-          <MeasureButtons
-            measures={[
-              {
-                label: "movement",
-                items: [
-                  [`${bodyId}_${name}_dx`, `change(x(${selection.ref}))`],
-                  [`${bodyId}_${name}_dy`, `change(y(${selection.ref}))`],
-                  [`${bodyId}_${name}_moved`, `moved(${selection.ref})`],
-                ],
-              },
-              { label: "speed", items: [[`${bodyId}_${name}_speed`, `v(${selection.ref})`]] },
-            ]}
-          />
-        )}
+        {bodyId !== GROUND && <PointActions point={selection.ref} />}
       </Section>
     );
   }

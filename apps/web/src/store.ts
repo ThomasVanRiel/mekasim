@@ -10,6 +10,7 @@ import {
   sweep as solveSweep,
 } from "@mekasim/core";
 import { create } from "zustand";
+import { type Coordinates, SHEET } from "./coordinates.ts";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
 import type { Hit } from "./viewport/pick.ts";
 import { buildScene, type Scene } from "./viewport/scene.ts";
@@ -136,6 +137,8 @@ interface State {
   focus?: Hit;
   /** The points placed so far with the current tool: a link, a distance, a scale. */
   draft: DraftPoint[];
+  /** The coordinates that the inspector plots and measures a motion in. */
+  coordinates: Coordinates;
   sweep?: Sweep;
   /** The model solved for each value of the sweep. */
   runs?: SweepRun[];
@@ -164,6 +167,7 @@ interface State {
   setFocus(focus: Hit | undefined): void;
   setDraft(draft: DraftPoint[]): void;
   setNotice(notice: string | undefined): void;
+  setCoordinates(coordinates: Coordinates): void;
   setSweep(sweep: Sweep | undefined): void;
   setUnderlay(underlay: Underlay | undefined): void;
   fit(): void;
@@ -196,6 +200,7 @@ export const useStore = create<State>((set, get) => {
     labels: true,
     tool: "select",
     draft: [],
+    coordinates: SHEET,
     fitRequest: 0,
 
     load(text) {
@@ -209,6 +214,7 @@ export const useStore = create<State>((set, get) => {
         tool: "select",
         selection: undefined,
         draft: [],
+        coordinates: SHEET,
         notice: undefined,
         sweep: undefined,
         runs: undefined,
@@ -293,6 +299,7 @@ export const useStore = create<State>((set, get) => {
     },
     setDraft: (draft) => set({ draft }),
     setNotice: (notice) => set({ notice }),
+    setCoordinates: (coordinates) => set({ coordinates }),
     setSweep(sweep) {
       const runs = runSweep(get().text, sweep);
       set({ sweep: runs ? sweep : undefined, runs });

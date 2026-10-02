@@ -143,6 +143,18 @@ const Driver = z.strictObject({
   phase: Expr.optional().describe("Relative angle at time 0; default 0"),
 });
 
+const Frame = z.strictObject({
+  origin: PointRef.optional().describe(
+    "The point positions are counted from; the origin of the sheet when left out",
+  ),
+  angle: Expr.optional().describe("How far its x axis is turned; default 0"),
+  along: z
+    .tuple([PointRef, PointRef])
+    .optional()
+    .describe("Two points its x axis points along, from the first to the second"),
+  body: Id.optional().describe("The body it turns with"),
+});
+
 export const Document = z.strictObject({
   mekasim: z.literal(FORMAT_VERSION).describe("Format version"),
   meta: z
@@ -170,6 +182,10 @@ export const Document = z.strictObject({
   joints: z.record(Id, Joint).optional(),
   drivers: z.record(Id, Driver).optional(),
   traces: z.array(PointRef).optional().describe("Points whose paths are recorded"),
+  frames: z
+    .record(Id, Frame)
+    .optional()
+    .describe("Named coordinate systems that measures and plots can give positions in"),
   measures: z
     .record(Id, Expr)
     .optional()
@@ -205,6 +221,7 @@ export const Document = z.strictObject({
 
 export type Document = z.infer<typeof Document>;
 export type Joint = z.infer<typeof Joint>;
+export type Frame = z.infer<typeof Frame>;
 export type Expr = z.infer<typeof Expr>;
 export type Param = z.infer<typeof Param>;
 

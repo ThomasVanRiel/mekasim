@@ -784,6 +784,56 @@
         "description": "A point on a body, written as body.point"
       }
     },
+    "frames": {
+      "description": "Named coordinate systems that measures and plots can give positions in",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "description": "The point positions are counted from; the origin of the sheet when left out",
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$"
+          },
+          "angle": {
+            "description": "How far its x axis is turned; default 0",
+            "type": [
+              "number",
+              "string"
+            ]
+          },
+          "along": {
+            "description": "Two points its x axis points along, from the first to the second",
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "A point on a body, written as body.point"
+              },
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "A point on a body, written as body.point"
+              }
+            ],
+            "items": false,
+            "minItems": 2,
+            "maxItems": 2
+          },
+          "body": {
+            "description": "The body it turns with",
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
     "measures": {
       "description": "Named expressions evaluated over the motion cycle",
       "type": "object",
