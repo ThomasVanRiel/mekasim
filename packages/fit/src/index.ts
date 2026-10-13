@@ -23,3 +23,4 @@ export {
 } from "./registry.ts";
 export { FitDocument, FORMAT, FORMAT_VERSION } from "./schema.ts";
 export { keepOutlines, simulate, sweep } from "./simulate.ts";
+export { type QpSolution, solveQp } from "./solver/qp.ts";
