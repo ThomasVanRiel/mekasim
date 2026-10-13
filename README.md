@@ -95,6 +95,28 @@ of the files in [`examples/`](examples). Besides links and pins a model can have
 gears, belts, cams and fixed-distance ties, and cranks and rods given by their
 dimensions instead of point positions.
 
+## Related work
+
+[PMKS+](https://github.com/PMKS-Web/Planar-Mechanism-Kinematic-Simulator) (MIT), from
+Worcester Polytechnic Institute, is a browser simulator for planar linkages made for
+teaching, at [pmksplus.com](https://pmksplus.com). It covers the same ground as
+mekasim for links, pins, slots and slides: drawing, motion plots, traces, CSV and
+share links. Noted here from its README, as of 2026-10-13:
+
+- It has what mekasim does not: forces at rest and in motion (the reactions on each
+  body and the torque or force at the input, with gravity and applied forces),
+  checked against MATLAB reference cases; synthesis of a four-bar from three
+  positions of its coupler; cylinders as a part; a library of mechanisms to start
+  from; unit presets; and export to Excel and a printed report.
+- It lacks what mekasim has: a model as readable text with named parameters, gears,
+  belts and cams, real outlines from drawings, parts to cut or print, a 3D view,
+  checks, and what mekafit does with parts that touch.
+- It allows editing only at the start of the cycle, so that no plot is shown of a
+  half-solved mechanism.
+
+Its force analysis is the reference to read when forces are built here (see
+[docs/mekasim/BACKLOG.md](docs/mekasim/BACKLOG.md)).
+
 ## Develop
 
 ```
