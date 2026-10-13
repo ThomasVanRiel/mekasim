@@ -1,0 +1,64 @@
+# A ratchet. The wheel is turned 100 degrees the free way, against a spring that
+# would turn it back; the pawl, pressed down by its own spring, rides up each tooth
+# and drops behind it. Then the wheel is let go: it springs back until the last
+# tooth it passed meets the pawl, and stays there.
+mekafit: 1
+meta:
+  name: Ratchet
+  units: { length: mm, angle: deg }
+
+bodies:
+  ground:
+    points: { O: [0, 0], P: [-60, 44] }
+  wheel:
+    points: { O: [0, 0] }
+    # Eight teeth: each rises from 32 mm to 40 mm over 45 degrees and drops straight back.
+    shape:
+      path: "M 2.789 31.878 L -25.712 30.642 L -20.569 24.513 L -39.848 3.486 L -31.878 2.789 L -30.642 -25.712 L -24.513 -20.569 L -3.486 -39.848 L -2.789 -31.878 L 25.712 -30.642 L 20.569 -24.513 L 39.848 -3.486 L 31.878 -2.789 L 30.642 25.712 L 24.513 20.569 L 3.486 39.848 Z"
+      holes: { O: 8 }
+  pawl:
+    points: { O: [0, 0], tip: [61, 0] }
+    layer: 1
+    shape:
+      path: "M 0 -3 L 56 -3 L 61 0 L 56 3 L 0 3 Z"
+
+joints:
+  axle: { type: revolute, connect: [ground.O, wheel.O] }
+  pivot: { type: revolute, connect: [ground.P, pawl.O] }
+
+pose:
+  pawl: [-60, 44, -9.5 deg]
+
+springs:
+  # Turns the wheel back towards where it started.
+  back: { joint: axle, stiffness: 0.05 N*m/rad, rest: 0 deg }
+  # Presses the pawl onto the wheel.
+  down: { joint: pivot, stiffness: 0.01 N*m/rad, rest: -30 deg }
+
+drivers:
+  hand:
+    move: wheel
+    stages:
+      - { to: [0, 0, -100 deg], time: 2 s }
+      - { pull: [0, 0], time: 1 s }
+
+contacts:
+  catch: { between: [wheel, pawl] }
+
+cycle: { steps: 240 }
+
+measures:
+  wheel: angle(wheel)
+  pawl: angle(pawl)
+  lift: range(angle(pawl))
+  holding: final(force(catch))
+
+checks:
+  went_round: min(angle(wheel)) < -99.9 deg
+  held: final(angle(wheel)) < -80 deg and final(angle(wheel)) > -90 deg
+  never_through: min(gap(wheel, pawl)) > -0.001 mm
+
+plots:
+  wheel: angle(wheel)
+  pawl: angle(pawl)
+  forces: [force(catch), torque(back)]

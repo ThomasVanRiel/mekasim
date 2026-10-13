@@ -265,25 +265,32 @@ the seeded generator of §6.2.
 The contact step needs every place two shapes are about to touch, not only the
 nearest: a knuckle face against another can touch at both ends.
 
-`contactPoints(A, B, margin)` returns up to four points per pair:
+`contactPoints(A, B, margin)` returns up to six places per pair, each with its
+distance, its two points and its unit normal: the way B goes to get clear of A.
+They are gathered three ways, so that each holds only where it is true:
 
-1. For every pair of segments closer than `margin` (default 2 mm), take their
-   nearest points.
-2. Keep only local minima: drop a candidate if a neighbouring segment pair on the
-   same boundaries gives a smaller distance within `merge` (0.2 mm) along the
-   boundary.
-3. Keep the four smallest. Each carries the distance, the two points and the unit
-   normal: the way B goes to get clear of A. A corner that touches a face is held
-   square to the face.
+1. **Every corner of one against the nearest place of the other**, for both shapes,
+   where that is within `margin` (default 2 mm). While the corner is beside a face
+   the row is square to the face; once it has passed the face's end the nearest
+   place is the face's own corner, and the row turns with the line between the two.
+   A face is never taken to go on beyond its end. A corner on a face is held square
+   to it; two corners on each other (within a nanometre) by the face of either that
+   has the other part wholly on its outside.
+2. **Two flat faces that lie along each other, facing**: the two ends of the stretch
+   they share, with the distance between the faces. Their nearest points alone would
+   be one arbitrary place, with no direction once they touch.
+3. **Two boundaries of which one at least is curved**, where they are nearest along
+   both, as two arcs or an arc and a face.
+
+Places on one spot of both boundaries (within `merge`, 0.2 mm) that hold the same
+way are one; two that hold different ways are both kept, as where a corner of each
+lies against a face of the other.
 
 Where the shapes are into each other the distance is less than nothing and the
-normal keeps its direction, so the contact step pushes them apart again: two
-boundaries have passed each other where the nearest place of one lies in the
-material of the other, and a
-corner or bulge inside the other shape is measured by core's `gap`, in place of the
-crossings round it. Two flat faces that lie along each other, facing, give the two
-ends of the stretch they share with the distance between the faces; their nearest
-points alone would be one arbitrary place, with no direction once they touch.
+normal keeps its direction, so the contact step pushes them apart again: a corner
+inside the other shape is measured to the nearest place of its boundary, faces that
+have passed each other by the distance between them, and a curve that bulges into
+the other shape by core's `gap`.
 
 ### 3.4 Import
 
@@ -377,6 +384,11 @@ let go would be carried past where it comes to rest, onto another branch):
    minimise   1/2 dq' (H + eps W) dq + (grad E + eps W (q - q_prev))' dq
    subject to J dq = -Phi,   G dq >= -g
    ```
+   Where the program has no solution with the whole closing step `dq0`, it is
+   tried with a half of it, a quarter and so on: the rows are flat, laid out for the
+   parts as they touch now, and a corner that is about to pass the end of a face is
+   held by that face until it has. From where the part step leads, the rows are
+   laid out anew.
 3. Take the step, cut short where it would carry a body of a contact pair further
    than it may go in one sample (§5.6): the step is laid out for the parts as they
    touch now, and a longer one could pass what is in its way. Stop when

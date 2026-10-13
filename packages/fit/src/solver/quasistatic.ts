@@ -85,6 +85,8 @@ const PENETRATION = 1e-9;
 const SETTLED = 1e-10;
 /** Joints and contacts this near to met leave the step to the springs, in metres. */
 const NEARLY = 1e-7;
+/** The least part of a closing step that is tried where the whole of it cannot be taken. */
+const LEAST_PART = 1e-4;
 /** Rows nearer than this are named in a jam, in metres. */
 const TOUCHING = 1e-6;
 /** A pulled body that nothing holds goes this many times the model's size in its stage. */
@@ -259,7 +261,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
 
       // The joints leave some directions free; the step that closes them is core's own.
       const decomposition = svd(jacobian(now, q));
-      const dq = pinvSolve(
+      const closing = pinvSolve(
         decomposition,
         phi.map((value) => -value),
       );
@@ -277,16 +279,11 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         slope[at + 1] -= stage.force[1];
       }
       limited = [];
+      let dq = closing;
       if (n > 0) {
-        const gradient = Float64Array.from(slope);
-        for (let i = 0; i < width; i++) {
-          // What the closing step already costs.
-          for (let j = 0; j < width; j++) gradient[i] += hessian.data[i * width + j] * dq[j];
-        }
         // The same program in the free directions only: dq = dq0 + N z.
-        const { normals, limits: wanted } = linearizeInequalities(rows, width);
+        const { normals } = linearizeInequalities(rows, width);
         const reduced = mat(n, n);
-        const linear = new Float64Array(n);
         const sides = mat(rows.length, n);
         const hn = new Float64Array(width * n);
         for (let i = 0; i < width; i++) {
@@ -299,7 +296,6 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         }
         for (let a = 0; a < n; a++) {
           for (let i = 0; i < width; i++) {
-            linear[a] += free.data[i * n + a] * gradient[i];
             for (let b = 0; b < n; b++)
               reduced.data[a * n + b] += free.data[i * n + a] * hn[i * n + b];
           }
@@ -316,11 +312,30 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
           for (let j = 0; j < width; j++) {
             const g = normals.data[r * width + j];
             if (g === 0) continue;
-            wanted[r] -= g * dq[j];
             for (let k = 0; k < n; k++) sides.data[r * n + k] += g * free.data[j * n + k];
           }
         }
-        const solved = solveQp(reduced, linear, sides, wanted);
+        // The rows are flat, as the parts touch now, and a face holds as if it had no
+        // end. Where the whole closing step cannot be taken past them, part of it is:
+        // from where that leads, the rows are laid out anew.
+        let solved: ReturnType<typeof solveQp>;
+        for (let part = 1; ; part /= 2) {
+          dq = closing.map((value) => part * value);
+          const linear = new Float64Array(n);
+          const wanted = new Float64Array(rows.length);
+          for (let i = 0; i < width; i++) {
+            // What the closing step already costs.
+            let cost = slope[i];
+            for (let j = 0; j < width; j++) cost += hessian.data[i * width + j] * dq[j];
+            for (let k = 0; k < n; k++) linear[k] += free.data[i * n + k] * cost;
+          }
+          rows.forEach((row, r) => {
+            wanted[r] = -row.value;
+            for (let j = 0; j < width; j++) wanted[r] -= normals.data[r * width + j] * dq[j];
+          });
+          solved = solveQp(reduced, linear, sides, wanted);
+          if (solved || part < LEAST_PART) break;
+        }
         if (!solved) return failed();
         limited = solved.active
           .map((r) => rows[r] as Inequality)

@@ -128,7 +128,16 @@ said the same thing in part (it now lets go of the one that carries nothing), an
 two corners near each other were taken for parts into each other (overlap is now
 told by a place lying in the other shape's material).
 
-**Next in phase 3:** the other examples (ratchet, coupler, push latch).
+`examples/fit/ratchet.mekafit.yaml` is built too: a toothed wheel turned 100
+degrees against a spring, a sprung pawl that rides up each tooth and drops behind
+it, and the wheel let go, which the pawl then holds. It needed the contact finder
+on a firmer footing (DESIGN.md §3.3): every corner of one shape against the nearest
+place of the other, which is the face's own corner once the corner has passed the
+face's end, in place of every pair of segments with rules for the special cases.
+And where the rows as laid out do not let the whole of a closing step through, the
+step now takes part of it and lays the rows out again.
+
+**Next in phase 3:** the other examples (coupler, push latch).
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
 springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and
