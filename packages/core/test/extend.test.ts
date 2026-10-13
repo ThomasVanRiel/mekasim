@@ -229,3 +229,25 @@ describe("what a solver built on this one works with", () => {
     expect(nullSpace(svd(jac)).cols).toBe(0);
   });
 });
+
+describe("a document rewritten before it is compiled", () => {
+  it("is compiled as rewritten, and stops on a problem reported there", () => {
+    const plain = simulate(fourBar);
+    const faster = simulate(fourBar, {
+      prepare: (doc) => ({ ...doc, params: { ...doc.params, rpm: 600 } }),
+    });
+    expect(faster.diagnostics).toEqual([]);
+    expect(faster.compiled?.period).toBeCloseTo((plain.compiled?.period ?? 0) / 2, 12);
+    expect(faster.doc?.params?.rpm).toBe(600);
+
+    const stopped = simulate(fourBar, {
+      prepare(doc, report) {
+        report({ severity: "error", message: "No such drawing", path: ["bodies", "crank"] });
+        return doc;
+      },
+    });
+    expect(stopped.compiled).toBeUndefined();
+    expect(stopped.diagnostics).toMatchObject([{ message: "No such drawing" }]);
+    expect(stopped.diagnostics[0]?.position).toBeDefined();
+  });
+});

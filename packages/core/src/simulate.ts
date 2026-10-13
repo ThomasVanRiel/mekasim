@@ -76,6 +76,12 @@ export interface SimulateOptions {
   /** Units and functions added to the expressions. */
   registry?: Registry;
   /**
+   * Rewrites the document once it is read and before it is compiled: what the other
+   * format writes in its own way is put in mekasim's. A problem it reports as an
+   * error stops there.
+   */
+  prepare?(doc: Document, report: (diagnostic: Diagnostic) => void): Document;
+  /**
    * Adds to the compiled model before it is solved, from what the document holds
    * beyond mekasim's. A problem it reports as an error stops the solve.
    */
@@ -90,12 +96,16 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
   const diagnostics = [...loaded.diagnostics];
   const simulation: Simulation = { diagnostics, measures: [], checks: [], plots: [] };
   if (!loaded.doc) return simulation;
-  simulation.doc = loaded.doc;
+  const doc =
+    options.prepare?.(loaded.doc, (diagnostic) => diagnostics.push(diagnostic)) ?? loaded.doc;
+  simulation.doc = doc;
 
-  const { compiled, diagnostics: compileDiagnostics } = compile(loaded.doc, options.registry);
+  const { compiled, diagnostics: compileDiagnostics } = hasErrors(diagnostics)
+    ? { compiled: undefined, diagnostics: [] }
+    : compile(doc, options.registry);
   diagnostics.push(...compileDiagnostics);
   if (compiled && !hasErrors(diagnostics)) {
-    options.extend?.(compiled, loaded.doc, (diagnostic) => diagnostics.push(diagnostic));
+    options.extend?.(compiled, doc, (diagnostic) => diagnostics.push(diagnostic));
   }
   if (compiled && !hasErrors(diagnostics)) {
     simulation.compiled = compiled;
@@ -130,7 +140,7 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
           });
       }
       for (const plot of simulation.plots) {
-        const listed = typeof loaded.doc.plots?.[plot.id] !== "string";
+        const listed = typeof doc.plots?.[plot.id] !== "string";
         plot.series.forEach((series, i) => {
           if (series.error)
             diagnostics.push({
@@ -151,7 +161,7 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
         failure.step === 0
           ? `The mechanism cannot be assembled from its starting position${open}`
           : `The mechanism locks up at step ${failure.step} of ${cycle.steps} (t = ${failure.time.toPrecision(4)} s)${open}`;
-      const section = first !== undefined && loaded.doc.drivers?.[first] ? "drivers" : "joints";
+      const section = first !== undefined && doc.drivers?.[first] ? "drivers" : "joints";
       diagnostics.push({
         severity: "error",
         message,

@@ -82,6 +82,7 @@ export {
   docFactor,
   formatQuantity,
   LENGTH,
+  LENGTH_UNITS,
   NONE,
   UNITS,
   type UnitDef,

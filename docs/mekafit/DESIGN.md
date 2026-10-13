@@ -146,7 +146,9 @@ nothing, so nothing new becomes valid in a mekasim model.
    its `checks:` section (`docs/mekasim/FORMAT.md`). A study's `pass` is made of the same
    conditions, and the model's checks are what it tests by default (§6.1).
 3. **Compile and solve.** `simulate(text, options?)` takes the schema and the
-   registry, and optional hooks: `extend`, which adds to the compiled model and can
+   registry, and optional hooks: `prepare`, which rewrites the document once it is
+   read and before it is compiled (shapes from drawings are put in as path text
+   there, and `copy` will be expanded there); `extend`, which adds to the compiled model and can
    report problems, and `solve`, which replaces the cycle solve and returns a
    `Cycle`. Without them it is today's `simulate`. Compile already maps names to
    body indices; those maps are exported in its result.

@@ -122,7 +122,8 @@ export function parsePath(text: string): Loop[] {
     if (!segments) return;
     const gap = Math.hypot(current[0] - first[0], current[1] - first[1]);
     // Z draws the last straight line itself when the outline has not come back yet.
-    if (gap > 0) {
+    // Back but for the last digit of a number as it was written, it has come back.
+    if (gap > 1e-9 * (1 + Math.abs(first[0]) + Math.abs(first[1]))) {
       segments.push({ kind: "line", ax: current[0], ay: current[1], bx: first[0], by: first[1] });
     }
     if (segments.length === 0) {
@@ -229,31 +230,46 @@ export function parsePath(text: string): Loop[] {
   return loops;
 }
 
-function arcText(arc: Segment & { kind: "arc" }, from: number, sweep: number): string {
+function arcText(arc: Segment & { kind: "arc" }, from: number, sweep: number, to?: string): string {
   const end = from + sweep;
   const x = arc.cx + arc.r * Math.cos(end);
   const y = arc.cy + arc.r * Math.sin(end);
   const r = tidy(arc.r);
-  return `A ${r} ${r} 0 ${Math.abs(sweep) > Math.PI ? 1 : 0} ${sweep > 0 ? 1 : 0} ${tidy(x)} ${tidy(y)}`;
+  const flags = `${Math.abs(sweep) > Math.PI ? 1 : 0} ${sweep > 0 ? 1 : 0}`;
+  return `A ${r} ${r} 0 ${flags} ${to ?? `${tidy(x)} ${tidy(y)}`}`;
 }
 
-/** Outlines as path text, in capitals throughout. A whole circle is written as two arcs. */
+/** The most of a circle that one arc of written path text covers. */
+const MOST = (2 * Math.PI) / 3;
+
+/**
+ * Outlines as path text, in capitals throughout. An arc of more than a third of a
+ * circle is written as several, so a whole circle is three arcs.
+ */
 export function writePath(loops: Loop[]): string {
   return loops
     .map((loop) => {
       const first = loop.segments[0];
       if (!first) return "";
-      const parts = [`M ${startOf(first).map(tidy).join(" ")}`];
-      for (const segment of loop.segments) {
+      const origin = startOf(first).map(tidy).join(" ");
+      const parts = [`M ${origin}`];
+      loop.segments.forEach((segment, i) => {
+        // The last segment ends where the first began, to the digit, so the outline closes.
+        const home = i === loop.segments.length - 1 ? origin : undefined;
         if (segment.kind === "line") {
-          parts.push(`L ${endOf(segment).map(tidy).join(" ")}`);
-        } else if (Math.abs(segment.sweep) > TURN - 1e-9) {
-          parts.push(arcText(segment, segment.start, segment.sweep / 2));
-          parts.push(arcText(segment, segment.start + segment.sweep / 2, segment.sweep / 2));
+          parts.push(`L ${home ?? endOf(segment).map(tidy).join(" ")}`);
         } else {
-          parts.push(arcText(segment, segment.start, segment.sweep));
+          // An arc near half a circle is poorly told by its two ends: the last digit of
+          // a number moves its centre a thousand times as far. Written in pieces of no
+          // more than a third of a circle, it comes back as it was.
+          const pieces = Math.ceil(Math.abs(segment.sweep) / MOST - 1e-9);
+          const each = segment.sweep / pieces;
+          for (let k = 0; k < pieces; k++) {
+            const last = k === pieces - 1 ? home : undefined;
+            parts.push(arcText(segment, segment.start + k * each, each, last));
+          }
         }
-      }
+      });
       // The last line back to the start is what Z draws.
       const last = loop.segments.at(-1);
       if (last?.kind === "line" && loop.segments.length > 1) parts.pop();

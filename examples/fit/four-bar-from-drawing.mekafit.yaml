@@ -1,0 +1,51 @@
+# The crank-rocker four-bar, with the outlines of its links taken from a drawing.
+# `four-bar-links.dxf` has the three links laid out side by side, as on a sheet to
+# cut, each on a layer of its own. `place` says where a link's own frame sits in the
+# drawing: where its first point is, and how far the link is turned there.
+#
+# Export the drawing again from CAD with a link changed, and this model follows.
+mekafit: 1
+meta:
+  name: Four-bar from a drawing
+
+params:
+  r: 40 mm          # crank radius
+  rpm: 300
+
+geometry:
+  links: { file: four-bar-links.dxf }     # kept beside this model
+
+bodies:
+  ground:
+    points: { O2: [0, 0], O4: [180, 0] }
+  crank:
+    points: { O: [0, 0], A: [r, 0] }
+    shape: { from: links, layer: CRANK, place: [20, 20, 0] }
+  coupler:
+    points: { A: [0, 0], B: [160, 0], P: [80, 60] }
+    layer: 1
+    shape: { from: links, layer: COUPLER, place: [20, 60, 0] }
+  rocker:
+    points: { B: [0, 0], O: [110, 0] }
+    shape: { from: links, layer: ROCKER, place: [30, 150, 15 deg] }
+
+joints:
+  main:  { type: revolute, connect: [ground.O2, crank.O] }
+  pin_a: { type: revolute, connect: [crank.A, coupler.A] }
+  pin_b: { type: revolute, connect: [coupler.B, rocker.B] }
+  rock:  { type: revolute, connect: [rocker.O, ground.O4] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+traces: [coupler.P]
+
+measures:
+  rocker_swing: range(angle(rocker))
+
+checks:
+  swings_enough: rocker_swing > 40 deg
+
+pose:
+  coupler: [40, 0, 40]
+  rocker: [160, 110, -80]

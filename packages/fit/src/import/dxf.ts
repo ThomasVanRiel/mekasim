@@ -44,6 +44,8 @@ interface Entity {
 function pairsOf(text: string): Pair[] {
   const lines = text.split(/\r\n|\r|\n/);
   const pairs: Pair[] = [];
+  if (lines.length < 2 && Number.isNaN(Number.parseInt((lines[0] ?? "").trim(), 10)))
+    lines.push("");
   for (let i = 0; i + 1 < lines.length; i += 2) {
     const code = Number.parseInt((lines[i] as string).trim(), 10);
     if (Number.isNaN(code)) {

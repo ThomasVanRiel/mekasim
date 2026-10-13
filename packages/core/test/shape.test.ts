@@ -109,18 +109,40 @@ describe("reading path text", () => {
 
 describe("writing path text", () => {
   it("gives back what it read", () => {
-    for (const text of [SQUARE, SLOT, `${SQUARE} M 2 2 L 2 4 L 4 4 Z`]) {
+    for (const text of [SQUARE, `${SQUARE} M 2 2 L 2 4 L 4 4 Z`, "M 0 0 L 5 0 A 5 5 0 0 1 0 5 Z"]) {
       expect(writePath(parsePath(text))).toBe(text);
       expect(parsePath(writePath(parsePath(text)))).toEqual(parsePath(text));
     }
   });
 
-  it("writes a whole circle as two arcs, which read back as the same circle", () => {
-    const text = writePath([circleLoop(3, 4, 2, false)]);
-    expect(text).toBe("M 5 4 A 2 2 0 0 1 1 4 A 2 2 0 0 1 5 4 Z");
-    const back = parsePath(text)[0] as Loop;
-    expect(loopArea(back)).toBeCloseTo(Math.PI * 4, 10);
-    expect(arc(back.segments[0]).cx).toBeCloseTo(3, 12);
+  it("writes an arc of half a circle or more in pieces, which read back as the same outline", () => {
+    const text = writePath(parsePath(SLOT));
+    expect(text).toBe(
+      "M 0 -5 L 20 -5 A 5 5 0 0 1 25 0 A 5 5 0 0 1 20 5 L 0 5 A 5 5 0 0 1 -5 0 A 5 5 0 0 1 0 -5 Z",
+    );
+    expect(loopArea(parsePath(text)[0] as Loop)).toBeCloseTo(200 + Math.PI * 25, 10);
+    expect(writePath(parsePath(text))).toBe(text);
+
+    const circle = parsePath(writePath([circleLoop(3, 4, 2, false)]))[0] as Loop;
+    expect(circle.segments).toHaveLength(3);
+    expect(loopArea(circle)).toBeCloseTo(Math.PI * 4, 10);
+    expect(arc(circle.segments[0]).cx).toBeCloseTo(3, 12);
+  });
+
+  it("keeps a half circle where it was when its ends are not round numbers", () => {
+    // Turned by an odd angle, the ends of the slot's half circles have many digits.
+    const turned = placeLoop(parsePath(SLOT)[0] as Loop, {
+      angle: 0.2617993877991494,
+      x: 3.3,
+      y: 7.7,
+    });
+    const back = parsePath(writePath([turned]))[0] as Loop;
+    expect(loopArea(back) / (200 + Math.PI * 25)).toBeCloseTo(1, 10);
+    const box = loopBounds(back);
+    const was = loopBounds(turned);
+    for (const side of ["minX", "maxX", "minY", "maxY"] as const) {
+      expect(box[side]).toBeCloseTo(was[side], 9);
+    }
   });
 });
 
