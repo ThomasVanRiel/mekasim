@@ -33,13 +33,14 @@ packages/fit/src
   schema.ts       mekafit document: mekasim's schema with `mekafit: 1`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
   simulate.ts     core's pipeline with mekafit's schema
+  geometry/
+    distance.ts   exact nearest points between segments and between shapes; `gap`
+    tree.ts       bounding-box tree over a shape's segments
   (to come)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   compile.ts      contacts, springs, locks, stops, move drivers, in core's `extend` hook
   geometry/
-    distance.ts   exact nearest points between segments and between shapes
     contacts.ts   several nearest points per pair of shapes, for the contact step
-    tree.ts       bounding-box tree over a shape's segments
   solver/
     inequality.ts one-sided constraints: gap, stop, lock
     qp.ts         small dense quadratic program (dual active set)
