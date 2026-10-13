@@ -47,6 +47,7 @@ export {
   zoomed,
 } from "./sheet/view.ts";
 export { clamp } from "./size.ts";
+export { Tabs } from "./Tabs.tsx";
 export {
   bodyColor,
   PALETTES,

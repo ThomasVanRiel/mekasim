@@ -1,10 +1,9 @@
-import { BESIDE_FOLD, decodeModel, exampleIn } from "@mekasim/ui";
-import { type CSSProperties, type ReactNode, useEffect } from "react";
+import { BESIDE_FOLD, decodeModel, exampleIn, Geometry, Tabs } from "@mekasim/ui";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
 import { useLayout } from "./layout.ts";
 import { Checks } from "./panels/Checks.tsx";
-import { Drawings } from "./panels/Drawings.tsx";
 import { Header } from "./panels/Header.tsx";
 import { HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
@@ -175,6 +174,12 @@ export function App() {
   const setHelp = useLayout((s) => s.setHelp);
   const skill = useLayout((s) => s.skill);
   const setSkill = useLayout((s) => s.setSkill);
+  const [tab, setTab] = useState<"source" | "geometry">("source");
+  const missing = useStore((s) => s.simulation.missing.length);
+  const sources = useStore((s) => s.simulation.sources);
+  const drawings = useStore((s) => s.simulation.drawings);
+  const uses = useStore((s) => s.simulation.uses);
+  const files = useStore((s) => s.files);
   useKeys();
   useLinkedModel();
   // Column widths, as set by dragging the dividers or else the defaults.
@@ -198,9 +203,21 @@ export function App() {
       </div>
 
       <div className="hidden min-h-0 flex-col lg:flex" {...{ [BESIDE_FOLD]: "" }}>
-        <div className="flex items-center justify-between border-rule border-b py-1 pr-2 pl-3">
-          <h2 className="font-semibold">Source</h2>
-          <div className="flex gap-1.5">
+        <Tabs<"source" | "geometry">
+          label="Model"
+          current={tab}
+          onPick={setTab}
+          tabs={[
+            { id: "source", name: "Source" },
+            // A drawing the model names is not here: say so where it can be put right.
+            {
+              id: "geometry",
+              name: "Geometry",
+              note: missing > 0 ? `${missing} missing` : undefined,
+            },
+          ]}
+        >
+          <div className="flex gap-1.5 pr-2">
             <FoldButton
               controls={SKILL_ID}
               open={skill}
@@ -213,12 +230,23 @@ export function App() {
               {help ? "Close help" : "Help"}
             </FoldButton>
           </div>
-        </div>
-        <div className="relative min-h-0 flex-1">
+        </Tabs>
+        {/* The editor stays in being under the other tab, with its cursor and its undo history. */}
+        <div className={`relative min-h-0 flex-1 ${tab === "source" ? "" : "hidden"}`}>
           <div className="absolute inset-0">
             <SourceEditor />
           </div>
         </div>
+        {tab === "geometry" && (
+          <Geometry
+            sources={sources}
+            drawings={drawings}
+            uses={uses}
+            files={files}
+            onAdd={(picked) => useStore.getState().attach(picked)}
+            onReplace={(file, text) => useStore.getState().replace(file, text)}
+          />
+        )}
         <Splitter
           panel="messages"
           axis="y"
@@ -285,7 +313,6 @@ export function App() {
         <Parameters />
         <Measures />
         <Checks />
-        <Drawings />
       </div>
 
       <Help />

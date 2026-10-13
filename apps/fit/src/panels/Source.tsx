@@ -1,5 +1,5 @@
 import type { Severity } from "@mekasim/core";
-import { Geometry, SourceEditor, Splitter } from "@mekasim/ui";
+import { Geometry, SourceEditor, Splitter, Tabs } from "@mekasim/ui";
 import { useState } from "react";
 import { useLayout } from "../layout.ts";
 import { useStore } from "../store.ts";
@@ -11,11 +11,6 @@ const MARK: Record<Severity, string> = {
   warning: "bg-(--amber) text-ink",
   info: "bg-rule text-ink",
 };
-
-const TABS = [
-  ["source", "Source"],
-  ["geometry", "Geometry"],
-] as const;
 
 /**
  * The left panel: the model's text in the editor mekasim has too, or its drawings,
@@ -32,32 +27,24 @@ export function Source() {
   const drawings = useStore((s) => s.simulation.drawings);
   const uses = useStore((s) => s.simulation.uses);
   const files = useStore((s) => s.files);
-  const [tab, setTab] = useState<(typeof TABS)[number][0]>("source");
+  const [tab, setTab] = useState<"source" | "geometry">("source");
 
   return (
     <div className="flex min-h-0 flex-col">
-      <div role="tablist" aria-label="Model" className="flex border-rule border-b">
-        {TABS.map(([id, name]) => (
-          <button
-            key={id}
-            type="button"
-            role="tab"
-            aria-selected={tab === id}
-            onClick={() => setTab(id)}
-            className={`-mb-px border-b-2 px-3 py-1.5 font-semibold ${
-              tab === id ? "border-ink" : "border-transparent text-ink-soft hover:text-ink"
-            }`}
-          >
-            {name}
-            {/* A drawing the model names is not here: say so where it can be put right. */}
-            {id === "geometry" && missing > 0 && (
-              <span className="ml-1.5 rounded-sm bg-(--amber) px-1 font-normal text-[12px] text-ink">
-                {missing} missing
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs<"source" | "geometry">
+        label="Model"
+        current={tab}
+        onPick={setTab}
+        tabs={[
+          { id: "source", name: "Source" },
+          // A drawing the model names is not here: say so where it can be put right.
+          {
+            id: "geometry",
+            name: "Geometry",
+            note: missing > 0 ? `${missing} missing` : undefined,
+          },
+        ]}
+      />
       {/* The editor stays in being under the other tab, with its cursor and its undo history. */}
       <div className={`relative min-h-0 flex-1 ${tab === "source" ? "" : "hidden"}`}>
         <div className="absolute inset-0">

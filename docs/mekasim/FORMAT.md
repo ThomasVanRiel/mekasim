@@ -223,7 +223,7 @@ where they are inserted. Text, dimensions and hatches are left out, and so, for
 now, are splines and ellipses. Lines that meet end to end within a hair's breadth
 are joined into outlines; an outline that does not close cannot be a shape, and is
 reported with the two ends it is open between. The app shows what each drawing
-holds, layer by layer, under "Drawings".
+holds, layer by layer, in the Geometry tab beside the source.
 
 A drawing that is not attached is not an error: the model runs, and the bodies that
 take their shape from it are drawn as plates until it is. A link to a model carries
