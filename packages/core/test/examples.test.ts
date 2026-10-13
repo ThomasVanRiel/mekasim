@@ -162,6 +162,13 @@ describe("Whitworth quick return", () => {
     expect(ends).toEqual([120, 240]);
     expect(measure(shaper, "quickness")).toBeGreaterThan(2);
   });
+
+  it("meets its own checks: a slow cut and a quick return", () => {
+    expect(shaper.checks.map((c) => [c.id, c.holds])).toEqual([
+      ["slow_cut", true],
+      ["quick_return", true],
+    ]);
+  });
 });
 
 describe("pumpjack", () => {

@@ -1,6 +1,6 @@
 import type { Diagnostic } from "../diagnostics.ts";
 import { type EvalContext, evaluate, type Quantity, toSI } from "../expr/evaluate.ts";
-import { ExprError, type Node, parseExpr } from "../expr/parse.ts";
+import { ExprError, KEYWORDS, type Node, parseExpr } from "../expr/parse.ts";
 import {
   ANGLE,
   ANGULAR_SPEED,
@@ -112,6 +112,8 @@ export interface Compiled {
   traces: string[];
   frames: Map<string, CompiledFrame>;
   measures: CompiledMeasure[];
+  /** Conditions the motion has to meet, read as measures are. */
+  checks: CompiledMeasure[];
   plots: CompiledPlot[];
   /** Real dimensions of the parts where the model gives them, in metres. */
   fabrication: Partial<Fabrication>;
@@ -122,8 +124,11 @@ export interface CompileResult {
   diagnostics: Diagnostic[];
 }
 
-/** `pi` and `g` are constants everywhere; `t` is the time in measures. */
-const RESERVED = new Set(["pi", "g", "t"]);
+/**
+ * `pi` and `g` are constants everywhere; `t` is the time in measures. The rest are
+ * the words that join conditions.
+ */
+const RESERVED = new Set(["pi", "g", "t", ...KEYWORDS]);
 
 /** Raised for a problem that is already recorded as a diagnostic. */
 class Reported extends Error {}
@@ -543,6 +548,16 @@ function compileExpanded(
     attempt(() => measures.push({ id, ast: parse(String(source), ["measures", id]) }));
   }
 
+  const checks: CompiledMeasure[] = [];
+  for (const [id, source] of Object.entries(doc.checks ?? {})) {
+    attempt(() => {
+      // A check and a measure are both used by name, so one name cannot be both.
+      if (doc.measures && id in doc.measures)
+        throw fail(`"${id}" is already the name of a measure`, ["checks", id]);
+      checks.push({ id, ast: parse(source, ["checks", id]) });
+    });
+  }
+
   const plots: CompiledPlot[] = [];
   for (const [id, entry] of Object.entries(doc.plots ?? {})) {
     const sources = typeof entry === "string" ? [entry] : entry;
@@ -581,6 +596,7 @@ function compileExpanded(
       traces,
       frames,
       measures,
+      checks,
       plots,
       fabrication,
     },

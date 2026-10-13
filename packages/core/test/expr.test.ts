@@ -162,3 +162,64 @@ describe("functions", () => {
     expect(() => run("atan2(1)")).toThrow("atan2() takes 2 arguments, got 1");
   });
 });
+
+describe("conditions", () => {
+  it("gives 1 where a comparison holds and 0 where it does not", () => {
+    expect(run("3 < 4")).toEqual({ value: 1, dim: NONE });
+    expect(run("3 > 4").value).toBe(0);
+    expect(run("4 <= 4").value).toBe(1);
+    expect(run("4 >= 4.5").value).toBe(0);
+  });
+
+  it("compares quantities in their units, a bare number in the document unit", () => {
+    expect(run("r < 5 cm", { r }).value).toBe(1);
+    expect(run("r > 41", { r }).value).toBe(0);
+    expect(() => run("r < 30 deg", { r })).toThrow("Cannot combine a length with an angle");
+  });
+
+  it("compares a signal sample by sample", () => {
+    const s: Quantity = { value: Float64Array.of(0.01, 0.03, -0.02), dim: LENGTH };
+    const above = run("s > 0", { s });
+    expect(above.dim).toEqual(NONE);
+    expect(Array.from(above.value as Float64Array)).toEqual([1, 1, 0]);
+    // The share of the cycle over which it holds.
+    expect(run("mean(s > 0)", { s }).value).toBeCloseTo(2 / 3, 12);
+    expect(Array.from(run("s > 0 and s < 2 cm", { s }).value as Float64Array)).toEqual([1, 0, 0]);
+  });
+
+  it("joins conditions with and, or and not", () => {
+    expect(run("1 < 2 and 2 < 3").value).toBe(1);
+    expect(run("1 < 2 and 3 < 2").value).toBe(0);
+    expect(run("1 > 2 or 2 < 3").value).toBe(1);
+    expect(run("not 1 < 2").value).toBe(0);
+    expect(run("not (1 > 2)").value).toBe(1);
+  });
+
+  it("binds arithmetic first, then comparisons, then not, and, or", () => {
+    expect(run("1 + 1 < 2 * 2").value).toBe(1);
+    // `and` before `or`: the first two are not both true, the third is.
+    expect(run("1 < 2 and 2 < 1 or 3 < 4").value).toBe(1);
+    expect(run("1 < 2 or 3 < 4 and 2 < 1").value).toBe(1);
+    expect(run("not 1 < 2 or 3 < 4").value).toBe(1);
+    expect(run("max(1 < 2, 0)").value).toBe(1);
+  });
+
+  it("says what is wrong with a condition", () => {
+    expect(() => parseExpr("1 < 2 < 3")).toThrow("Compare two values at a time");
+    expect(() => parseExpr("1 <")).toThrow("Unexpected end of expression");
+    expect(() => parseExpr("1 and")).toThrow("Unexpected end of expression");
+    expect(() => parseExpr("and + 1")).toThrow('Unexpected "a"');
+    expect(() => run("r and 1 < 2", { r })).toThrow(
+      '"and" joins conditions such as a < b, and this is a length',
+    );
+    expect(() => run("not r", { r })).toThrow('"not" joins conditions');
+  });
+
+  it("still reads a name that only starts like one of the words", () => {
+    const one: Quantity = { value: 1, dim: NONE };
+    expect(run("android + order + nothing", { android: one, order: one, nothing: one }).value).toBe(
+      3,
+    );
+    expect(run("40 mm < 5 cm and 1 < 2").value).toBe(1);
+  });
+});

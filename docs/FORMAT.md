@@ -47,6 +47,9 @@ frames:                     # other coordinates to measure in, optional
 measures:                   # what to compute
   stroke: range(x(rod.B))
 
+checks:                     # what the motion has to meet, optional
+  long_enough: stroke > 70 mm
+
 plots:                      # what to chart over the cycle
   ram: [x(rod.B), vx(rod.B)]
 
@@ -57,7 +60,7 @@ pose:                       # where bodies start
 In `meta`, `name` is the title the model goes by and `description` a note kept
 with it; `units` is explained below.
 
-Names of parameters, bodies, points, joints, drivers, frames and measures may contain
+Names of parameters, bodies, points, joints, drivers, frames, measures and checks may contain
 letters, digits and `_`, and must not start with a digit. Unknown keys are errors,
 so a typo is reported instead of ignored.
 
@@ -92,6 +95,13 @@ number next to a quantity takes that quantity's document unit, so `r + 10` adds
 **Functions:** `sin cos tan asin acos atan atan2 sqrt abs hypot min max`.
 `pi` and `g` (standard gravity, 9.80665 m/s²) are built in.
 
+**Conditions:** `a < b`, `a <= b`, `a > b` and `a >= b` give 1 where they hold and 0
+where they do not. Both sides must be the same kind of quantity; a bare number
+takes the unit of the other side, so `r > 30` asks for more than 30 mm. `and`, `or`
+and `not` join conditions: `r > 30 and r < 2 * base`. Arithmetic is worked out
+first, then the comparisons, then `not`, then `and`, then `or`; brackets change
+that. Compare two values at a time: `a < b and b < c`, not `a < b < c`.
+
 A parameter can be given bounds, the least and the most it may be:
 
 ```yaml
@@ -104,8 +114,8 @@ Either bound may be left out. A bound without a unit is read in the unit of the
 value. A value outside its bounds is an error. In the app the parameter's slider
 runs between its bounds, and comparing values starts with the whole allowed range.
 
-Parameters may refer to each other in any order. `pi`, `g` and `t` cannot be used
-as parameter names.
+Parameters may refer to each other in any order. `pi`, `g`, `t`, `and`, `or` and
+`not` cannot be used as parameter names.
 
 ## Bodies
 
@@ -378,6 +388,36 @@ value and writes the whole signal as a CSV column.
 
 Results are shown in document units: `mm`, `deg`, `mm/s`, `mm/s²`, `mm/s³`, `deg/s`.
 
+A condition in a measure is 1 or 0 at every sample, so its `mean` is the share of
+the cycle over which it holds: `mean(vx(ram.P) > 0)` is how much of a turn the ram
+spends going forward, `mean(y(foot.P) < 2 mm)` how much of it a foot is down.
+
+## Checks
+
+```yaml
+checks:
+  long_enough: stroke > 70 mm
+  gentle: max(a(deck.F)) < 3 * g
+  clears_frame: dist(rocker.B, ground.post) > 15 mm
+  slow_cut: mean(vx(ram.P) > 0) > 0.6
+```
+
+A check is a condition the motion has to meet, written as an expression like a
+measure, with the measures usable by name. The app shows each check as met or not
+met, and keeps doing so while a parameter is changed, so that it is seen at once
+when a change breaks what the mechanism is for.
+
+- A check that is one value for the whole cycle, such as `stroke > 70 mm`, is met
+  when it holds.
+- A check that varies over the cycle, such as `dist(rocker.B, ground.post) > 15 mm`,
+  has to hold at every step. Where it does not, the app says at how many steps and
+  shows the first of them.
+
+A check that is not met is a result, not an error: the model still runs. A check
+must be a condition; `stroke` on its own is reported, since a length is neither met
+nor not met. A check and a measure cannot have the same name. Later checks and
+plots can use a check by name, as 1 or 0.
+
 ## Frames
 
 ```yaml
@@ -431,7 +471,7 @@ plots:
 ```
 
 A plot is a chart over the cycle of one expression or a list of them. The
-expressions are the same as in measures, and may use measures by name.
+expressions are the same as in measures, and may use measures and checks by name.
 
 Charts are drawn against the angle of the first driver. A plot whose expressions
 have different units is drawn as one chart per unit, since values on two different

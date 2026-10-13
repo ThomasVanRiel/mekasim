@@ -60,6 +60,11 @@ measures:
   quickness: return_speed / cutting_speed
   link_speed: omega(slotted_link)
 
+checks:
+  # The ram moves forward, cutting, for well over half of each turn.
+  slow_cut: mean(vx(ram.P) > 0) > 0.6
+  quick_return: quickness > 2
+
 plots:
   ram: change(x(ram.P))
   ram_speed: vx(ram.P)

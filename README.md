@@ -103,7 +103,7 @@ packages/core/src
   expr/       expression parser, units and dimensions
   compile/    document -> solver model
   solver/     constraints, position/velocity/acceleration, degrees of freedom
-  analysis/   motion cycle, measures and plots, CSV, parameter sweeps
+  analysis/   motion cycle, measures, checks and plots, CSV, parameter sweeps
   fabricate/  parts as flat pieces, sheet layout, DXF
   geometry/   outlines of plates
   edit/       changes to model text in place, model operations
@@ -114,7 +114,7 @@ apps/web/src
   editor/     YAML source editor, renaming by editing
   viewport/   the drawing: scene description, three.js rendering, labels,
               hit-testing, drawing tools
-  panels/     header, inspector, parameters, measures, plots, messages, timeline
+  panels/     header, inspector, parameters, measures, checks, plots, messages, timeline
   plot/       chart geometry and drawing
   io/         share links, downloads, STL
 ```

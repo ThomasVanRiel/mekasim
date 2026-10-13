@@ -107,7 +107,8 @@ export function linkedAt(text: string, offset: number): LinkedName | undefined {
           if (section === "params") define("param", pair.key, "params");
           if (section === "bodies" || section === "components") define("body", pair.key, section);
           if (section === "joints") define("joint", pair.key, "joints");
-          if (section === "measures") define("measure", pair.key, "measures");
+          // A check is used by name as a measure is.
+          if (section === "measures" || section === "checks") define("measure", pair.key, section);
           if (section === "frames") define("frame", pair.key, "frames");
           if (section === "pose" && isScalar(pair.key)) {
             const from = contentStart(text, pair.key as Scalar);
@@ -153,8 +154,8 @@ export function linkedAt(text: string, offset: number): LinkedName | undefined {
       if (field === kind && value === name) add(at, name.length);
       continue;
     }
-    // In measures and plots a name can be a body or a point; elsewhere only a parameter.
-    const measuring = path[0] === "measures" || path[0] === "plots";
+    // In measures, checks and plots a name can be a body or a point; elsewhere only a parameter.
+    const measuring = path[0] === "measures" || path[0] === "checks" || path[0] === "plots";
     for (const match of value.matchAll(WORD)) {
       const word = match[0];
       const start = at + match.index;
@@ -271,10 +272,10 @@ export function entityAt(text: string, offset: number): Entity | undefined {
     }
   }
 
-  // In a trace, a measure or a plot, the name the place is on says what it is about.
+  // In a trace, a measure, a check or a plot, the name the place is on says what it is about.
   const start = scalar && contentStart(text, scalar);
   if (!scalar || start === undefined) return undefined;
-  if (section !== "traces" && section !== "measures" && section !== "plots") return undefined;
+  if (!["traces", "measures", "checks", "plots"].includes(String(section))) return undefined;
   const bodies = new Set<string>();
   for (const key of ["bodies", "components"]) {
     const map = doc.get(key, true);

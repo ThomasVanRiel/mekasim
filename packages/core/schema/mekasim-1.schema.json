@@ -849,6 +849,17 @@
         ]
       }
     },
+    "checks": {
+      "description": "Named conditions that the motion has to meet, such as a stroke above a length",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
     "plots": {
       "description": "Named charts; each is one expression or a list of them, drawn over the cycle",
       "type": "object",

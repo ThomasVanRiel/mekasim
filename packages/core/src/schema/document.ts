@@ -190,6 +190,10 @@ export const Document = z.strictObject({
     .record(Id, Expr)
     .optional()
     .describe("Named expressions evaluated over the motion cycle"),
+  checks: z
+    .record(Id, z.string())
+    .optional()
+    .describe("Named conditions that the motion has to meet, such as a stroke above a length"),
   plots: z
     .record(Id, z.union([z.string(), z.array(z.string()).min(1)]))
     .optional()

@@ -3,6 +3,7 @@ import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
 import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
+import { Checks } from "./panels/Checks.tsx";
 import { Build } from "./panels/Build.tsx";
 import { BESIDE_FOLD } from "./panels/Fold.tsx";
 import { Header } from "./panels/Header.tsx";
@@ -282,6 +283,7 @@ export function App() {
         <Inspector />
         <Parameters />
         <Measures />
+        <Checks />
         <Build />
       </div>
 

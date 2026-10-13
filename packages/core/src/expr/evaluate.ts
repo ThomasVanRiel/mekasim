@@ -95,6 +95,25 @@ const INVERSE_TRIG: Record<string, (x: number) => number> = {
   atan: Math.atan,
 };
 
+const COMPARE: Record<string, (a: number, b: number) => number> = {
+  "<": (a, b) => (a < b ? 1 : 0),
+  "<=": (a, b) => (a <= b ? 1 : 0),
+  ">": (a, b) => (a > b ? 1 : 0),
+  ">=": (a, b) => (a >= b ? 1 : 0),
+};
+
+/** A side of `and`, `or` or `not`: a yes or no, which is a plain number that is not 0. */
+function condition(node: Node, word: string, ctx: EvalContext): Value {
+  const { value, dim } = evaluate(node, ctx);
+  if (!isPure(dim)) {
+    throw new ExprError(
+      `"${word}" joins conditions such as a < b, and this is ${describeDim(dim)}`,
+      node.pos,
+    );
+  }
+  return value;
+}
+
 export const FUNCTION_NAMES = [
   ...Object.keys(TRIG),
   ...Object.keys(INVERSE_TRIG),
@@ -212,6 +231,23 @@ export function evaluate(node: Node, ctx: EvalContext): Quantity {
     }
     case "call":
       return call(node, ctx);
+    case "compare": {
+      const [a, b] = unify(evaluate(node.left, ctx), evaluate(node.right, ctx), ctx.units, node);
+      return { value: map2(a, b, COMPARE[node.op] as (a: number, b: number) => number), dim: NONE };
+    }
+    case "logic": {
+      const left = condition(node.left, node.op, ctx);
+      const right = condition(node.right, node.op, ctx);
+      const both = node.op === "and";
+      return {
+        value: map2(left, right, (x, y) =>
+          (both ? x !== 0 && y !== 0 : x !== 0 || y !== 0) ? 1 : 0,
+        ),
+        dim: NONE,
+      };
+    }
+    case "not":
+      return { value: map1(condition(node.arg, "not", ctx), (x) => (x === 0 ? 1 : 0)), dim: NONE };
     case "bin": {
       const left = evaluate(node.left, ctx);
       const right = evaluate(node.right, ctx);

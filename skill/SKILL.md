@@ -73,7 +73,9 @@ three or more pins that is not on a fixed pivot.
 
 **6. Add what shows the point.** Put the interesting points in `traces`, and write
 `measures` and `plots` for what the mechanism is for: a stroke with `range(...)`,
-a swing, a peak speed, the position over the cycle.
+a swing, a peak speed, the position over the cycle. Where the user gave a
+requirement, write it under `checks` as well, such as `long_enough: stroke > 70 mm`,
+so the app shows whether it is met.
 
 Where x and y on the sheet do not say it, add a frame under `frames` and name it
 after the point: `x(p, slope)` for the travel along a sloping slide, with
@@ -170,8 +172,11 @@ plots:
 - **Parts that let go.** Joints never open, so a ratchet, a Geneva wheel or
   anything else that works by touching and releasing cannot be modelled. Neither
   can anything that leaves the plane. Say so instead of approximating in silence.
-- **Conditions in measures.** There is no `if`. Use `min`, `max`, `abs`, `range`
-  and `mean`.
+- **Choosing between values.** There is no `if`. Use `min`, `max`, `abs`, `range`
+  and `mean`. A condition such as `x(rod.B) > 40 mm` is 1 or 0; `mean` of it is the
+  share of the cycle it holds for.
+- **A check that is not a condition.** Every entry under `checks` compares
+  something: `stroke > 70 mm`, not `stroke`.
 
 ## When the user reports a message
 

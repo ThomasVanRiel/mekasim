@@ -2,6 +2,7 @@ export { toCsv } from "./analysis/csv.ts";
 export { type Cycle, type CycleFailure, cycleJerk, solveCycle } from "./analysis/cycle.ts";
 export { assignLayers, hullDistance } from "./analysis/layers.ts";
 export {
+  type CheckResult,
   centreOf,
   cycleAxis,
   evaluateMeasures,

@@ -1,6 +1,11 @@
 import { type Cycle, solveCycle } from "./analysis/cycle.ts";
 import { assignLayers } from "./analysis/layers.ts";
-import { evaluateMeasures, type MeasureResult, type PlotResult } from "./analysis/measures.ts";
+import {
+  type CheckResult,
+  evaluateMeasures,
+  type MeasureResult,
+  type PlotResult,
+} from "./analysis/measures.ts";
 import { modelExtent, motionBounds, partSizes } from "./analysis/sizes.ts";
 import { type Compiled, compile } from "./compile/compile.ts";
 import { type Diagnostic, hasErrors } from "./diagnostics.ts";
@@ -16,6 +21,8 @@ export interface Simulation {
   /** Degrees of freedom at the starting position; absent when it cannot be assembled. */
   mobility?: Mobility;
   measures: MeasureResult[];
+  /** Whether each condition under `checks` is met. One that is not is a result, not a problem. */
+  checks: CheckResult[];
   plots: PlotResult[];
 }
 
@@ -62,7 +69,7 @@ function mobilityDiagnostics(mobility: Mobility, compiled: Compiled): Diagnostic
 export function simulate(text: string): Simulation {
   const loaded = load(text);
   const diagnostics = [...loaded.diagnostics];
-  const simulation: Simulation = { diagnostics, measures: [], plots: [] };
+  const simulation: Simulation = { diagnostics, measures: [], checks: [], plots: [] };
   if (!loaded.doc) return simulation;
   simulation.doc = loaded.doc;
 
@@ -81,6 +88,7 @@ export function simulate(text: string): Simulation {
       diagnostics.push(...mobilityDiagnostics(simulation.mobility, compiled));
       const results = evaluateMeasures(compiled, cycle);
       simulation.measures = results.measures;
+      simulation.checks = results.checks;
       simulation.plots = results.plots;
       for (const measure of simulation.measures) {
         if (measure.error)
@@ -88,6 +96,14 @@ export function simulate(text: string): Simulation {
             severity: "error",
             message: measure.error,
             path: ["measures", measure.id],
+          });
+      }
+      for (const check of simulation.checks) {
+        if (check.error)
+          diagnostics.push({
+            severity: "error",
+            message: check.error,
+            path: ["checks", check.id],
           });
       }
       for (const plot of simulation.plots) {

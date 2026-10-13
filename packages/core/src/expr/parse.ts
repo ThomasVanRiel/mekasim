@@ -6,7 +6,11 @@ export type Node =
   | { kind: "ref"; name: string; pos: number }
   | { kind: "call"; name: string; args: Node[]; pos: number }
   | { kind: "neg"; arg: Node; pos: number }
-  | { kind: "bin"; op: "+" | "-" | "*" | "/" | "^"; left: Node; right: Node; pos: number };
+  | { kind: "bin"; op: "+" | "-" | "*" | "/" | "^"; left: Node; right: Node; pos: number }
+  /** A comparison, which gives 1 where it holds and 0 where it does not. */
+  | { kind: "compare"; op: "<" | "<=" | ">" | ">="; left: Node; right: Node; pos: number }
+  | { kind: "logic"; op: "and" | "or"; left: Node; right: Node; pos: number }
+  | { kind: "not"; arg: Node; pos: number };
 
 export class ExprError extends Error {
   /** Offset into the expression text. */
@@ -24,6 +28,9 @@ const NAME = /[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/y;
 const WORD = /[A-Za-z_][A-Za-z0-9_/]*/y;
 const UNIT_NAMES = Object.keys(UNITS).sort((a, b) => b.length - a.length);
 
+/** Words that join conditions, and so cannot be names. */
+export const KEYWORDS = ["and", "or", "not"];
+
 function isNameChar(ch: string | undefined): boolean {
   return ch !== undefined && /[A-Za-z0-9_]/.test(ch);
 }
@@ -33,6 +40,9 @@ function isNameChar(ch: string | undefined): boolean {
  *
  * A unit may follow a number literal directly (`40 mm`, `300 rpm`). There is no
  * implicit multiplication, so a name after a number is always read as a unit.
+ *
+ * Comparisons bind more loosely than arithmetic, and `not`, `and` and `or` more
+ * loosely still, in that order: `not a < b + 1 and c` is `(not (a < (b + 1))) and c`.
  */
 export function parseExpr(src: string): Node {
   let i = 0;
@@ -52,6 +62,59 @@ export function parseExpr(src: string): Node {
       throw new ExprError(`Expected "${ch}"${i < src.length ? ` but found "${src[i]}"` : ""}`, i);
     }
     i++;
+  }
+
+  /** Whether a word that joins conditions comes next. */
+  function word(keyword: string): boolean {
+    skip();
+    return src.startsWith(keyword, i) && !isNameChar(src[i + keyword.length]);
+  }
+
+  function either(): Node {
+    let left = both();
+    while (word("or")) {
+      const pos = i;
+      i += 2;
+      left = { kind: "logic", op: "or", left, right: both(), pos };
+    }
+    return left;
+  }
+
+  function both(): Node {
+    let left = negation();
+    while (word("and")) {
+      const pos = i;
+      i += 3;
+      left = { kind: "logic", op: "and", left, right: negation(), pos };
+    }
+    return left;
+  }
+
+  function negation(): Node {
+    if (!word("not")) return comparison();
+    const pos = i;
+    i += 3;
+    return { kind: "not", arg: negation(), pos };
+  }
+
+  function comparing(): "<" | "<=" | ">" | ">=" | undefined {
+    skip();
+    const sign = src[i];
+    if (sign !== "<" && sign !== ">") return undefined;
+    return src[i + 1] === "=" ? `${sign}=` : sign;
+  }
+
+  function comparison(): Node {
+    const left = additive();
+    const op = comparing();
+    if (!op) return left;
+    const pos = i;
+    i += op.length;
+    const right = additive();
+    // `a < b < c` would compare the 1 or 0 of `a < b` with c, which nobody means.
+    if (comparing())
+      throw new ExprError('Compare two values at a time, and join with "and": a < b and b < c', i);
+    return { kind: "compare", op, left, right, pos };
   }
 
   function additive(): Node {
@@ -106,8 +169,8 @@ export function parseExpr(src: string): Node {
         return name;
       }
     }
-    const word = match(WORD);
-    if (word) throw new ExprError(`Unknown unit "${word}"`, i);
+    const found = match(WORD);
+    if (found && !KEYWORDS.includes(found)) throw new ExprError(`Unknown unit "${found}"`, i);
     i = start;
     return undefined;
   }
@@ -121,7 +184,7 @@ export function parseExpr(src: string): Node {
       return { kind: "num", value: Number(number), unit: unit(), pos };
     }
     const name = match(NAME);
-    if (name) {
+    if (name && !KEYWORDS.includes(name)) {
       i += name.length;
       skip();
       if (src[i] !== "(") return { kind: "ref", name, pos };
@@ -133,7 +196,7 @@ export function parseExpr(src: string): Node {
         return { kind: "call", name, args, pos };
       }
       for (;;) {
-        args.push(additive());
+        args.push(either());
         skip();
         if (src[i] === ",") {
           i++;
@@ -145,7 +208,7 @@ export function parseExpr(src: string): Node {
     }
     if (src[i] === "(") {
       i++;
-      const inner = additive();
+      const inner = either();
       expect(")");
       return inner;
     }
@@ -153,7 +216,7 @@ export function parseExpr(src: string): Node {
     throw new ExprError(`Unexpected "${src[i]}"`, i);
   }
 
-  const node = additive();
+  const node = either();
   skip();
   if (i < src.length) throw new ExprError(`Unexpected "${src[i]}"`, i);
   return node;

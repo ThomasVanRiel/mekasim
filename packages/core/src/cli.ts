@@ -59,6 +59,18 @@ function main(): number {
     }
   }
 
+  const checks = simulation.checks.filter((c) => c.holds !== undefined);
+  if (checks.length > 0) {
+    console.log("\nChecks");
+    const width = Math.max(...checks.map((c) => c.id.length));
+    for (const { id, holds, fails } of checks) {
+      const where = fails
+        ? ` at ${fails.count} of ${cycle?.count} steps, first at step ${fails.first}`
+        : "";
+      console.log(`  ${id.padEnd(width)}  ${holds ? "met" : `not met${where}`}`);
+    }
+  }
+
   if (simulation.diagnostics.length > 0) console.log("");
   for (const { severity, message, position } of simulation.diagnostics) {
     const where = position ? `${file}:${position.line}:${position.col}` : file;

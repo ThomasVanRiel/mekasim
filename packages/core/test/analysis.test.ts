@@ -218,3 +218,76 @@ describe("naming a measure", () => {
     expect(model).toContain("  deck_x_1: x(lower_deck)\n");
   });
 });
+
+describe("checks", () => {
+  const model = (checks: string): string =>
+    `${shaker.slice(0, shaker.indexOf("measures:"))}measures:
+  gap: dist(upper_deck.F, lower_deck.F)
+  stroke: range(x(upper_deck.F))
+checks:
+${checks}`;
+  const check = (simulation: ReturnType<typeof simulate>, id: string) =>
+    simulation.checks.find((c) => c.id === id);
+
+  it("says whether a condition on the whole cycle is met", () => {
+    const simulation = simulate(
+      model("  long_enough: stroke > 50 mm\n  too_long: stroke > 70 mm\n"),
+    );
+    expect(simulation.diagnostics).toEqual([]);
+    expect(check(simulation, "long_enough")).toMatchObject({ holds: true });
+    expect(check(simulation, "too_long")).toMatchObject({ holds: false });
+    expect(check(simulation, "too_long")?.fails).toBeUndefined();
+  });
+
+  it("wants a condition that varies to be met at every step, and says where it is not", () => {
+    const simulation = simulate(model("  apart: gap > 1 mm\n  rising: vx(upper_deck.F) > 0\n"));
+    expect(simulation.diagnostics).toEqual([]);
+    expect(check(simulation, "apart")).toMatchObject({ holds: true });
+    const rising = check(simulation, "rising");
+    expect(rising?.holds).toBe(false);
+    // The deck goes one way for about half the turn and comes back for the other half.
+    expect(rising?.fails?.count).toBeGreaterThan(150);
+    expect(rising?.fails?.count).toBeLessThan(210);
+    const signal = rising?.quantity?.value as Float64Array;
+    expect(signal[rising?.fails?.first as number]).toBe(0);
+    expect(Array.from(signal.subarray(0, rising?.fails?.first))).not.toContain(0);
+  });
+
+  it("lets later checks and plots use a check by name", () => {
+    const simulation = simulate(
+      model(
+        "  forward: vx(upper_deck.F) > 0\n  half: mean(forward) > 0.4\nplots:\n  forward: forward\n",
+      ),
+    );
+    expect(simulation.diagnostics).toEqual([]);
+    expect(check(simulation, "half")).toMatchObject({ holds: true });
+    expect(simulation.plots[0]?.series[0]?.quantity?.value).toHaveLength(360);
+  });
+
+  it("reports what is not a condition, and a name that a measure has", () => {
+    const length = simulate(model("  long: stroke\n"));
+    expect(length.diagnostics.map((d) => [d.message, d.path])).toEqual([
+      [
+        "A check is a condition, such as max(x(rod.B)) < 40 mm, and this is a length",
+        ["checks", "long"],
+      ],
+    ]);
+    expect(check(length, "long")?.holds).toBeUndefined();
+    const twice = simulate(model("  gap: gap > 1 mm\n"));
+    expect(twice.diagnostics.map((d) => d.message)).toEqual([
+      '"gap" is already the name of a measure',
+    ]);
+  });
+
+  it("keeps the words that join conditions from being parameters", () => {
+    const simulation = simulate(shaker.replace("params:\n", "params:\n  not: 3\n"));
+    expect(simulation.diagnostics.map((d) => d.message)).toEqual([
+      '"not" is a built-in name and cannot be a parameter',
+    ]);
+  });
+
+  it("is checked for each value of a parameter that is varied", () => {
+    const runs = sweep(model("  long_enough: stroke > 50 mm\n"), "ecc", [10, 40], "mm");
+    expect(runs.map((r) => r.simulation.checks[0]?.holds)).toEqual([false, true]);
+  });
+});

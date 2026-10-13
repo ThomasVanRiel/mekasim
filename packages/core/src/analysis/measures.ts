@@ -1,7 +1,7 @@
 import type { Compiled, CompiledBody, CompiledFrame } from "../compile/compile.ts";
 import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
-import { ANGLE, type Dim, LENGTH, TIME } from "../expr/units.ts";
+import { ANGLE, type Dim, describeDim, isPure, LENGTH, TIME } from "../expr/units.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
 import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
 
@@ -153,6 +153,33 @@ export interface MeasureResult {
   error?: string;
 }
 
+export interface CheckResult {
+  id: string;
+  /** Whether the condition is met: at every solved sample, when it varies over the cycle. */
+  holds?: boolean;
+  /** For a condition that varies and is not met throughout: at how many samples, and the first. */
+  fails?: { count: number; first: number };
+  /** The condition as evaluated: 0 where it is not met. */
+  quantity?: Quantity;
+  error?: string;
+}
+
+/** Whether a condition is met, and where it is not when it varies over the cycle. */
+function verdict(id: string, quantity: Quantity): CheckResult {
+  const { value } = quantity;
+  if (typeof value === "number") return { id, quantity, holds: value !== 0 };
+  let count = 0;
+  let first = -1;
+  value.forEach((sample, k) => {
+    if (sample !== 0) return;
+    if (count === 0) first = k;
+    count++;
+  });
+  return count === 0
+    ? { id, quantity, holds: true }
+    : { id, quantity, holds: false, fails: { count, first } };
+}
+
 /** Functions of one point. Each takes a frame to see the point from as a second argument. */
 const OF_POINT = new Set([
   "x",
@@ -180,13 +207,13 @@ const OF_POINT = new Set([
 /** Kinematic functions take bodies and points, not values, as arguments. */
 const KINEMATIC = new Set([...OF_POINT, "dist", "angle", "omega", "alpha"]);
 
-/** Evaluate the measures and plots of a model over a solved cycle. */
+/** Evaluate the measures, checks and plots of a model over a solved cycle. */
 export function evaluateMeasures(
   compiled: Compiled,
   cycle: Cycle,
-): { measures: MeasureResult[]; plots: PlotResult[] } {
+): { measures: MeasureResult[]; checks: CheckResult[]; plots: PlotResult[] } {
   const n = cycle.count;
-  /** Measures evaluated so far; later measures and plots can use them by name. */
+  /** Measures and checks evaluated so far; what comes after them can use them by name. */
   const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
   const jerks = new Map<string, PointJerk>();
@@ -486,13 +513,25 @@ export function evaluateMeasures(
     if (result.quantity) named.set(id, result.quantity);
     return { id, ...result };
   });
+  const checks = compiled.checks.map(({ id, ast }): CheckResult => {
+    const { quantity, error } = attempt(ast);
+    if (!quantity) return { id, error };
+    if (!isPure(quantity.dim)) {
+      return {
+        id,
+        error: `A check is a condition, such as max(x(rod.B)) < 40 mm, and this is ${describeDim(quantity.dim)}`,
+      };
+    }
+    named.set(id, quantity);
+    return verdict(id, quantity);
+  });
   const plots = compiled.plots.map(
     ({ id, series }): PlotResult => ({
       id,
       series: series.map(({ source, ast }) => ({ source, ...attempt(ast) })),
     }),
   );
-  return { measures, plots };
+  return { measures, checks, plots };
 }
 
 /**
