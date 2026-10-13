@@ -1,12 +1,14 @@
 import { create } from "zustand";
 
 const STORAGE_KEY = "mekafit.layout";
-const PANELS = ["source", "run", "messages"] as const;
+const PANELS = ["source", "side", "run", "messages"] as const;
 
 /** Sizes of the panels in pixels. A size left undefined follows its content or the default. */
 export interface Sizes {
   /** Width of the source column. */
   source?: number;
+  /** Width of the contacts and later controls beside the sheet. */
+  side?: number;
   /** Height of the run panel under the sheet. */
   run?: number;
   /** Height of the messages under the source. */
@@ -38,9 +40,9 @@ export const useLayout = create<LayoutState>((set, get) => ({
   ...stored(),
   resize(panel, size) {
     set({ [panel]: size });
-    const { source, run, messages } = get();
+    const { source, side, run, messages } = get();
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ source, run, messages }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ source, side, run, messages }));
     } catch {
       // Without storage the sizes last for this visit only.
     }

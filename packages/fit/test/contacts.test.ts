@@ -111,4 +111,14 @@ describe("checking contacts after a run", () => {
     ]);
     expect(messages.some(([, message]) => message?.includes("runs into"))).toBe(false);
   });
+
+  it("keeps the smallest gap, its step and its two places with the run", () => {
+    const [contact] = simulate(blocks).contacts;
+    expect(contact).toMatchObject({ id: "blocks", a: "ground", b: "block", step: 0 });
+    expect(contact?.smallest.distance).toBeCloseTo(-0.001, 12);
+    expect(contact?.smallest.a).toEqual([0.01, 0.002]);
+    expect(contact?.smallest.b[0]).toBeCloseTo(0.009, 12);
+    expect(contact?.smallest.b[1]).toBeCloseTo(0.002, 12);
+    expect(contact?.measured.gaps).toHaveLength(1);
+  });
 });

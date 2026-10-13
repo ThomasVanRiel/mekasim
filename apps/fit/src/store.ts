@@ -1,5 +1,5 @@
-import type { Files, Simulation } from "@mekasim/core";
-import { keepOutlines, simulate } from "@mekasim/fit";
+import type { Files } from "@mekasim/core";
+import { type ContactResult, type FitSimulation, keepOutlines, simulate } from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
@@ -31,18 +31,20 @@ function keptFiles(): Files {
 }
 
 interface Solved {
-  simulation: Simulation;
+  simulation: FitSimulation;
   /** The last version of the model that could be drawn, shown while the text has errors. */
-  shown?: Simulation;
+  shown?: FitSimulation;
   scene?: Scene;
+  /** The contact row under the pointer, whose closest place is drawn. */
+  contact?: ContactResult;
 }
 
 function solve(text: string, files: Files, before?: Solved): Solved {
   const simulation = simulate(text, files);
   const scene = buildScene(simulation);
   return scene
-    ? { simulation, shown: simulation, scene }
-    : { simulation, shown: before?.shown, scene: before?.scene };
+    ? { simulation, shown: simulation, scene, contact: undefined }
+    : { simulation, shown: before?.shown, scene: before?.scene, contact: undefined };
 }
 
 interface State extends Solved {
@@ -71,6 +73,8 @@ interface State extends Solved {
   setStep(step: number): void;
   setPlaying(playing: boolean): void;
   setRate(rate: number): void;
+  /** Show a contact at its closest step while its row is under the pointer or keyboard focus. */
+  showContact(contact?: ContactResult): void;
 }
 
 function keep(text: string, files: Files): void {
@@ -137,5 +141,8 @@ export const useStore = create<State>((set, get) => {
     setStep: (step) => set({ step }),
     setPlaying: (playing) => set({ playing }),
     setRate: (rate) => set({ rate }),
+    showContact(contact) {
+      set(contact ? { contact, step: contact.step, playing: false } : { contact: undefined });
+    },
   };
 });

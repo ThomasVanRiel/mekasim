@@ -3,12 +3,16 @@ import {
   keepOutlines as keepModelOutlines,
   load,
   type SimulateOptions,
-  type Simulation,
   type SweepRun,
   simulate as simulateModel,
   sweep as sweepModel,
 } from "@mekasim/core";
-import { compileContacts, contactDiagnostics } from "./contacts.ts";
+import {
+  compileContacts,
+  contactDiagnostics,
+  contactResults,
+  type FitSimulation,
+} from "./contacts.ts";
 import { FitDocument } from "./schema.ts";
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
@@ -21,18 +25,19 @@ function options(files?: Files): SimulateOptions {
  * model. A model with nothing mekafit adds goes down mekasim's own path and gives
  * mekasim's numbers.
  */
-export function simulate(text: string, files?: Files): Simulation {
+export function simulate(text: string, files?: Files): FitSimulation {
   return finish(text, simulateModel(text, options(files)));
 }
 
 /** Add mekafit's post-run messages, with their places in the source. */
-function finish(text: string, simulation: Simulation): Simulation {
+function finish(text: string, simulation: SweepRun["simulation"]): FitSimulation {
   const { locate } = load(text, FitDocument);
-  for (const diagnostic of contactDiagnostics(simulation)) {
+  const contacts = contactResults(simulation);
+  for (const diagnostic of contactDiagnostics(simulation, contacts)) {
     if (diagnostic.path) diagnostic.position = locate(diagnostic.path);
     simulation.diagnostics.push(diagnostic);
   }
-  return simulation;
+  return Object.assign(simulation, { contacts }) as FitSimulation;
 }
 
 /** Solve the model once for each value of a parameter, as mekasim's `sweep` does. */

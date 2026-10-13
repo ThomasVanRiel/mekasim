@@ -45,9 +45,10 @@ between its two nearest places; on mekafit's sheet in red where the parts are in
 each other. Two bodies joined by a pin are not counted as running into each other:
 their gap is 0 where they overlap, and the model warns about it. In mekafit,
 `contacts:` is read, checked and compiled to distinct pairs, and a run reports the
-first place a listed pair runs into each other by more than 0.001 mm. Still to do:
-the Contacts fold, the Contact tool and "Find contacts", and the
-`clearance-check` example.
+first place a listed pair runs into each other by more than 0.001 mm. Each pair's
+closest gap is kept with the run and shown in the Contacts fold; hovering it moves
+the run there and draws the gap. This fold is waiting for Thomas's browser check.
+Still to do: the Contact tool and "Find contacts", and the `clearance-check` example.
 
 **Not built yet in phase 1:**
 
@@ -67,6 +68,9 @@ warning about the pin, and that mekasim's `dist` dimensions look as before
 (`apps/sim/src/viewport/Dimensions.tsx` now draws both). Ask him for that report
 first if it is not in the conversation.
 
+The new Contacts fold also needs Thomas's browser check before its next numbered
+step is built: its rows, closest values, hover-to-step behavior and gap dimension.
+
 **Next, in this order** (the rest of phase 2, mekafit's alone, in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
 
@@ -81,10 +85,11 @@ first if it is not in the conversation.
    message "`knuckle` runs into `head` at step 41, 0.3 mm deep", at the contacts
    entry. A pinned pair that lies over each other gets the same warning `gap()`
    gives, not this message.
-3. **Next.** The result per pair (smallest gap, its step, its two places) kept beside the
-   simulation for the Contacts fold, then the fold itself in `apps/fit/src/panels`,
-   with hovering a row moving the run to that step. Thomas checks it in the browser.
-4. The Contact tool and "Find contacts" (§3 below, DESIGN.md §4).
+3. **Built; browser check waiting.** The result per pair (smallest gap, its step,
+   its two places) kept beside the simulation for the Contacts fold, then the fold
+   itself in `apps/fit/src/panels`, with hovering a row moving the run to that step.
+4. **After the browser check.** The Contact tool and "Find contacts" (§3 below,
+   DESIGN.md §4).
 5. `examples/fit/clearance-check.mekafit.yaml`, motor-driven, gaps only, solved by a
    test as DESIGN.md §8 says.
 

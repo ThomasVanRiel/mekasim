@@ -3,8 +3,10 @@ import {
   type Diagnostic,
   type Document,
   formatQuantity,
+  type Gap,
   gapsOf,
   LENGTH,
+  type MeasuredGap,
   type Simulation,
 } from "@mekasim/core";
 import type * as z from "zod";
@@ -26,6 +28,19 @@ export interface CompiledContact {
 /** The part of mekafit's compiled model added in core's `extend` hook. */
 export interface FitCompiled extends Compiled {
   contacts: CompiledContact[];
+}
+
+/** What a listed pair did over one run, including where it came closest. */
+export interface ContactResult extends CompiledContact {
+  measured: MeasuredGap;
+  smallest: Gap;
+  step: number;
+}
+
+/** A core simulation with mekafit's contact results beside it. */
+export interface FitSimulation extends Simulation {
+  compiled?: FitCompiled;
+  contacts: ContactResult[];
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */
@@ -70,16 +85,38 @@ export function compileContacts(compiled: Compiled, source: Document, report: Re
   (compiled as FitCompiled).contacts = contacts;
 }
 
-/** Messages found by checking every listed pair over a completed run. */
-export function contactDiagnostics(simulation: Simulation): Diagnostic[] {
+/** Measure every listed pair over a completed run and keep its closest step and places. */
+export function contactResults(simulation: Simulation): ContactResult[] {
   const { compiled, cycle } = simulation;
   if (!compiled || !cycle) return [];
   const contacts = (compiled as FitCompiled).contacts ?? [];
-  const diagnostics: Diagnostic[] = [];
+  const results: ContactResult[] = [];
 
   for (const contact of contacts) {
-    const found = gapsOf(compiled, cycle, contact.a, contact.b, contact.path);
-    if (!found) continue;
+    const measured = gapsOf(compiled, cycle, contact.a, contact.b, contact.path);
+    if (!measured || measured.gaps.length === 0) continue;
+    let step = 0;
+    for (let k = 1; k < measured.gaps.length; k++) {
+      if ((measured.gaps[k]?.distance as number) < (measured.gaps[step]?.distance as number)) {
+        step = k;
+      }
+    }
+    results.push({ ...contact, measured, smallest: measured.gaps[step] as Gap, step });
+  }
+  return results;
+}
+
+/** Messages found by checking the measured contact pairs. */
+export function contactDiagnostics(
+  simulation: Simulation,
+  results = contactResults(simulation),
+): Diagnostic[] {
+  const diagnostics: Diagnostic[] = [];
+  const { compiled } = simulation;
+  if (!compiled) return diagnostics;
+
+  for (const contact of results) {
+    const found = contact.measured;
     if (found.pinned && found.over > 0) {
       diagnostics.push({
         severity: "warning",

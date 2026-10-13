@@ -1,7 +1,9 @@
 import { docFactor, LENGTH } from "@mekasim/core";
 import { decodeModel, Sheet, Splitter } from "@mekasim/ui";
 import { type CSSProperties, useEffect } from "react";
+import { gapsWithContact } from "./contacts.ts";
 import { useLayout } from "./layout.ts";
+import { Contacts } from "./panels/Contacts.tsx";
 import { Header } from "./panels/Header.tsx";
 import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
@@ -85,9 +87,11 @@ export function App() {
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const step = useStore((s) => s.step);
   const gaps = useStore((s) => s.shown?.gaps);
+  const contact = useStore((s) => s.contact);
   const opened = useStore((s) => s.opened);
   const stale = useStore((s) => s.simulation !== s.shown);
   const source = useLayout((s) => s.source);
+  const side = useLayout((s) => s.side);
   const resize = useLayout((s) => s.resize);
   usePlayback();
   useKeys();
@@ -97,11 +101,14 @@ export function App() {
     <div
       // The source's width, as set by dragging the divider, or else the default.
       style={
-        { "--source": source === undefined ? "minmax(20rem, 28%)" : `${source}px` } as CSSProperties
+        {
+          "--source": source === undefined ? "minmax(20rem, 28%)" : `${source}px`,
+          "--side": side === undefined ? "19rem" : `${side}px`,
+        } as CSSProperties
       }
-      className="grid h-full grid-cols-[var(--source)_auto_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]"
+      className="grid h-full grid-cols-[var(--source)_auto_minmax(0,1fr)_auto_var(--side)] grid-rows-[auto_minmax(0,1fr)]"
     >
-      <div className="col-span-3">
+      <div className="col-span-5">
         <Header />
       </div>
       <Source />
@@ -122,7 +129,14 @@ export function App() {
               unit={docFactor(LENGTH, units)}
               fitKey={opened}
               label={`Drawing of ${name ?? "the model"}`}
-              overlay={<Names scene={scene} step={step} gaps={gaps ?? []} units={units} />}
+              overlay={
+                <Names
+                  scene={scene}
+                  step={step}
+                  gaps={gapsWithContact(gaps ?? [], contact)}
+                  units={units}
+                />
+              }
             >
               <Drawing scene={scene} step={step} />
             </Sheet>
@@ -140,6 +154,18 @@ export function App() {
         </div>
         <Run />
       </main>
+      <Splitter
+        size={side}
+        onResize={(size) => resize("side", size)}
+        axis="x"
+        target="next"
+        min={220}
+        max={(width) => width * 0.45}
+        label="Width of the side panel"
+      />
+      <aside className="min-h-0 overflow-y-auto bg-sheet">
+        <Contacts />
+      </aside>
     </div>
   );
 }

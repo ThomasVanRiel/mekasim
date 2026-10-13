@@ -22,7 +22,7 @@ from a drawing"), and so are `checks:` and conditions. The sections on shapes be
 are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
 (`fit` is mekasim's too by now, and so is `gap(a, b)`). The `contacts:` forms below
 are built and compile to checked, distinct pairs; a run reports the first overlap
-deeper than 0.001 mm. Their collected results and interface are still to come.
+deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 Everything after contacts is still to come.
 
 ## A whole example
@@ -204,7 +204,7 @@ is not copied is not copied.
 | `at` | Shift after turning, `[x, y]`; default `[0, 0]` |
 | `mirror` | `true` mirrors across the y axis before turning; default `false` |
 
-## Contacts (phase 2; format, pair compilation and run check built)
+## Contacts (phase 2; format, run check and Contacts fold built)
 
 ```yaml
 contacts:

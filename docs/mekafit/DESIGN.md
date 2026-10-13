@@ -37,7 +37,7 @@ packages/fit/src
   schema.ts       mekafit document: mekasim's schema with `mekafit: 1` and `contacts:`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
   simulate.ts     core's pipeline with mekafit's schema and extension hook
-  contacts.ts     checked, distinct pairs from `between` and `among`; post-run overlap messages
+  contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
@@ -71,8 +71,8 @@ apps/fit/src
   playback.ts     how the position in a run moves on
   App.tsx         layout (§7)
   sheet/Drawing.tsx   the mechanism on the sheet, shapes with true arcs
-  panels/         Header, Source (tabs Source and Geometry, messages), Run
-  (to come)       Inspector, Contacts, SpringsLocks, Studies, Parameters, StudyResults,
+  panels/         Header, Source (tabs Source and Geometry, messages), Run, Contacts
+  (to come)       Inspector, SpringsLocks, Studies, Parameters, StudyResults,
                   io/project.ts (folder or `.zip`), study/ (worker, runner, scatter)
 ```
 
