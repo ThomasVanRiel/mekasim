@@ -35,7 +35,7 @@ describe("contacts in a mekafit model", () => {
         ].join("\n"),
       ),
     );
-    expect(result.diagnostics).toEqual([]);
+    expect(result.diagnostics.filter(({ severity }) => severity === "error")).toEqual([]);
     expect((result.compiled as FitCompiled).contacts).toEqual([
       { id: "nearby", a: "crank", b: "coupler", path: ["contacts", "nearby"] },
       { id: "nearby", a: "crank", b: "rocker", path: ["contacts", "nearby"] },
@@ -56,5 +56,59 @@ describe("contacts in a mekafit model", () => {
       ['Unknown body "missing"', ["contacts", "bad", "among", 2], 16],
     ]);
     expect(result.cycle).toBeUndefined();
+  });
+});
+
+const blocks = `mekafit: 1
+meta:
+  units: { length: mm, angle: deg }
+bodies:
+  ground:
+    points: { O: [0, 0] }
+    shape: { path: "M 0 0 H 10 V 10 H 0 Z" }
+  block:
+    points: { O: [0, 0] }
+    shape: { path: "M 9 2 H 19 V 8 H 9 Z" }
+joints:
+  fixed: { type: weld, connect: [ground.O, block.O] }
+contacts:
+  blocks: { between: [ground, block] }
+`;
+
+describe("checking contacts after a run", () => {
+  it("reports the first meaningful overlap at the contact entry", () => {
+    // These axis-aligned rectangles overlap by exactly 1 mm, worked out from x = 9 to x = 10.
+    const result = simulate(blocks);
+    expect(
+      result.diagnostics
+        .filter(({ path }) => path?.[0] === "contacts")
+        .map(({ severity, message, path, position }) => [severity, message, path, position?.line]),
+    ).toEqual([
+      ["error", '"ground" runs into "block" at step 0, 1 mm deep', ["contacts", "blocks"], 14],
+    ]);
+  });
+
+  it("ignores an overlap no deeper than 0.001 mm", () => {
+    const hairline = blocks.replace(
+      'path: "M 9 2 H 19 V 8 H 9 Z"',
+      'path: "M 9.9995 2 H 19 V 8 H 9.9995 Z"',
+    );
+    expect(
+      simulate(hairline).diagnostics.some(({ message }) => message.includes("runs into")),
+    ).toBe(false);
+  });
+
+  it("uses the same warning as gap() for bodies joined by a pin", () => {
+    const pinned = blocks.replace("type: weld", "type: revolute");
+    const messages = simulate(pinned)
+      .diagnostics.filter(({ path }) => path?.[0] === "contacts")
+      .map(({ severity, message }) => [severity, message]);
+    expect(messages).toEqual([
+      [
+        "warning",
+        '"ground" and "block" are joined by a pin, so where they lie over each other is not counted, and gap() gives 0 there. To measure the gap between them, draw them clear of each other round the pin',
+      ],
+    ]);
+    expect(messages.some(([, message]) => message?.includes("runs into"))).toBe(false);
   });
 });

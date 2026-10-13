@@ -37,7 +37,7 @@ packages/fit/src
   schema.ts       mekafit document: mekasim's schema with `mekafit: 1` and `contacts:`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
   simulate.ts     core's pipeline with mekafit's schema and extension hook
-  contacts.ts     checked, distinct body pairs compiled from `between` and `among`
+  contacts.ts     checked, distinct pairs from `between` and `among`; post-run overlap messages
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook

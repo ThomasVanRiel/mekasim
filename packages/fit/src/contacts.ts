@@ -1,4 +1,12 @@
-import type { Compiled, Diagnostic, Document } from "@mekasim/core";
+import {
+  type Compiled,
+  type Diagnostic,
+  type Document,
+  formatQuantity,
+  gapsOf,
+  LENGTH,
+  type Simulation,
+} from "@mekasim/core";
 import type * as z from "zod";
 import type { Contact } from "./schema.ts";
 
@@ -19,6 +27,9 @@ export interface CompiledContact {
 export interface FitCompiled extends Compiled {
   contacts: CompiledContact[];
 }
+
+/** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */
+export const OVERLAP_TOLERANCE = 0.000001;
 
 /** Expand the named contact sets into distinct pairs and check that every body has a shape. */
 export function compileContacts(compiled: Compiled, source: Document, report: Report): void {
@@ -57,4 +68,39 @@ export function compileContacts(compiled: Compiled, source: Document, report: Re
   }
 
   (compiled as FitCompiled).contacts = contacts;
+}
+
+/** Messages found by checking every listed pair over a completed run. */
+export function contactDiagnostics(simulation: Simulation): Diagnostic[] {
+  const { compiled, cycle } = simulation;
+  if (!compiled || !cycle) return [];
+  const contacts = (compiled as FitCompiled).contacts ?? [];
+  const diagnostics: Diagnostic[] = [];
+
+  for (const contact of contacts) {
+    const found = gapsOf(compiled, cycle, contact.a, contact.b, contact.path);
+    if (!found) continue;
+    if (found.pinned && found.over > 0) {
+      diagnostics.push({
+        severity: "warning",
+        message: `"${found.a}" and "${found.b}" are joined by a pin, so where they lie over each other is not counted, and gap() gives 0 there. To measure the gap between them, draw them clear of each other round the pin`,
+        path: contact.path,
+      });
+      continue;
+    }
+    const step = found.gaps.findIndex((gap) => gap.distance < -OVERLAP_TOLERANCE);
+    if (step < 0) continue;
+    const depth = formatQuantity(
+      -(found.gaps[step]?.distance as number),
+      LENGTH,
+      compiled.units,
+      4,
+    );
+    diagnostics.push({
+      severity: "error",
+      message: `"${found.a}" runs into "${found.b}" at step ${step}, ${depth} deep`,
+      path: contact.path,
+    });
+  }
+  return diagnostics;
 }

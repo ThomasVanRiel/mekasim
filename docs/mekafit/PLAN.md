@@ -44,9 +44,10 @@ measures, checks and plots. Every gap a model asks about is drawn in both apps
 between its two nearest places; on mekafit's sheet in red where the parts are into
 each other. Two bodies joined by a pin are not counted as running into each other:
 their gap is 0 where they overlap, and the model warns about it. In mekafit,
-`contacts:` is read, checked and compiled to distinct pairs. Still to do: the
-message when parts run into each other, the Contacts fold, the Contact tool and
-"Find contacts", and the `clearance-check` example.
+`contacts:` is read, checked and compiled to distinct pairs, and a run reports the
+first place a listed pair runs into each other by more than 0.001 mm. Still to do:
+the Contacts fold, the Contact tool and "Find contacts", and the
+`clearance-check` example.
 
 **Not built yet in phase 1:**
 
@@ -74,13 +75,13 @@ first if it is not in the conversation.
    pairs of bodies in the `extend` hook of `simulate` (`packages/fit/src/simulate.ts`):
    `among` expanded, pairs given twice dropped, a name that is no body or has no
    `shape` reported as an error at its place.
-2. **Next.** After the run, each pair's gap over the motion with core's `gapsOf`
+2. **Built.** After the run, each pair's gap over the motion with core's `gapsOf`
    (`packages/core/src/analysis/gaps.ts`), which already leaves pinned pairs at 0.
    The first sample where a pair is more than 0.001 mm into each other gives the
    message "`knuckle` runs into `head` at step 41, 0.3 mm deep", at the contacts
    entry. A pinned pair that lies over each other gets the same warning `gap()`
    gives, not this message.
-3. The result per pair (smallest gap, its step, its two places) kept beside the
+3. **Next.** The result per pair (smallest gap, its step, its two places) kept beside the
    simulation for the Contacts fold, then the fold itself in `apps/fit/src/panels`,
    with hovering a row moving the run to that step. Thomas checks it in the browser.
 4. The Contact tool and "Find contacts" (§3 below, DESIGN.md §4).
