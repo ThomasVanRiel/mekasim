@@ -57,10 +57,57 @@ fold, the Contact tool and "Find contacts", and the `clearance-check` example.
   example drawing; "Make" still writes polygons).
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
-**Next:** the rest of phase 2, in the order above. Thomas's own coupler drawing
-(`ref/coupler.dxf`, kept out of the repository) comes in as it is: one outline with
-two holes on layer `VISIBLE`, once its unit is picked. Phase 2 is the first that is
-mekafit's alone from `contacts:` on.
+**Waiting for Thomas before more is built** (commit `a5debb5` changed
+`packages/core` and `apps/sim`): he checks in `pnpm dev` that a `gap(a, b)` measure
+is drawn with its value in mekasim's 3D view and on mekafit's sheet, that
+`gap(crank, coupler)` in `examples/shaped-four-bar.mekasim.yaml` stays at 0 with the
+warning about the pin, and that mekasim's `dist` dimensions look as before
+(`apps/sim/src/viewport/Dimensions.tsx` now draws both). Ask him for that report
+first if it is not in the conversation.
+
+**Next, in this order** (the rest of phase 2, mekafit's alone, in `packages/fit` and
+`apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
+
+1. `contacts:` in mekafit's schema (`between: [a, b]`, `among: [...]`), added through
+   `documentSchema`'s `sections` in `packages/fit/src/schema.ts`, and compiled to
+   pairs of bodies in the `extend` hook of `simulate` (`packages/fit/src/simulate.ts`):
+   `among` expanded, pairs given twice dropped, a name that is no body or has no
+   `shape` reported as an error at its place.
+2. After the run, each pair's gap over the motion with core's `gapsOf`
+   (`packages/core/src/analysis/gaps.ts`), which already leaves pinned pairs at 0.
+   The first sample where a pair is more than 0.001 mm into each other gives the
+   message "`knuckle` runs into `head` at step 41, 0.3 mm deep", at the contacts
+   entry. A pinned pair that lies over each other gets the same warning `gap()`
+   gives, not this message.
+3. The result per pair (smallest gap, its step, its two places) kept beside the
+   simulation for the Contacts fold, then the fold itself in `apps/fit/src/panels`,
+   with hovering a row moving the run to that step. Thomas checks it in the browser.
+4. The Contact tool and "Find contacts" (§3 below, DESIGN.md §4).
+5. `examples/fit/clearance-check.mekafit.yaml`, motor-driven, gaps only, solved by a
+   test as DESIGN.md §8 says.
+
+Then phase 3, the contact step (DESIGN.md §5), which starts with
+`contactPoints` (§3.3) on top of `geometry/distance.ts`.
+
+**Settled with Thomas on 2026-10-13**, beyond what the sections below say:
+
+- `gap()` and the distance code are mekasim's (`packages/core`), not mekafit's.
+- Two bodies joined by a revolute joint are never counted as overlapping. Their gap
+  is 0 where they lie over each other, with a warning; the design is drawn so that
+  such parts clear each other round the pin. No radius round the pin, no use of
+  `layer` for this.
+- A drawing whose file does not say its unit gets it picked in the Geometry tab,
+  which writes `unit:` under `geometry:`.
+- `fit` (how closely splines and ellipses are replaced by arcs) is mekasim's.
+- A push-to-open latch, a pin riding in a heart-shaped slot as in a drawer catch, is
+  wanted as a mekafit example once contact is solved (DESIGN.md §8).
+
+**Thomas's own coupler drawing** is `ref/coupler.dxf`. `ref/` is ignored by git, so
+it may not be there, and nothing of it is committed or used in tests. It reads as
+one outline with two holes on layer `VISIBLE`, in millimetres once that is picked,
+with no splines and nothing left out; a gap between two copies of it takes about
+20 µs, against a budget of 50 µs for 200-segment shapes that has not been measured
+yet.
 
 **Changed from the plan below:** the plan was written when mekasim was to stay
 untouched. Where it says that shapes, path text, geometry files or conditions are
