@@ -3,19 +3,21 @@ import {
   type Edit,
   EditError,
   editText,
+  type Files,
   load as readModel,
   type Simulation,
   type SweepRun,
   simulate,
   sweep as solveSweep,
 } from "@mekasim/core";
-import { buildScene, LIVE, type Scene } from "@mekasim/ui";
+import { buildScene, LIVE, type Scene, withDrawings } from "@mekasim/ui";
 import { create } from "zustand";
 import { type Coordinates, SHEET } from "./coordinates.ts";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
 import type { Hit } from "./viewport/pick.ts";
 
 const STORAGE_KEY = "mekasim.text";
+const FILES_KEY = "mekasim.files";
 
 /** Playback speeds relative to real time. */
 export const RATES = [1, 0.5, 0.25, 0.1, 0.05, 0.02, 0.01];
@@ -70,10 +72,10 @@ export function sweepValues({ from, to, count }: Sweep): number[] {
   );
 }
 
-function runSweep(text: string, sweep: Sweep | undefined): SweepRun[] | undefined {
+function runSweep(text: string, sweep: Sweep | undefined, files: Files): SweepRun[] | undefined {
   if (!sweep || readModel(text).doc?.params?.[sweep.param] === undefined) return undefined;
   try {
-    return solveSweep(text, sweep.param, sweepValues(sweep), sweep.unit);
+    return solveSweep(text, sweep.param, sweepValues(sweep), sweep.unit, { files });
   } catch (error) {
     if (error instanceof EditError) return undefined;
     throw error;
@@ -96,6 +98,21 @@ function stored(): string | null {
     return localStorage.getItem(STORAGE_KEY);
   } catch {
     return null;
+  }
+}
+
+/** The drawings kept with the model from the last visit. */
+function storedFiles(): Files {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(FILES_KEY) ?? "{}");
+    if (typeof parsed !== "object" || parsed === null) return new Map();
+    return new Map(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    return new Map();
   }
 }
 
@@ -150,8 +167,18 @@ interface State {
   /** A place in the text the editor should show. */
   reveal?: { line: number; col: number; request: number; focus: boolean };
 
-  /** Replace the model with new text, as when opening a file. */
-  load(text: string): void;
+  /** The drawings kept with the model, by the file name the model knows each under. */
+  files: Files;
+
+  /** Replace the model with new text, as when opening a file, with the drawings that go with it. */
+  load(text: string, files?: Files): void;
+  /**
+   * Add drawings to this model, or put newer ones in place of those it has. A drawing
+   * the model does not name yet is written into its `geometry:` section.
+   */
+  attach(picked: Files): void;
+  /** Put a newer file in place of a drawing, under the name the model knows it by. */
+  replace(file: string, text: string): void;
   /** Take new text for the same model. `event` says how the editor should record it. */
   edit(text: string, event?: string): void;
   /** Change the model from the drawing or a panel. Returns false when nothing could be done. */
@@ -176,11 +203,12 @@ interface State {
 
 type Solved = Pick<State, "text" | "simulation" | "shown" | "scene">;
 
-function solve(text: string, previous?: Pick<State, "shown" | "scene">): Solved {
-  const simulation = simulate(text);
+function solve(text: string, files: Files, previous?: Pick<State, "shown" | "scene">): Solved {
+  const simulation = simulate(text, { files });
   const scene = buildScene(simulation);
   try {
     localStorage.setItem(STORAGE_KEY, text);
+    localStorage.setItem(FILES_KEY, JSON.stringify(Object.fromEntries(files)));
   } catch {
     // Storage can be unavailable or full; the model still works for this session.
   }
@@ -189,9 +217,13 @@ function solve(text: string, previous?: Pick<State, "shown" | "scene">): Solved 
 }
 
 export const useStore = create<State>((set, get) => {
-  const initial = solve(stored() ?? DEFAULT_EXAMPLE.text);
+  const kept = stored();
+  // The model of the last visit comes back with its drawings; a first visit starts on the example.
+  const files = kept === null ? DEFAULT_EXAMPLE.files : storedFiles();
+  const initial = solve(kept ?? DEFAULT_EXAMPLE.text, files);
   return {
     ...initial,
+    files,
     syncEvent: "input.canvas",
     step: 0,
     playing: true,
@@ -203,10 +235,11 @@ export const useStore = create<State>((set, get) => {
     coordinates: SHEET,
     fitRequest: 0,
 
-    load(text) {
-      const next = solve(text);
+    load(text, files = new Map()) {
+      const next = solve(text, files);
       set({
         ...next,
+        files,
         syncEvent: "input.canvas",
         step: 0,
         playing: true,
@@ -221,10 +254,20 @@ export const useStore = create<State>((set, get) => {
         fitRequest: get().fitRequest + 1,
       });
     },
+    attach(picked) {
+      const { simulation } = get();
+      const added = withDrawings(get().text, simulation.sources, simulation.missing, picked);
+      set({ files: new Map([...get().files, ...added.files]) });
+      get().edit(added.text);
+    },
+    replace(file, text) {
+      set({ files: new Map([...get().files, [file, text]]) });
+      get().edit(get().text);
+    },
     edit(text, event = "input.canvas") {
-      const next = solve(text, get());
+      const next = solve(text, get().files, get());
       const count = next.shown?.cycle?.count ?? 1;
-      const runs = runSweep(text, get().sweep);
+      const runs = runSweep(text, get().sweep, get().files);
       set({
         ...next,
         syncEvent: event,
@@ -301,7 +344,7 @@ export const useStore = create<State>((set, get) => {
     setNotice: (notice) => set({ notice }),
     setCoordinates: (coordinates) => set({ coordinates }),
     setSweep(sweep) {
-      const runs = runSweep(get().text, sweep);
+      const runs = runSweep(get().text, sweep, get().files);
       set({ sweep: runs ? sweep : undefined, runs });
     },
     setUnderlay(underlay) {

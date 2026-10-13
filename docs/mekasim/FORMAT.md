@@ -179,6 +179,56 @@ Every outline must be closed, and outlines must not cross themselves or each oth
 a hole must lie inside the outside. A problem is reported with the place on the
 outline where it is.
 
+### Shapes from a drawing
+
+```yaml
+geometry:
+  links: { file: four-bar-links.dxf }
+  pawl: { file: pawl.dxf, unit: mm }
+
+bodies:
+  crank:
+    points: { O: [0, 0], A: [40, 0] }
+    shape: { from: links, layer: CRANK, place: [20, 20, 0] }
+  rocker:
+    points: { B: [0, 0], O: [110, 0] }
+    shape: { from: links, at: [80, 150], place: [30, 150, 15 deg] }
+```
+
+An outline can be taken from a DXF drawing in place of being written out.
+`geometry` names the drawings the model uses. They are files kept beside the model,
+not copied into it, so that a drawing exported again from CAD takes the place of the
+old one and the model follows.
+
+| Field | Meaning |
+|---|---|
+| `file` | The name of a DXF file. In the app it is attached to the model; on the command line it is looked for in the model's folder |
+| `unit` | Length unit of the drawing, when the file does not say: `mm cm m in` |
+
+A body's `shape` then says which outline it is:
+
+| Field | Meaning |
+|---|---|
+| `from` | A name from `geometry` |
+| `layer` | The layer of the drawing the outline is on. With one closed outline on the layer, that is the shape, with the outlines inside it cut out |
+| `at` | `[x, y]`, a point inside the wanted outline, in the drawing's coordinates. Needed when the layer has more than one outline, or when no layer is given |
+| `place` | `[x, y, angle]`: where the body's own frame sits in the drawing. Default `[0, 0, 0]`, which is right for a part drawn round its own origin |
+| `holes` | Round holes added at named points, as for a shape written out |
+
+`at` and the place of `place` are plain numbers in the drawing's own coordinates,
+not expressions over parameters.
+
+Of a drawing, lines, arcs, circles and polylines are read, and blocks are put in
+where they are inserted. Text, dimensions and hatches are left out, and so, for
+now, are splines and ellipses. Lines that meet end to end within a hair's breadth
+are joined into outlines; an outline that does not close cannot be a shape, and is
+reported with the two ends it is open between. The app shows what each drawing
+holds, layer by layer, under "Drawings".
+
+A drawing that is not attached is not an error: the model runs, and the bodies that
+take their shape from it are drawn as plates until it is. A link to a model carries
+no files, so the shapes are written out into it as `path`.
+
 ### Two ways to describe a mechanism
 
 **By dimensions.** Give each body in a convenient frame of its own, typically with
@@ -541,7 +591,7 @@ with a hole at every pinned point; a slider or pin-slot gives a slot as long as 
 pin travels; a cam becomes a plate of its own; the ground becomes a base plate
 carrying the fixed pivots.
 
-A body with a `shape` is exported as drawn: its outline with the holes it gives,
+A body with a `shape`, written out or from a drawing, is exported as drawn: its outline with the holes it gives,
 and nothing added. Give it its own holes for the pins. In the DXF its arcs are
 polygons with many sides, as the rounded plates are.
 

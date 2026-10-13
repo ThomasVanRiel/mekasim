@@ -49,7 +49,7 @@ describe("drawings attached to a model", () => {
 });
 
 describe("drawings added to a model", () => {
-  const model = "mekafit: 1\nbodies: {}\n";
+  const model = "mekasim: 1\nbodies: {}\n";
 
   it("are written into geometry under a name from the file", () => {
     const { text, files } = withDrawings(model, {}, [], new Map([["Coupler head.dxf", "A"]]));

@@ -1,4 +1,4 @@
-import { endOf, type Loop, type Shape, startOf } from "@mekasim/core";
+import { endOf, type Loop, type Shape, startOf } from "../geometry/shape.ts";
 
 /** DXF codes for the unit of a drawing. */
 const INSUNITS: Record<string, number> = { in: 1, mm: 4, cm: 5, m: 6 };

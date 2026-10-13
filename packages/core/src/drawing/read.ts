@@ -1,11 +1,11 @@
+import { arcBetween } from "../geometry/path.ts";
 import {
-  arcBetween,
   type Loop,
   type Placement,
   type Point,
   placeLoop,
   type Segment,
-} from "@mekasim/core";
+} from "../geometry/shape.ts";
 
 /** Metres to one drawing unit, by the code a DXF file gives for its unit. */
 const INSUNITS: Record<number, number> = {

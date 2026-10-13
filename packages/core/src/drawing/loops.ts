@@ -8,7 +8,7 @@ import {
   reverseLoop,
   type Segment,
   startOf,
-} from "@mekasim/core";
+} from "../geometry/shape.ts";
 
 const TURN = 2 * Math.PI;
 

@@ -292,7 +292,8 @@ function compileExpanded(
     });
   }
 
-  type BodyShape = NonNullable<Document["bodies"][string]["shape"]>;
+  /** A shape as it is once those from drawings are written out, which `simulate` sees to. */
+  type BodyShape = Extract<NonNullable<Document["bodies"][string]["shape"]>, { path: string }>;
 
   /**
    * The outline of a body. It is read and checked in the document's unit, so that a
@@ -333,7 +334,9 @@ function compileExpanded(
       if (u !== undefined && v !== undefined) points.set(name, { u, v });
     }
     const index = id === GROUND ? GROUND_INDEX : moving.push(id) - 1;
-    const shape = body.shape && attempt(() => shapeFrom(body.shape as BodyShape, id, points));
+    // A shape still waiting for its drawing is left out, as when the drawing is not attached.
+    const written = body.shape && "path" in body.shape ? body.shape : undefined;
+    const shape = written && attempt(() => shapeFrom(written, id, points));
     bodies.set(id, {
       id,
       index,

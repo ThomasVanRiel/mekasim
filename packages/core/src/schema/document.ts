@@ -31,19 +31,52 @@ const PointRef = z
   .regex(POINT_REF, "Expected a point written as body.point")
   .describe("A point on a body, written as body.point");
 
+const Holes = z
+  .record(Id, Expr)
+  .optional()
+  .describe("Round holes, each at a named point of the body, with its diameter");
+
+const WrittenShape = z.strictObject({
+  path: z
+    .string()
+    .describe(
+      "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit",
+    ),
+  holes: Holes,
+});
+
+const DrawnShape = z.strictObject({
+  from: Id.describe("A drawing named under geometry"),
+  layer: z
+    .string()
+    .optional()
+    .describe("The layer of the drawing the outline is on, with the outlines inside it cut out"),
+  at: z
+    .tuple([Expr, Expr])
+    .optional()
+    .describe("A point inside the wanted outline, in the drawing's coordinates"),
+  place: z
+    .tuple([Expr, Expr, Expr])
+    .optional()
+    .describe(
+      "Where the body's own frame sits in the drawing, as [x, y, angle]; default [0, 0, 0]",
+    ),
+  holes: Holes,
+});
+
 const Shape = z
-  .strictObject({
-    path: z
-      .string()
-      .describe(
-        "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit",
-      ),
-    holes: z
-      .record(Id, Expr)
-      .optional()
-      .describe("Round holes, each at a named point of the body, with its diameter"),
+  .union([WrittenShape, DrawnShape], {
+    error: "A shape is written out with path, or taken from a drawing with from",
   })
   .describe("The real outline of the body: one outline, with the outlines inside it cut out");
+
+const Geometry = z.strictObject({
+  file: z.string().describe("A DXF file, kept beside the model"),
+  unit: z
+    .enum(LENGTH_UNITS)
+    .optional()
+    .describe("Length unit of the drawing, when the file does not say"),
+});
 
 const Body = z.strictObject({
   points: z
@@ -199,6 +232,10 @@ export const Document = z.strictObject({
     .record(Id, Param)
     .optional()
     .describe("Named values usable in any expression, each optionally with bounds"),
+  geometry: z
+    .record(Id, Geometry)
+    .optional()
+    .describe("The drawings the model takes outlines from, kept as files beside it"),
   bodies: bodiesOf(Body),
   components: z
     .record(Id, Component)

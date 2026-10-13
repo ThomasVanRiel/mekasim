@@ -9,13 +9,15 @@ import {
 import { modelExtent, motionBounds, partSizes } from "./analysis/sizes.ts";
 import { type Compiled, compile } from "./compile/compile.ts";
 import { type Diagnostic, hasErrors } from "./diagnostics.ts";
+import { type Files, type Resolved, resolveShapes } from "./drawing/resolve.ts";
 import type { Registry } from "./registry.ts";
 import type { Document } from "./schema/document.ts";
 import { load } from "./schema/load.ts";
 import { analyzeMobility, type Mobility } from "./solver/mobility.ts";
 
-export interface Simulation {
+export interface Simulation extends Omit<Resolved, "doc"> {
   diagnostics: Diagnostic[];
+  /** The document as it is compiled: with every shape from a drawing written out. */
   doc?: Document;
   compiled?: Compiled;
   cycle?: Cycle;
@@ -73,6 +75,8 @@ function mobilityDiagnostics(mobility: Mobility, compiled: Compiled): Diagnostic
 export interface SimulateOptions {
   /** The schema to read the text with, from `documentSchema`. */
   schema?: Parameters<typeof load>[1];
+  /** The drawings kept beside the model, by the file names the model gives them. */
+  files?: Files;
   /** Units and functions added to the expressions. */
   registry?: Registry;
   /**
@@ -90,14 +94,30 @@ export interface SimulateOptions {
   solve?(compiled: Compiled): Cycle;
 }
 
+const NO_FILES: Files = new Map();
+
 /** Everything from model text to results: load, compile, solve a cycle, evaluate measures. */
 export function simulate(text: string, options: SimulateOptions = {}): Simulation {
   const loaded = load(text, options.schema);
   const diagnostics = [...loaded.diagnostics];
-  const simulation: Simulation = { diagnostics, measures: [], checks: [], plots: [] };
+  const simulation: Simulation = {
+    diagnostics,
+    measures: [],
+    checks: [],
+    plots: [],
+    drawings: new Map(),
+    missing: [],
+    sources: {},
+    uses: [],
+  };
   if (!loaded.doc) return simulation;
-  const doc =
-    options.prepare?.(loaded.doc, (diagnostic) => diagnostics.push(diagnostic)) ?? loaded.doc;
+  const report = (diagnostic: Diagnostic): void => {
+    diagnostics.push(diagnostic);
+  };
+  // Shapes that come from drawings are written into the document first, as path text.
+  const { doc: resolved, ...drawn } = resolveShapes(loaded.doc, options.files ?? NO_FILES, report);
+  Object.assign(simulation, drawn);
+  const doc = options.prepare?.(resolved, report) ?? resolved;
   simulation.doc = doc;
 
   const { compiled, diagnostics: compileDiagnostics } = hasErrors(diagnostics)

@@ -1,12 +1,14 @@
-# The crank-rocker four-bar, with the outlines of its links taken from a drawing.
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# The four-bar with shaped links again, with the outlines taken from a drawing in
+# place of being written out. The motion and the shapes are the same.
 # `four-bar-links.dxf` has the three links laid out side by side, as on a sheet to
 # cut, each on a layer of its own. `place` says where a link's own frame sits in the
 # drawing: where its first point is, and how far the link is turned there.
 #
 # Export the drawing again from CAD with a link changed, and this model follows.
-mekafit: 1
+mekasim: 1
 meta:
-  name: Four-bar from a drawing
+  name: Four-bar with shapes from a drawing
 
 params:
   r: 40 mm          # crank radius

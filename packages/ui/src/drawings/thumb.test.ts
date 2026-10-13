@@ -1,5 +1,4 @@
-import { circleLoop, parsePath } from "@mekasim/core";
-import { nest } from "@mekasim/fit";
+import { circleLoop, nest, parsePath } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import { thumbOf } from "./thumb.ts";
 

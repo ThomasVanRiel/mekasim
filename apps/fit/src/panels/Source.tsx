@@ -1,9 +1,8 @@
 import type { Severity } from "@mekasim/core";
-import { SourceEditor, Splitter } from "@mekasim/ui";
+import { Geometry, SourceEditor, Splitter } from "@mekasim/ui";
 import { useState } from "react";
 import { useLayout } from "../layout.ts";
 import { useStore } from "../store.ts";
-import { Geometry } from "./Geometry.tsx";
 
 const KIND: Record<Severity, string> = { error: "Error", warning: "Warning", info: "Note" };
 
@@ -29,6 +28,10 @@ export function Source() {
   const height = useLayout((s) => s.messages);
   const resize = useLayout((s) => s.resize);
   const missing = useStore((s) => s.simulation.missing.length);
+  const sources = useStore((s) => s.simulation.sources);
+  const drawings = useStore((s) => s.simulation.drawings);
+  const uses = useStore((s) => s.simulation.uses);
+  const files = useStore((s) => s.files);
   const [tab, setTab] = useState<(typeof TABS)[number][0]>("source");
 
   return (
@@ -61,7 +64,16 @@ export function Source() {
           <SourceEditor text={text} diagnostics={diagnostics} onEdit={setText} />
         </div>
       </div>
-      {tab === "geometry" && <Geometry />}
+      {tab === "geometry" && (
+        <Geometry
+          sources={sources}
+          drawings={drawings}
+          uses={uses}
+          files={files}
+          onAdd={(picked) => useStore.getState().attach(picked)}
+          onReplace={(file, text) => useStore.getState().replace(file, text)}
+        />
+      )}
       <Splitter
         size={height}
         onResize={(size) => resize("messages", size)}

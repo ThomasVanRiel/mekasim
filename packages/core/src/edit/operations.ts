@@ -6,6 +6,7 @@ export const SECTION_ORDER = [
   "mekasim",
   "meta",
   "params",
+  "geometry",
   "bodies",
   "components",
   "joints",

@@ -39,6 +39,23 @@ export {
   compile,
 } from "./compile/compile.ts";
 export { type Diagnostic, hasErrors, type Position, type Severity } from "./diagnostics.ts";
+export { type Chained, chain, type Nested, nest, type OpenChain } from "./drawing/loops.ts";
+export { type RawDrawing, readDxf } from "./drawing/read.ts";
+export {
+  type Drawing,
+  drawingFiles,
+  drawingName,
+  type Files,
+  flatten,
+  type GeometrySource,
+  outlineBounds,
+  type Resolved,
+  readDrawing,
+  resolveShapes,
+  type ShapeFromDrawing,
+  type ShapeUse,
+} from "./drawing/resolve.ts";
+export { type Drawn, shapesToDxf } from "./drawing/write.ts";
 export {
   type Entity,
   entityAt,

@@ -4,11 +4,12 @@ import {
   endOf,
   flattenLoop,
   loopBounds,
+  type Nested,
+  type OpenChain,
   type Segment,
   segmentBounds,
   writePath,
 } from "@mekasim/core";
-import type { Nested, OpenChain } from "@mekasim/fit";
 
 /** A small picture of what is on one layer of a drawing, as SVG path data in the drawing's own coordinates. */
 export interface Thumb {

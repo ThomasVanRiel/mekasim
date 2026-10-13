@@ -1,25 +1,24 @@
-import {
-  ANGLE,
-  type Diagnostic,
-  type Document,
-  docFactor,
-  ExprError,
-  evaluate,
-  insideLoop,
-  LENGTH,
-  type Loop,
-  loopBounds,
-  parseExpr,
-  placeLoop,
-  startOf,
-  toSI,
-  UNITS,
-  type Units,
-  writePath,
-} from "@mekasim/core";
-import { readDxf } from "./import/dxf.ts";
-import { chain, type Nested, nest, type OpenChain } from "./import/loops.ts";
-import type { GeometrySource, ShapeFromDrawing } from "./schema.ts";
+import type { Diagnostic } from "../diagnostics.ts";
+import { editText } from "../edit/operations.ts";
+import type { Edit } from "../edit/patch.ts";
+import { evaluate, toSI } from "../expr/evaluate.ts";
+import { ExprError, parseExpr } from "../expr/parse.ts";
+import { ANGLE, DEFAULT_UNITS, docFactor, LENGTH, UNITS, type Units } from "../expr/units.ts";
+import { writePath } from "../geometry/path.ts";
+import { insideLoop, type Loop, loopBounds, placeLoop, startOf } from "../geometry/shape.ts";
+import type { Document } from "../schema/document.ts";
+import { load } from "../schema/load.ts";
+import { chain, type Nested, nest, type OpenChain } from "./loops.ts";
+import { readDxf } from "./read.ts";
+
+/** What a model says of one drawing under `geometry`. */
+export type GeometrySource = NonNullable<Document["geometry"]>[string];
+
+/** A shape that is taken from a drawing, as a body writes it. */
+export type ShapeFromDrawing = Extract<
+  NonNullable<Document["bodies"][string]["shape"]>,
+  { from: string }
+>;
 
 /** The drawings kept beside a model: each file's name, as the model writes it, and its text. */
 export type Files = ReadonlyMap<string, string>;
@@ -110,8 +109,8 @@ class Reported extends Error {}
  * seen while a drawing is being attached or put right.
  */
 export function resolveShapes(doc: Document, files: Files, report: Report): Resolved {
-  const sources = (doc as { geometry?: Record<string, GeometrySource> }).geometry ?? {};
-  const units: Units = { length: "mm", angle: "deg", ...doc.meta?.units };
+  const sources = doc.geometry ?? {};
+  const units: Units = { ...DEFAULT_UNITS, ...doc.meta?.units };
   const unit = docFactor(LENGTH, units);
   const drawings = new Map<string, Drawing>();
   /** The files the model names that are not at hand. */
@@ -184,7 +183,7 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
   const uses: ShapeUse[] = [];
   const bodies: Record<string, unknown> = {};
   for (const [id, body] of Object.entries(doc.bodies)) {
-    const shape = body.shape as ShapeFromDrawing | { path: string } | undefined;
+    const { shape } = body;
     if (!shape || !("from" in shape)) {
       bodies[id] = body;
       continue;
@@ -299,7 +298,7 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
     }
   }
 
-  const { geometry: __, ...withoutGeometry } = doc as Document & { geometry?: unknown };
+  const { geometry: __, ...withoutGeometry } = doc;
   return { doc: { ...withoutGeometry, bodies } as Document, drawings, missing, sources, uses };
 }
 
@@ -322,4 +321,37 @@ export function drawingName(file: string, taken: Iterable<string>): string {
 /** The box round an outline of a drawing, in the drawing's unit, for showing it on its own. */
 export function outlineBounds(outline: Nested): ReturnType<typeof loopBounds> {
   return loopBounds(outline.outer);
+}
+
+/** The files a model names under `geometry`, for whoever has to fetch them. Empty when the text does not read. */
+export function drawingFiles(text: string, schema?: Parameters<typeof load>[1]): string[] {
+  const sources = load(text, schema).doc?.geometry ?? {};
+  return [...new Set(Object.values(sources).map((source) => source.file))];
+}
+
+/**
+ * The model's text with every shape that comes from a drawing written out as path
+ * text, and `geometry` gone: complete without its files, for a link. The rest of the
+ * text is left as written. Undefined when the text does not read.
+ */
+export function flatten(
+  text: string,
+  files: Files = new Map(),
+  schema?: Parameters<typeof load>[1],
+): string | undefined {
+  const before = load(text, schema).doc;
+  if (!before) return undefined;
+  const { doc } = resolveShapes(before, files, () => {});
+  const edits: Edit[] = [];
+  for (const [id, body] of Object.entries(before.bodies)) {
+    if (!body.shape || !("from" in body.shape)) continue;
+    const written = doc.bodies[id]?.shape;
+    edits.push(
+      written
+        ? { op: "set", path: ["bodies", id, "shape"], value: written as never }
+        : { op: "delete", path: ["bodies", id, "shape"] },
+    );
+  }
+  if (before.geometry !== undefined) edits.push({ op: "delete", path: ["geometry"] });
+  return edits.length === 0 ? text : editText(text, edits);
 }

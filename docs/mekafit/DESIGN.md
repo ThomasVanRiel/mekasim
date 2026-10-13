@@ -14,8 +14,10 @@ Playwright.
 packages/core/src            mekasim's core; only the extension points of §2.3 are added
 packages/fit/src
   schema.ts       mekafit document: mekasim's schema extended (§2.3)
-                  (path.ts, shape.ts and the checks on outlines live in
-                  packages/core/src/geometry: `shape` as path text is mekasim's too)
+                  (shapes are mekasim's too, so their code is in packages/core:
+                  src/geometry for outlines and path text, src/drawing for reading
+                  DXF, joining outlines and resolving `geometry:`; the Geometry tab
+                  is in packages/ui/src/drawings)
   load.ts         reads `mekafit: 1` and `mekasim: 1` files, with the geometry files they name
   files.ts        resolves `geometry:` and `shape.from` into outlines; flattens them for share links
   copy.ts         the `copy` component, expanded on the document before compile

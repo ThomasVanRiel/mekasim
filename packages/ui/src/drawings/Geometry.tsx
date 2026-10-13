@@ -1,8 +1,7 @@
-import type { Drawing, ShapeUse } from "@mekasim/fit";
-import { label } from "@mekasim/ui";
+import type { Drawing, Files, GeometrySource, ShapeUse } from "@mekasim/core";
 import { useMemo, useRef } from "react";
-import { useStore } from "../store.ts";
-import { thumbOf } from "../thumb.ts";
+import { label } from "../names.ts";
+import { thumbOf } from "./thumb.ts";
 
 const small =
   "shrink-0 rounded-sm border border-rule bg-sheet px-1.5 py-0.5 text-[12px] hover:border-ink-soft active:bg-paper";
@@ -173,11 +172,27 @@ function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
  * The drawings of the model: which are attached, what each holds, and which body
  * takes its outline from where. Drawings are added and exchanged for newer ones here.
  */
-export function Geometry() {
-  const sources = useStore((s) => s.simulation.sources);
-  const drawings = useStore((s) => s.simulation.drawings);
-  const uses = useStore((s) => s.simulation.uses);
-  const files = useStore((s) => s.files);
+export function Geometry({
+  sources,
+  drawings,
+  uses,
+  files,
+  onAdd,
+  onReplace,
+}: {
+  /** What the model says under `geometry`, by name. */
+  sources: Record<string, GeometrySource>;
+  /** The drawings that are attached and could be read, by that name. */
+  drawings: ReadonlyMap<string, Drawing>;
+  /** The bodies that take their shape from a drawing. */
+  uses: ShapeUse[];
+  /** The files that are attached, by the name the model knows each under. */
+  files: Files;
+  /** Drawings were picked to add to the model, by their file names. */
+  onAdd(picked: Map<string, string>): void;
+  /** A file was picked to stand for a drawing the model names. */
+  onReplace(file: string, text: string): void;
+}) {
   const input = useRef<HTMLInputElement>(null);
   const names = Object.keys(sources);
 
@@ -204,7 +219,7 @@ export function Geometry() {
             const read = await Promise.all(
               picked.map(async (file) => [file.name, await file.text()] as const),
             );
-            useStore.getState().attach(new Map(read));
+            onAdd(new Map(read));
           }}
         />
       </div>
@@ -223,7 +238,7 @@ export function Geometry() {
               <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink-soft">
                 {source.file}
               </span>
-              <PickDrawing onPick={(text) => useStore.getState().replace(source.file, text)}>
+              <PickDrawing onPick={(text) => onReplace(source.file, text)}>
                 {attached ? "Replace" : "Attach"}
               </PickDrawing>
             </h3>

@@ -91,6 +91,37 @@
         ]
       }
     },
+    "geometry": {
+      "description": "The drawings the model takes outlines from, kept as files beside it",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "A DXF file, kept beside the model"
+          },
+          "unit": {
+            "description": "Length unit of the drawing, when the file does not say",
+            "type": "string",
+            "enum": [
+              "mm",
+              "cm",
+              "m",
+              "in"
+            ]
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "additionalProperties": false
+      }
+    },
     "bodies": {
       "default": {},
       "description": "Rigid bodies. \"ground\" is the fixed one",
@@ -139,32 +170,122 @@
             "maximum": 9007199254740991
           },
           "shape": {
-            "type": "object",
-            "properties": {
-              "path": {
-                "type": "string",
-                "description": "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit"
-              },
-              "holes": {
-                "description": "Round holes, each at a named point of the body, with its diameter",
+            "anyOf": [
+              {
                 "type": "object",
-                "propertyNames": {
-                  "type": "string",
-                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "description": "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit"
+                  },
+                  "holes": {
+                    "description": "Round holes, each at a named point of the body, with its diameter",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  }
                 },
-                "additionalProperties": {
-                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
-                }
+                "required": [
+                  "path"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A drawing named under geometry"
+                  },
+                  "layer": {
+                    "description": "The layer of the drawing the outline is on, with the outlines inside it cut out",
+                    "type": "string"
+                  },
+                  "at": {
+                    "description": "A point inside the wanted outline, in the drawing's coordinates",
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "place": {
+                    "description": "Where the body's own frame sits in the drawing, as [x, y, angle]; default [0, 0, 0]",
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "holes": {
+                    "description": "Round holes, each at a named point of the body, with its diameter",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                    },
+                    "additionalProperties": {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "from"
+                ],
+                "additionalProperties": false
               }
-            },
-            "required": [
-              "path"
             ],
-            "additionalProperties": false,
             "description": "The real outline of the body: one outline, with the outlines inside it cut out"
           }
         },

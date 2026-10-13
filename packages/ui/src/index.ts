@@ -1,4 +1,7 @@
 export { Choice } from "./Choice.tsx";
+export { attachAs, sortFiles, withDrawings } from "./drawings/files.ts";
+export { Geometry } from "./drawings/Geometry.tsx";
+export { type Thumb, thumbOf } from "./drawings/thumb.ts";
 export { LIVE } from "./editor/history.ts";
 export { type EditorHandle, SourceEditor } from "./editor/SourceEditor.tsx";
 export { BESIDE_FOLD, FOLD_BUTTON, Fold } from "./Fold.tsx";

@@ -1,7 +1,6 @@
 import { asMekasim, flatten } from "@mekasim/fit";
-import { download, encodeModel, fileStem, useTheme } from "@mekasim/ui";
+import { download, encodeModel, fileStem, sortFiles, useTheme } from "@mekasim/ui";
 import { useMemo, useRef, useState } from "react";
-import { sortFiles } from "../files.ts";
 import { useStore } from "../store.ts";
 
 const button =

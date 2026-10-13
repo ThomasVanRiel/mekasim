@@ -1,5 +1,5 @@
-import { NEW_MODEL } from "@mekasim/core";
-import { download, encodeModel, exampleFragment, fileStem, useTheme } from "@mekasim/ui";
+import { flatten, NEW_MODEL } from "@mekasim/core";
+import { download, encodeModel, exampleFragment, fileStem, sortFiles, useTheme } from "@mekasim/ui";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
 import { useStore } from "../store.ts";
@@ -24,7 +24,9 @@ export function Header() {
       // An untouched example has a short link by its name; anything else is packed into the link.
       const { text } = useStore.getState();
       const example = EXAMPLES.find((e) => e.text === text);
-      const fragment = example ? exampleFragment(example.id) : await encodeModel(text);
+      // A link carries no files, so shapes that come from drawings are written out into it.
+      const whole = flatten(text, useStore.getState().files) ?? text;
+      const fragment = example ? exampleFragment(example.id) : await encodeModel(whole);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
     } catch {
@@ -51,7 +53,7 @@ export function Header() {
         onChange={(event) => {
           const example = EXAMPLES.find((e) => e.id === event.target.value);
           if (!example) return;
-          load(example.text);
+          load(example.text, example.files);
           // Show the example's own link in the address bar.
           history.replaceState(null, "", exampleFragment(example.id));
         }}
@@ -81,12 +83,19 @@ export function Header() {
       <input
         ref={input}
         type="file"
-        accept=".yaml,.yml,.json"
+        accept=".yaml,.yml,.json,.dxf"
+        multiple
         className="hidden"
         onChange={async (event) => {
-          const file = event.target.files?.[0];
+          const picked = [...(event.target.files ?? [])];
           event.target.value = "";
-          if (file) load(await file.text());
+          const read = await Promise.all(
+            picked.map(async (file) => [file.name, await file.text()] as const),
+          );
+          // A model opens with the drawings picked along with it; drawings alone join this model.
+          const { model, drawings } = sortFiles(read);
+          if (model !== undefined) load(model, drawings);
+          else if (drawings.size > 0) useStore.getState().attach(drawings);
         }}
       />
     </header>

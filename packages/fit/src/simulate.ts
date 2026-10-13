@@ -1,33 +1,17 @@
 import {
-  type Document,
-  editText,
+  type Files,
+  flatten as flattenModel,
   type SimulateOptions,
   type Simulation,
   type SweepRun,
   simulate as simulateModel,
   sweep as sweepModel,
 } from "@mekasim/core";
-import { type Files, type Resolved, resolveShapes } from "./files.ts";
-import { load } from "./load.ts";
 import { FitDocument } from "./schema.ts";
 
-const NO_FILES: Files = new Map();
-
-/** A solved mekafit model: mekasim's results, and what its drawings came to. */
-export interface FitSimulation extends Simulation, Omit<Resolved, "doc"> {}
-
-const NOTHING: Omit<Resolved, "doc"> = { drawings: new Map(), missing: [], sources: {}, uses: [] };
-
-/** How mekafit runs mekasim's pipeline: its own schema, and its shapes put in mekasim's words. */
-function options(files: Files, found?: (resolved: Resolved) => void): SimulateOptions {
-  return {
-    schema: FitDocument,
-    prepare(doc, report) {
-      const resolved = resolveShapes(doc, files, report);
-      found?.(resolved);
-      return resolved.doc;
-    },
-  };
+/** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
+function options(files?: Files): SimulateOptions {
+  return { schema: FitDocument, files };
 }
 
 /**
@@ -35,15 +19,8 @@ function options(files: Files, found?: (resolved: Resolved) => void): SimulateOp
  * model. A model with nothing mekafit adds goes down mekasim's own path and gives
  * mekasim's numbers.
  */
-export function simulate(text: string, files: Files = NO_FILES): FitSimulation {
-  let extra = NOTHING;
-  const simulation = simulateModel(
-    text,
-    options(files, ({ doc: _, ...rest }) => {
-      extra = rest;
-    }),
-  );
-  return { ...simulation, ...extra };
+export function simulate(text: string, files?: Files): Simulation {
+  return simulateModel(text, options(files));
 }
 
 /** Solve the model once for each value of a parameter, as mekasim's `sweep` does. */
@@ -52,33 +29,12 @@ export function sweep(
   param: string,
   values: number[],
   unit = "",
-  files: Files = NO_FILES,
+  files?: Files,
 ): SweepRun[] {
   return sweepModel(text, param, values, unit, options(files));
 }
 
-/**
- * The model's text with every shape that comes from a drawing written out as path
- * text, and `geometry` gone: complete without its files, for a link, and a mekasim
- * model when nothing else of mekafit's is in it. The rest of the text is left as
- * written. Undefined when the text does not read.
- */
-export function flatten(text: string, files: Files = NO_FILES): string | undefined {
-  const loaded = load(text);
-  if (!loaded.doc) return undefined;
-  const { doc } = resolveShapes(loaded.doc, files, () => {});
-  const before = loaded.doc as Document & { geometry?: unknown };
-  const edits: Parameters<typeof editText>[1] = [];
-  for (const [id, body] of Object.entries(before.bodies)) {
-    const shape = body.shape as { from?: string } | undefined;
-    if (!shape || !("from" in shape)) continue;
-    const written = doc.bodies[id]?.shape;
-    edits.push(
-      written
-        ? { op: "set", path: ["bodies", id, "shape"], value: written as never }
-        : { op: "delete", path: ["bodies", id, "shape"] },
-    );
-  }
-  if (before.geometry !== undefined) edits.push({ op: "delete", path: ["geometry"] });
-  return edits.length === 0 ? text : editText(text, edits);
+/** The text with every shape from a drawing written out, complete without its files. */
+export function flatten(text: string, files?: Files): string | undefined {
+  return flattenModel(text, files, FitDocument);
 }

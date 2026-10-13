@@ -1,16 +1,16 @@
+import { describe, expect, it } from "vitest";
+import { chain, nest } from "../src/drawing/loops.ts";
+import { readDxf } from "../src/drawing/read.ts";
+import { parsePath } from "../src/geometry/path.ts";
 import {
   circleLoop,
   endOf,
   type Loop,
   loopArea,
   loopBounds,
-  parsePath,
   type Segment,
   startOf,
-} from "@mekasim/core";
-import { describe, expect, it } from "vitest";
-import { readDxf } from "../src/import/dxf.ts";
-import { chain, nest } from "../src/import/loops.ts";
+} from "../src/geometry/shape.ts";
 
 const line = (ax: number, ay: number, bx: number, by: number): Segment => ({
   kind: "line",

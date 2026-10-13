@@ -1,9 +1,10 @@
-// Writes examples/fit/four-bar-links.dxf: the links of mekasim's shaped four-bar, laid
+// Writes examples/four-bar-links.dxf: the links of mekasim's shaped four-bar, laid
 // out side by side as on a sheet to cut, each on a layer of its own. It stands for a
 // drawing that comes out of a CAD program, for the example that takes its shapes from it.
 import { readFileSync, writeFileSync } from "node:fs";
-import { placeShape, simulate } from "@mekasim/core";
-import { shapesToDxf } from "../src/export/dxf.ts";
+import { shapesToDxf } from "../src/drawing/write.ts";
+import { placeShape } from "../src/geometry/shape.ts";
+import { simulate } from "../src/simulate.ts";
 
 const model = readFileSync(
   new URL("../../../examples/shaped-four-bar.mekasim.yaml", import.meta.url),
@@ -25,6 +26,6 @@ const drawn = Object.entries(LAYOUT).map(([id, { layer, ...place }]) => {
   return { layer, shape: placeShape(shape, place) };
 });
 
-const target = new URL("../../../examples/fit/four-bar-links.dxf", import.meta.url);
+const target = new URL("../../../examples/four-bar-links.dxf", import.meta.url);
 writeFileSync(target, shapesToDxf(drawn, "mm"));
 console.log(`Wrote ${target.pathname}`);

@@ -1,8 +1,8 @@
-import { type Files, type FitSimulation, simulate } from "@mekasim/fit";
-import { buildScene, type Scene } from "@mekasim/ui";
+import type { Files, Simulation } from "@mekasim/core";
+import { simulate } from "@mekasim/fit";
+import { buildScene, type Scene, withDrawings } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
-import { withDrawings } from "./files.ts";
 import { comfortableRate } from "./playback.ts";
 
 const STORAGE_KEY = "mekafit.text";
@@ -31,9 +31,9 @@ function keptFiles(): Files {
 }
 
 interface Solved {
-  simulation: FitSimulation;
+  simulation: Simulation;
   /** The last version of the model that could be drawn, shown while the text has errors. */
-  shown?: FitSimulation;
+  shown?: Simulation;
   scene?: Scene;
 }
 

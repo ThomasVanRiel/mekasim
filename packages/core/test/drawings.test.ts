@@ -1,25 +1,24 @@
 import { readFileSync } from "node:fs";
-import {
-  circleLoop,
-  loopArea,
-  type Shape,
-  shapeOf,
-  simulate as simulateModel,
-} from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import {
-  asMekasim,
+  circleLoop,
+  drawingFiles,
   drawingName,
   flatten,
+  loopArea,
   readDrawing,
+  type Shape,
+  shapeOf,
   shapesToDxf,
-  simulate,
+  simulate as simulateModel,
 } from "../src/index.ts";
+
+const simulate = (text: string, files?: Map<string, string>) => simulateModel(text, { files });
 
 const read = (path: string): string =>
   readFileSync(new URL(`../../../examples/${path}`, import.meta.url), "utf8");
-const model = read("fit/four-bar-from-drawing.mekafit.yaml");
-const dxf = read("fit/four-bar-links.dxf");
+const model = read("shaped-four-bar-dxf.mekasim.yaml");
+const dxf = read("four-bar-links.dxf");
 const files = new Map([["four-bar-links.dxf", dxf]]);
 const written = simulateModel(read("shaped-four-bar.mekasim.yaml"));
 
@@ -65,7 +64,7 @@ describe("a drawing that is not there, or not as the model says", () => {
       [
         "warning",
         'The drawing "four-bar-links.dxf" is not attached, so the shapes from it are left out. Add it with "Add drawing"',
-        16,
+        18,
       ],
     ]);
     expect(simulation.missing).toEqual(["four-bar-links.dxf"]);
@@ -179,10 +178,10 @@ describe("a model made complete without its files", () => {
     }
   });
 
-  it("opens in mekasim, having nothing else of mekafit's", () => {
-    const plain = asMekasim(flat) as string;
-    expect(simulateModel(plain).diagnostics).toEqual([]);
-    expect(asMekasim(model)).toBeUndefined();
+  it("names the files a model needs, for whoever fetches them", () => {
+    expect(drawingFiles(model)).toEqual(["four-bar-links.dxf"]);
+    expect(drawingFiles(flat)).toEqual([]);
+    expect(drawingFiles("bodies: [")).toEqual([]);
   });
 
   it("is the text itself when there is nothing to write out", () => {

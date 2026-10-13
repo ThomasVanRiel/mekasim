@@ -4,6 +4,7 @@ import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
 import { useLayout } from "./layout.ts";
 import { Checks } from "./panels/Checks.tsx";
+import { Drawings } from "./panels/Drawings.tsx";
 import { Header } from "./panels/Header.tsx";
 import { HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";
@@ -108,7 +109,9 @@ function useLinkedModel(): void {
       const example = EXAMPLES.find((e) => e.id === exampleIn(location.hash));
       if (example) {
         // The link stays in the address bar, so that it can be copied from there.
-        if (useStore.getState().text !== example.text) useStore.getState().load(example.text);
+        if (useStore.getState().text !== example.text) {
+          useStore.getState().load(example.text, example.files);
+        }
         return;
       }
       decodeModel(location.hash).then((packed) => {
@@ -282,6 +285,7 @@ export function App() {
         <Parameters />
         <Measures />
         <Checks />
+        <Drawings />
       </div>
 
       <Help />

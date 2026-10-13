@@ -1,5 +1,4 @@
-import { editText } from "@mekasim/core";
-import { drawingName, type GeometrySource } from "@mekasim/fit";
+import { drawingName, editText, type GeometrySource } from "@mekasim/core";
 
 /** Files picked to open: which of them is the model, and which are drawings to go with it. */
 export function sortFiles(picked: readonly (readonly [name: string, text: string])[]): {

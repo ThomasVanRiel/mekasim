@@ -1,6 +1,7 @@
 // Solve a model from the command line: node packages/core/src/cli.ts model.mekasim.yaml [--csv out.csv] [--dxf out.dxf]
 import { readFileSync, writeFileSync } from "node:fs";
 import { toCsv } from "./analysis/csv.ts";
+import { drawingsBeside } from "./drawing/disk.ts";
 import { formatQuantity } from "./expr/units.ts";
 import { toPointsDxf } from "./fabricate/dxf.ts";
 import { simulate } from "./simulate.ts";
@@ -21,7 +22,9 @@ function main(): number {
     return 2;
   }
 
-  const simulation = simulate(readFileSync(file, "utf8"));
+  const text = readFileSync(file, "utf8");
+  // Drawings the model names are looked for beside it.
+  const simulation = simulate(text, { files: drawingsBeside(file, text) });
   const { doc, compiled, cycle, mobility } = simulation;
 
   if (doc && compiled) {

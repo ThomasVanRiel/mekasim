@@ -1,4 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { drawingsBeside } from "../src/drawing/disk.ts";
 import { simulate } from "../src/simulate.ts";
 
 /** What one example solves to: enough to tell that a change left its motion alone. */
@@ -26,7 +28,14 @@ export function solveExamples(): Record<string, ExampleBaseline> {
   const result: Record<string, ExampleBaseline> = {};
   for (const file of readdirSync(EXAMPLES).sort()) {
     if (!file.endsWith(".mekasim.yaml")) continue;
-    const { cycle, measures, checks } = simulate(readFileSync(new URL(file, EXAMPLES), "utf8"));
+    const path = fileURLToPath(new URL(file, EXAMPLES));
+    const text = readFileSync(path, "utf8");
+    const { cycle, measures, checks, diagnostics } = simulate(text, {
+      files: drawingsBeside(path, text),
+    });
+    if (diagnostics.some((d) => d.severity !== "info")) {
+      throw new Error(`${file}: ${diagnostics.map((d) => d.message).join("; ")}`);
+    }
     if (!cycle) throw new Error(`${file} does not solve`);
     const at = three(cycle.count);
     result[file] = {
