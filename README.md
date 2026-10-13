@@ -114,9 +114,6 @@ share links. Noted here from its README, as of 2026-10-13:
 - It allows editing only at the start of the cycle, so that no plot is shown of a
   half-solved mechanism.
 
-Its force analysis is the reference to read when forces are built here (see
-[docs/mekasim/BACKLOG.md](docs/mekasim/BACKLOG.md)).
-
 ## Develop
 
 ```
