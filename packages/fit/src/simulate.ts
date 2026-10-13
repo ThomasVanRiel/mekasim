@@ -17,15 +17,20 @@ const NO_FILES: Files = new Map();
 export interface FitSimulation extends Simulation {
   /** The drawings named under `geometry` that were attached, by that name. */
   drawings: Map<string, Drawing>;
+  /** The files named under `geometry` that are not attached. */
+  missing: string[];
 }
 
 /** How mekafit runs mekasim's pipeline: its own schema, and its shapes put in mekasim's words. */
-function options(files: Files, found?: (drawings: Map<string, Drawing>) => void): SimulateOptions {
+function options(
+  files: Files,
+  found?: (drawings: Map<string, Drawing>, missing: string[]) => void,
+): SimulateOptions {
   return {
     schema: FitDocument,
     prepare(doc, report) {
       const resolved = resolveShapes(doc, files, report);
-      found?.(resolved.drawings);
+      found?.(resolved.drawings, resolved.missing);
       return resolved.doc;
     },
   };
@@ -38,13 +43,15 @@ function options(files: Files, found?: (drawings: Map<string, Drawing>) => void)
  */
 export function simulate(text: string, files: Files = NO_FILES): FitSimulation {
   let drawings = new Map<string, Drawing>();
+  let missing: string[] = [];
   const simulation = simulateModel(
     text,
-    options(files, (found) => {
+    options(files, (found, absent) => {
       drawings = found;
+      missing = absent;
     }),
   );
-  return { ...simulation, drawings };
+  return { ...simulation, drawings, missing };
 }
 
 /** Solve the model once for each value of a parameter, as mekasim's `sweep` does. */

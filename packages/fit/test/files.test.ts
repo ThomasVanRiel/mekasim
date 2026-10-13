@@ -57,10 +57,12 @@ describe("a drawing that is not there, or not as the model says", () => {
     expect(simulation.diagnostics.map((d) => [d.severity, d.message, d.position?.line])).toEqual([
       [
         "warning",
-        'The drawing "four-bar-links.dxf" is not attached, so the shapes from it are left out',
+        'The drawing "four-bar-links.dxf" is not attached, so the shapes from it are left out. Add it with "Add drawing"',
         16,
       ],
     ]);
+    expect(simulation.missing).toEqual(["four-bar-links.dxf"]);
+    expect(simulate(model, files).missing).toEqual([]);
     expect(simulation.cycle?.count).toBe(360);
     expect(shapeOfBody(simulation, "crank")).toBeUndefined();
   });

@@ -90,11 +90,13 @@ export function resolveShapes(
   doc: Document,
   files: Files,
   report: Report,
-): { doc: Document; drawings: Map<string, Drawing> } {
+): { doc: Document; drawings: Map<string, Drawing>; missing: string[] } {
   const sources = (doc as { geometry?: Record<string, GeometrySource> }).geometry ?? {};
   const units: Units = { length: "mm", angle: "deg", ...doc.meta?.units };
   const unit = docFactor(LENGTH, units);
   const drawings = new Map<string, Drawing>();
+  /** The files the model names that are not at hand. */
+  const missing: string[] = [];
 
   const fail = (severity: Diagnostic["severity"], message: string, path: Path): Reported => {
     report({ severity, message, path });
@@ -106,9 +108,10 @@ export function resolveShapes(
     const text = files.get(source.file);
     try {
       if (text === undefined) {
+        if (!missing.includes(source.file)) missing.push(source.file);
         throw fail(
           "warning",
-          `The drawing "${source.file}" is not attached, so the shapes from it are left out`,
+          `The drawing "${source.file}" is not attached, so the shapes from it are left out. Add it with "Add drawing"`,
           path,
         );
       }
@@ -276,7 +279,7 @@ export function resolveShapes(
   }
 
   const { geometry: __, ...withoutGeometry } = doc as Document & { geometry?: unknown };
-  return { doc: { ...withoutGeometry, bodies } as Document, drawings };
+  return { doc: { ...withoutGeometry, bodies } as Document, drawings, missing };
 }
 
 /** The box round an outline of a drawing, in the drawing's unit, for showing it on its own. */

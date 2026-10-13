@@ -1,7 +1,7 @@
 import { asMekasim, flatten } from "@mekasim/fit";
 import { download, encodeModel, fileStem, useTheme } from "@mekasim/ui";
 import { useMemo, useRef, useState } from "react";
-import { sortFiles } from "../files.ts";
+import { attachAs, sortFiles } from "../files.ts";
 import { useStore } from "../store.ts";
 
 const button =
@@ -18,6 +18,8 @@ export function Header() {
   const theme = useTheme((s) => s.theme);
   const toggleTheme = useTheme((s) => s.toggle);
   const input = useRef<HTMLInputElement>(null);
+  const drawingInput = useRef<HTMLInputElement>(null);
+  const missing = useStore((s) => s.simulation.missing);
   const [shared, setShared] = useState<"copied" | "failed">();
   // Complete without its drawings: every shape from one written out. A model that then
   // has nothing mekasim lacks can be taken there.
@@ -48,11 +50,40 @@ export function Header() {
       <button
         type="button"
         className={button}
-        title="A model, together with the drawings it names; or drawings alone, to attach them to this model"
+        title="A model. The drawings it names can be picked along with it, or added afterwards"
         onClick={() => input.current?.click()}
       >
-        Open files
+        Open model
       </button>
+      <button
+        type="button"
+        // Stands out while the model names a drawing that is not here.
+        className={missing.length > 0 ? `${button} border-brass` : button}
+        title={
+          missing.length > 0
+            ? `This model takes shapes from ${missing.join(", ")}, which ${missing.length === 1 ? "is" : "are"} not attached yet`
+            : "Attach a DXF drawing to this model, or a newer one in place of one it has"
+        }
+        onClick={() => drawingInput.current?.click()}
+      >
+        Add drawing
+      </button>
+      <input
+        ref={drawingInput}
+        type="file"
+        accept=".dxf"
+        multiple
+        className="hidden"
+        onChange={async (event) => {
+          const picked = [...(event.target.files ?? [])];
+          event.target.value = "";
+          const read = await Promise.all(
+            picked.map(async (file) => [file.name, await file.text()] as const),
+          );
+          const state = useStore.getState();
+          state.attach(attachAs(new Map(read), state.simulation.missing));
+        }}
+      />
       <button
         type="button"
         className={button}
@@ -92,7 +123,7 @@ export function Header() {
           const state = useStore.getState();
           // A model opens with the drawings picked along with it; drawings alone join this model.
           if (model !== undefined) state.load(model, drawings);
-          else if (drawings.size > 0) state.attach(drawings);
+          else if (drawings.size > 0) state.attach(attachAs(drawings, state.simulation.missing));
         }}
       />
     </header>
