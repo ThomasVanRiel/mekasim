@@ -43,13 +43,13 @@ packages/fit/src
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
+    inequality.ts one-sided constraints: contact rows built; stop and lock rows to come
     qp.ts         small dense quadratic program (dual active set)
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   compile.ts      springs, locks, stops, move drivers, in core's `extend` hook
   solver/
-    inequality.ts one-sided constraints: gap, stop, lock
     quasistatic.ts the contact step and the stage-driven run
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
   study/

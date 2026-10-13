@@ -76,8 +76,9 @@ correctly stay at 0, while crank and rocker come closest at 97 mm at step 217.
 built through mekafit's expression registry, without adding them to mekasim. The
 small dense quadratic program is built and checked against hand-solved, redundant
 and infeasible cases. `contactPoints` finds up to four distinct nearby places with
-their normals, including both ends of flat faces. Next are the one-sided rows in
-`packages/fit/src/solver/inequality.ts`.
+their normals, including both ends of flat faces. Contact points now become
+one-sided rows with their translation and rotation gradients, ready for the
+quadratic program. Springs are next.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
