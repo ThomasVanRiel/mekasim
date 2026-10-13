@@ -1,5 +1,4 @@
-import { formatQuantity, type Shape, type Units, writePath } from "@mekasim/core";
-import type { MeasuredGap } from "@mekasim/fit";
+import { formatQuantity, type MeasuredGap, type Shape, type Units, writePath } from "@mekasim/core";
 import {
   bodyColor,
   type Palette,

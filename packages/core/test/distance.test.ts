@@ -1,18 +1,18 @@
+import { describe, expect, it } from "vitest";
+import { gap, nearest, nearestOn, nearestOnShape, type Pose } from "../src/geometry/distance.ts";
+import { parsePath } from "../src/geometry/path.ts";
 import {
   circleLoop,
   endOf,
   lengthOf,
   type Point,
-  parsePath,
   pointAt,
   type Segment,
   type Shape,
-  shapeOf,
   startOf,
-} from "@mekasim/core";
-import { describe, expect, it } from "vitest";
-import { gap, nearest, nearestOn, nearestOnShape, type Pose } from "../src/geometry/distance.ts";
+} from "../src/geometry/shape.ts";
 import { treeOf } from "../src/geometry/tree.ts";
+import { shapeOf } from "../src/geometry/validate.ts";
 
 /** Numbers between 0 and 1 that come the same every time. */
 function numbers(seed: number): () => number {

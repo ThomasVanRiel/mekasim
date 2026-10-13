@@ -1,4 +1,4 @@
-import { type Box, emptyBox, type Segment, type Shape, segmentBounds } from "@mekasim/core";
+import { type Box, emptyBox, type Segment, type Shape, segmentBounds } from "./shape.ts";
 
 /**
  * The segments of a shape sorted into boxes within boxes, so that a search for what

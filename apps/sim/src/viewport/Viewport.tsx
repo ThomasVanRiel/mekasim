@@ -415,7 +415,7 @@ function Mechanism({ scene }: { scene: Scene }) {
       {scene.traces.map((trace) => (
         <Line key={trace.ref} points={trace.points} color={colors.dye} lineWidth={1.8} />
       ))}
-      {scene.dimensions.length > 0 && <Dimensions scene={scene} />}
+      <Dimensions scene={scene} />
       {labels && <Labels scene={scene} />}
       <Interaction />
     </>

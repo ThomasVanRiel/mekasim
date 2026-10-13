@@ -5,6 +5,7 @@ import { ANGLE, type Dim, describeDim, isPure, LENGTH, TIME } from "../expr/unit
 import type { Registry } from "../registry.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
 import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
+import { gapsOf, type MeasuredGap } from "./gaps.ts";
 
 const SPEED: Dim = [1, -1, 0, 0];
 const ACCELERATION: Dim = [1, -2, 0, 0];
@@ -206,7 +207,7 @@ const OF_POINT = new Set([
 ]);
 
 /** Kinematic functions take bodies and points, not values, as arguments. */
-const KINEMATIC = new Set([...OF_POINT, "dist", "angle", "omega", "alpha"]);
+const KINEMATIC = new Set([...OF_POINT, "dist", "gap", "angle", "omega", "alpha"]);
 
 /**
  * Evaluate the measures, checks and plots of a model over a solved cycle. `registry`
@@ -216,8 +217,36 @@ export function evaluateMeasures(
   compiled: Compiled,
   cycle: Cycle,
   registry?: Registry,
-): { measures: MeasureResult[]; checks: CheckResult[]; plots: PlotResult[] } {
+): {
+  measures: MeasureResult[];
+  checks: CheckResult[];
+  plots: PlotResult[];
+  /** The gaps between shapes that were asked for, each pair of bodies once. */
+  gaps: MeasuredGap[];
+} {
   const n = cycle.count;
+  const gaps = new Map<string, MeasuredGap>();
+  /** The measure, check or plot being evaluated, as a place in the model. */
+  let where: (string | number)[] = [];
+
+  /** A body named in gap(), which has to have a shape. */
+  function shaped(node: Node | undefined, fn: Node): string {
+    if (node?.kind !== "ref") {
+      throw new ExprError(
+        "gap() takes the names of two bodies, as in gap(crank, frame)",
+        (node ?? fn).pos,
+      );
+    }
+    const found = compiled.bodies.get(node.name);
+    if (!found) throw new ExprError(`Unknown body "${node.name}"`, node.pos);
+    if (!found.shape) {
+      throw new ExprError(
+        `"${node.name}" has no shape, so there is no gap to measure to it. Give it one with shape:`,
+        node.pos,
+      );
+    }
+    return node.name;
+  }
   /** Measures and checks evaluated so far; what comes after them can use them by name. */
   const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
@@ -454,6 +483,21 @@ export function evaluateMeasures(
       }
     }
     switch (name) {
+      case "gap": {
+        if (args.length !== 2) throw wrongArity(call, "2 bodies");
+        const a = shaped(args[0], fn);
+        const b = shaped(args[1], fn);
+        if (a === b) {
+          throw new ExprError(`gap() is between two bodies, and "${a}" is given twice`, fn.pos);
+        }
+        const key = [a, b].sort().join(" ");
+        let found = gaps.get(key);
+        if (!found) {
+          found = gapsOf(compiled, cycle, a, b, where) as MeasuredGap;
+          gaps.set(key, found);
+        }
+        return { value: Float64Array.from(found.gaps, (at) => at.distance), dim: LENGTH };
+      }
       case "dist": {
         if (args.length !== 2) throw wrongArity(call, "2 points");
         const p = motion(args[0], fn);
@@ -524,11 +568,13 @@ export function evaluateMeasures(
   }
 
   const measures = compiled.measures.map(({ id, ast }): MeasureResult => {
+    where = ["measures", id];
     const result = attempt(ast);
     if (result.quantity) named.set(id, result.quantity);
     return { id, ...result };
   });
   const checks = compiled.checks.map(({ id, ast }): CheckResult => {
+    where = ["checks", id];
     const { quantity, error } = attempt(ast);
     if (!quantity) return { id, error };
     if (!isPure(quantity.dim)) {
@@ -543,10 +589,13 @@ export function evaluateMeasures(
   const plots = compiled.plots.map(
     ({ id, series }): PlotResult => ({
       id,
-      series: series.map(({ source, ast }) => ({ source, ...attempt(ast) })),
+      series: series.map(({ source, ast }) => {
+        where = ["plots", id];
+        return { source, ...attempt(ast) };
+      }),
     }),
   );
-  return { measures, checks, plots };
+  return { measures, checks, plots, gaps: [...gaps.values()] };
 }
 
 /**

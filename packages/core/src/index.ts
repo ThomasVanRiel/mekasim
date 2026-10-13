@@ -6,6 +6,7 @@ export {
   cycleJerk,
   solveCycle,
 } from "./analysis/cycle.ts";
+export { gapsOf, type MeasuredGap, pinned, poseOf } from "./analysis/gaps.ts";
 export { assignLayers, hullDistance } from "./analysis/layers.ts";
 export {
   type CheckResult,
@@ -117,6 +118,15 @@ export {
   type Slot,
   slotOutline,
 } from "./fabricate/parts.ts";
+export {
+  type Gap,
+  gap,
+  type Nearest,
+  nearest,
+  nearestOn,
+  nearestOnShape,
+  type Pose,
+} from "./geometry/distance.ts";
 export { type Curve, ellipseCurve, fitArcs, splineCurve } from "./geometry/fit.ts";
 export { intersections } from "./geometry/intersect.ts";
 export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
@@ -147,6 +157,7 @@ export {
   startOf,
   windingOf,
 } from "./geometry/shape.ts";
+export { type Tree, treeOf } from "./geometry/tree.ts";
 export { checkLoops, shapeOf } from "./geometry/validate.ts";
 export type { FunctionCall, Registry } from "./registry.ts";
 export {

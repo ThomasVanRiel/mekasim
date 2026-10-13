@@ -1,14 +1,14 @@
+import { intersections } from "./intersect.ts";
 import {
   alongArc,
   endOf,
   insideShape,
-  intersections,
   type Point,
   pointAt,
   type Segment,
   type Shape,
   startOf,
-} from "@mekasim/core";
+} from "./shape.ts";
 import { boxDistance, type Tree, treeOf } from "./tree.ts";
 
 type Line = Segment & { kind: "line" };

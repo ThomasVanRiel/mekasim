@@ -15,12 +15,12 @@ drivers, pose, traces, measures, plots, frames.
 This page is written ahead of the build. The phase that adds each part is given in
 its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
 
-Built so far: the first line `mekafit: 1`, and `gap(a, b)` in measures, checks and plots. Shapes are mekasim's own by now, written
+Built so far: the first line `mekafit: 1`. Shapes are mekasim's own by now, written
 out as `path` or taken from a DXF drawing with `geometry:`, `from`, `layer`, `at`
 and `place` ([../mekasim/FORMAT.md](../mekasim/FORMAT.md), "Shapes" and "Shapes
 from a drawing"), and so are `checks:` and conditions. The sections on shapes below
 are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
-(`fit` is mekasim's too by now). Everything from contacts on is still to come.
+(`fit` is mekasim's too by now, and so is `gap(a, b)`). Everything from contacts on is still to come.
 
 ## A whole example
 
@@ -210,8 +210,11 @@ contacts:
 ```
 
 The pairs of bodies that may touch. Only bodies with a `shape` can be named.
-`between` names one pair, `among` every pair in a list. Bodies joined by a pin are
-included; they are often exactly the pair to check, such as a knuckle and its head.
+`between` names one pair, `among` every pair in a list. Bodies joined by a pin can
+be named, such as a knuckle and its head, but where such a pair lies over each
+other is not counted as running into each other, as with `gap`: their outlines have
+to be drawn clear of each other round the pin, and a warning says so when they are
+not.
 
 Without contact solving (no `move` driver, no springs, no locks), contacts are only
 checked: a pair that runs into each other is reported with the step and the place.
@@ -291,7 +294,7 @@ added where parts move fast against each other. Plots are drawn against time.
 
 | Function | Result |
 |---|---|
-| `gap(a, b)` | Smallest distance between the shapes of two bodies; negative where they overlap, by how much |
+| `gap(a, b)` | mekasim's own by now. Smallest distance between the shapes of two bodies; negative where they overlap, by how much; never less than 0 for two bodies joined by a pin |
 | `force(name)` | Contact force of a contact pair, force of a spring, or the force a `move` driver needs (its torque in a turning stage is `torque(name)`) |
 | `latched(lock)` | 1 while the lock is in, 0 while it is out |
 | `final(e)`, `first(e)` | The value at the last and the first sample |

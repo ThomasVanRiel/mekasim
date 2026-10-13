@@ -18,8 +18,8 @@ the order of section 9 of its design.
 What has been settled along the way:
 
 - Whatever is useful in mekasim too is built in mekasim, and mekafit builds on it:
-  `checks`, conditions in expressions, `shape`, and drawings (`geometry:`) all went
-  that way. Their code is in `packages/core` and `packages/ui`, not in
+  `checks`, conditions in expressions, `shape`, drawings (`geometry:`) and `gap()`
+  all went that way. Their code is in `packages/core` and `packages/ui`, not in
   `packages/fit`. Ask Thomas when it is not clear which side something belongs on.
 - mekasim must not change for mekafit's sake alone. The example baseline
   (`packages/core/test/baseline.json`) and the schema test guard its numbers and

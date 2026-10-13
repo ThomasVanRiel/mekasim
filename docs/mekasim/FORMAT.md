@@ -451,6 +451,7 @@ and give a value at every sample of the cycle:
 | `jx(p)`, `jy(p)`, `j(p)` | Jerk components and magnitude of a point: how fast its acceleration changes |
 | `jr(p)`, `jt(p)` | Jerk along the radius, and across it |
 | `dist(p, q)` | Distance between two points |
+| `gap(a, b)` | Smallest distance between the shapes of two bodies; less than nothing where they run into each other, by how deep |
 | `moved(p)` | How far a point is from where it started, whichever way it went |
 | `angle(body)` | Angle of a body |
 | `angle(p, q)` | Direction of the line from `p` to `q` |
@@ -461,6 +462,20 @@ and give a value at every sample of the cycle:
 Wherever a function takes a point it also takes a body, written without a point:
 `x(rocker)`, `v(upper_deck)`, `dist(upper_deck, lower_deck)`. The body then stands
 for its centre, the middle of its points. `angle(body)` gives how far it is turned.
+
+`gap(a, b)` takes two bodies that each have a `shape`, the ground among them, and
+measures between the outlines themselves, lines and true arcs, holes included. It is
+drawn at the two places that are nearest at each instant. `min(gap(crank, frame))`
+is the least clearance over the cycle, and a check such as
+`min(gap(crank, frame)) > 1 mm` holds it to a size. Where one outline is inside the
+other the value is negative: how far the deepest corner or bulge of one is inside
+the other, which is exact for a small overlap and an estimate for a large one.
+
+Two bodies joined by a pin often lie over each other round that pin, being on
+different layers there. That is not counted as running into each other: for such a
+pair `gap` gives 0 wherever they overlap, never less, and the model says so in a
+warning. To measure the gap between them elsewhere, draw their outlines clear of
+each other round the pin.
 
 `change(e)` counts a value from where it started: the value at each instant less
 its value at the start of the cycle. `change(x(deck))` is how far the deck has moved

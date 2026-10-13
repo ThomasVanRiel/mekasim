@@ -36,16 +36,16 @@ shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
 Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
 is only the schema with that first line and the calls into core.
 
-**Phase 2, clearance, is begun.** In `packages/fit`: the exact distance between two
-lines or arcs and between two shapes, with the two places it is between and a
-negative value where shapes overlap (`geometry/distance.ts`, `geometry/tree.ts`),
-and `gap(a, b)` as a function in measures, checks and plots (`measures.ts`). Every
-gap a model asks about is drawn on mekafit's sheet between its two nearest places,
-in red where the parts are into each other. Still to do: `contacts:` and the message
-when parts run into each other, the Contacts fold, the Contact tool and "Find
-contacts", and the `clearance-check` example. Open before `contacts:` is built:
-what to make of parts that lie over each other by design, as two links do round
-the pin that joins them.
+**Phase 2, clearance, is begun, and what is built of it is mekasim's too.** In
+`packages/core`: the exact distance between two lines or arcs and between two
+shapes, with the two places it is between and a negative value where shapes overlap
+(`geometry/distance.ts`, `geometry/tree.ts`), and `gap(a, b)` as a function in
+measures, checks and plots. Every gap a model asks about is drawn in both apps
+between its two nearest places; on mekafit's sheet in red where the parts are into
+each other. Two bodies joined by a pin are not counted as running into each other:
+their gap is 0 where they overlap, and the model warns about it. Still to do, in
+mekafit: `contacts:` and the message when parts run into each other, the Contacts
+fold, the Contact tool and "Find contacts", and the `clearance-check` example.
 
 **Not built yet in phase 1:**
 
@@ -60,7 +60,7 @@ the pin that joins them.
 **Next:** the rest of phase 2, in the order above. Thomas's own coupler drawing
 (`ref/coupler.dxf`, kept out of the repository) comes in as it is: one outline with
 two holes on layer `VISIBLE`, once its unit is picked. Phase 2 is the first that is
-mekafit's alone, unless Thomas asks for it in mekasim as well.
+mekafit's alone from `contacts:` on.
 
 **Changed from the plan below:** the plan was written when mekasim was to stay
 untouched. Where it says that shapes, path text, geometry files or conditions are

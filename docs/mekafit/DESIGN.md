@@ -22,6 +22,10 @@ packages/core/src            mekasim's core
     intersect.ts  where two segments meet
     validate.ts   checks on outlines; a shape from its loops
     outline.ts    the plate round a body's points (mekasim's from the start)
+    fit.ts        splines and ellipses replaced by arcs within a tolerance
+    distance.ts   exact nearest points between segments and between shapes; `gap`
+    tree.ts       bounding-box tree over a shape's segments
+  analysis/gaps.ts  the gap between two bodies over the motion; `gap(a, b)` is in measures.ts
   drawing/
     read.ts       DXF entities -> segments by layer (LINE ARC CIRCLE LWPOLYLINE POLYLINE INSERT)
     loops.ts      join ends into closed loops, report open ones, nest outlines and holes
@@ -33,11 +37,8 @@ packages/fit/src
   schema.ts       mekafit document: mekasim's schema with `mekafit: 1`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
   simulate.ts     core's pipeline with mekafit's schema
-  geometry/
-    distance.ts   exact nearest points between segments and between shapes; `gap`
-    tree.ts       bounding-box tree over a shape's segments
-  measures.ts     `gap(a, b)`, through core's registry; force, torque, latched to come
   (to come)
+  measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   compile.ts      contacts, springs, locks, stops, move drivers, in core's `extend` hook
   geometry/
@@ -307,7 +308,10 @@ nearest: a knuckle face against another can touch at both ends.
 - `contacts:` compiles to a list of body index pairs (`among` expanded, duplicates
   removed). Names without a `shape` are reported.
 - `gap(a, b)` is a signal measure computed per sample from the solved poses, for any
-  two bodies with shapes, listed in `contacts` or not.
+  two bodies with shapes, listed in `contacts` or not. It is mekasim's (Thomas asked
+  for it there too). Two bodies joined by a pin are never counted as overlapping:
+  their gap is 0 where they lie over each other, with a warning (Thomas's decision;
+  the design is drawn to suit). The check on `contacts:` follows the same rule.
 - After a run of a model with contacts but no contact solving, every pair is
   checked; the first overlap deeper than 0.001 mm gives a message: "`knuckle` runs
   into `head` at step 41, 0.3 mm deep", pointing at the contacts entry.

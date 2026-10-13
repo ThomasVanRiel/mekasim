@@ -1,4 +1,5 @@
 import { type Cycle, solveCycle } from "./analysis/cycle.ts";
+import type { MeasuredGap } from "./analysis/gaps.ts";
 import { assignLayers } from "./analysis/layers.ts";
 import {
   type CheckResult,
@@ -27,6 +28,8 @@ export interface Simulation extends Omit<Resolved, "doc"> {
   /** Whether each condition under `checks` is met. One that is not is a result, not a problem. */
   checks: CheckResult[];
   plots: PlotResult[];
+  /** The gaps between shapes that the model asks about, over the motion. */
+  gaps: MeasuredGap[];
 }
 
 function list(ids: string[]): string {
@@ -105,6 +108,7 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
     measures: [],
     checks: [],
     plots: [],
+    gaps: [],
     drawings: new Map(),
     missing: [],
     unshaped: [],
@@ -144,6 +148,15 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
       simulation.measures = results.measures;
       simulation.checks = results.checks;
       simulation.plots = results.plots;
+      simulation.gaps = results.gaps;
+      for (const found of results.gaps) {
+        if (found.over === 0) continue;
+        diagnostics.push({
+          severity: "warning",
+          message: `"${found.a}" and "${found.b}" are joined by a pin, so where they lie over each other is not counted, and gap() gives 0 there. To measure the gap between them, draw them clear of each other round the pin`,
+          path: found.asked,
+        });
+      }
       for (const measure of simulation.measures) {
         if (measure.error)
           diagnostics.push({

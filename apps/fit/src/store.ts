@@ -1,5 +1,5 @@
 import type { Files, Simulation } from "@mekasim/core";
-import { keepOutlines, type MeasuredGap, measuredGaps, simulate } from "@mekasim/fit";
+import { keepOutlines, simulate } from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
@@ -35,19 +35,14 @@ interface Solved {
   /** The last version of the model that could be drawn, shown while the text has errors. */
   shown?: Simulation;
   scene?: Scene;
-  /** The gaps the shown model asks about, over its run. */
-  gaps: MeasuredGap[];
 }
 
 function solve(text: string, files: Files, before?: Solved): Solved {
   const simulation = simulate(text, files);
   const scene = buildScene(simulation);
-  if (!scene) {
-    return { simulation, shown: before?.shown, scene: before?.scene, gaps: before?.gaps ?? [] };
-  }
-  const { compiled, cycle } = simulation;
-  const gaps = compiled && cycle ? measuredGaps(compiled, cycle) : [];
-  return { simulation, shown: simulation, scene, gaps };
+  return scene
+    ? { simulation, shown: simulation, scene }
+    : { simulation, shown: before?.shown, scene: before?.scene };
 }
 
 interface State extends Solved {
