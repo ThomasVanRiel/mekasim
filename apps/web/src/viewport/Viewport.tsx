@@ -1,6 +1,16 @@
 import type { Point } from "@mekasim/core";
 import { GROUND } from "@mekasim/core";
-import { bodyColor, useColors } from "@mekasim/ui";
+import {
+  bodyColor,
+  type DrawAxis,
+  type DrawBody,
+  type DrawPin,
+  type DrawPoint,
+  poseAt,
+  type Scene,
+  type Sizes,
+  useColors,
+} from "@mekasim/ui";
 import { Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
@@ -21,15 +31,6 @@ import { Dimensions } from "./Dimensions.tsx";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
-import {
-  type DrawAxis,
-  type DrawBody,
-  type DrawPin,
-  type DrawPoint,
-  poseAt,
-  type Scene,
-  type Sizes,
-} from "./scene.ts";
 
 type Vec3 = [number, number, number];
 

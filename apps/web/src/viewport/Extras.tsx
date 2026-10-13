@@ -1,3 +1,4 @@
+import type { DrawCam, DrawRoller, DrawTie, DrawWheel, Scene, Sizes } from "@mekasim/ui";
 import { useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
@@ -6,7 +7,6 @@ import { Shape, Vector2 } from "three";
 import type { Line2, LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
 import { beltRuns, toWorld } from "./pick.ts";
-import type { DrawCam, DrawRoller, DrawTie, DrawWheel, Scene, Sizes } from "./scene.ts";
 
 type Vec3 = [number, number, number];
 

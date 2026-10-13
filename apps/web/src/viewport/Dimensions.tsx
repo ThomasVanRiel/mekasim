@@ -1,4 +1,5 @@
 import { formatQuantity, LENGTH } from "@mekasim/core";
+import type { Scene } from "@mekasim/ui";
 import { useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -7,7 +8,6 @@ import { Vector3 } from "three";
 import type { LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
 import { toWorld } from "./pick.ts";
-import type { Scene } from "./scene.ts";
 
 const TEXT_CLASS =
   "absolute top-0 left-0 whitespace-nowrap text-[12px] text-ink leading-none tabular-nums";

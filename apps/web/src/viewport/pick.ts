@@ -1,5 +1,5 @@
 import { GROUND } from "@mekasim/core";
-import { poseAt, type Scene } from "./scene.ts";
+import { poseAt, type Scene } from "@mekasim/ui";
 
 /** A named point of the model at its position in the world, in metres. */
 export interface WorldPoint {

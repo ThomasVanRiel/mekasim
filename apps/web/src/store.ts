@@ -9,11 +9,11 @@ import {
   simulate,
   sweep as solveSweep,
 } from "@mekasim/core";
+import { buildScene, type Scene } from "@mekasim/ui";
 import { create } from "zustand";
 import { type Coordinates, SHEET } from "./coordinates.ts";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
 import type { Hit } from "./viewport/pick.ts";
-import { buildScene, type Scene } from "./viewport/scene.ts";
 
 const STORAGE_KEY = "mekasim.text";
 

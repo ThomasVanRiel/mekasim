@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { simulate } from "@mekasim/core";
+import { buildScene, type Scene } from "@mekasim/ui";
 import { describe, expect, it } from "vitest";
 import {
   beltRuns,
@@ -12,7 +13,6 @@ import {
   toWorld,
   worldPoints,
 } from "./pick.ts";
-import { buildScene, type Scene } from "./scene.ts";
 
 function example(name: string): Scene {
   const url = new URL(`../../../../examples/${name}.mekasim.yaml`, import.meta.url);

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { buildScene, poseAt, type Scene } from "./scene.ts";
 
 function example(name: string): Scene {
-  const url = new URL(`../../../../examples/${name}.mekasim.yaml`, import.meta.url);
+  const url = new URL(`../../../examples/${name}.mekasim.yaml`, import.meta.url);
   const scene = buildScene(simulate(readFileSync(url, "utf8")));
   if (!scene) throw new Error(`${name} cannot be drawn`);
   return scene;
@@ -51,7 +51,7 @@ describe("buildScene", () => {
   });
 
   it("draws a measured distance between the places it is measured between", () => {
-    const url = new URL("../../../../examples/four-bar.mekasim.yaml", import.meta.url);
+    const url = new URL("../../../examples/four-bar.mekasim.yaml", import.meta.url);
     const text = readFileSync(url, "utf8").replace(
       "measures:\n",
       "measures:\n  reach: dist(ground.O2, coupler.P)\n  apart: dist(crank, rocker)\n  twice: 2 * dist(ground.O2, coupler.P)\n",

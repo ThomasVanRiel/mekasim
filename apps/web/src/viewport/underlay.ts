@@ -1,5 +1,5 @@
+import type { Bounds } from "@mekasim/ui";
 import type { Underlay } from "../store.ts";
-import type { Bounds } from "./scene.ts";
 
 /** Lay a new picture over the middle of the drawing, a little wider than the model. */
 export function placeUnderlay(

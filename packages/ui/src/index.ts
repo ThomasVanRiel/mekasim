@@ -7,6 +7,25 @@ export { Chart } from "./plot/Chart.tsx";
 export * from "./plot/charts.ts";
 export * from "./plot/geometry.ts";
 export { Splitter } from "./Splitter.tsx";
+export {
+  type Anchor,
+  type Bounds,
+  buildScene,
+  type DrawAxis,
+  type DrawBody,
+  type DrawCam,
+  type DrawDimension,
+  type DrawLabel,
+  type DrawPin,
+  type DrawPoint,
+  type DrawRoller,
+  type DrawTie,
+  type DrawTrace,
+  type DrawWheel,
+  poseAt,
+  type Scene,
+  type Sizes,
+} from "./scene.ts";
 export { clamp } from "./size.ts";
 export {
   bodyColor,

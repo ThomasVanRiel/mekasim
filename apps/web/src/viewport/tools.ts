@@ -22,6 +22,7 @@ import {
   tidy,
   toggleTrace,
 } from "@mekasim/core";
+import type { Scene } from "@mekasim/ui";
 import { type DraftPoint, LIVE, useStore } from "../store.ts";
 import {
   type Hit,
@@ -34,7 +35,6 @@ import {
   type WorldPoint,
   worldPoints,
 } from "./pick.ts";
-import type { Scene } from "./scene.ts";
 
 /**
  * What the drawing tools do, in model terms. The pointer handling turns clicks and

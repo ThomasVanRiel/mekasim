@@ -1,8 +1,8 @@
+import { poseAt, type Scene } from "@mekasim/ui";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Vector3 } from "three";
 import { useStore } from "../store.ts";
-import { poseAt, type Scene } from "./scene.ts";
 
 const POINT_CLASS =
   "absolute top-0 left-0 whitespace-nowrap font-medium text-[12px] text-ink leading-none";

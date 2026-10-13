@@ -15,7 +15,7 @@ import {
   pointMotion,
   type Simulation,
 } from "@mekasim/core";
-import { label } from "@mekasim/ui";
+import { label } from "./names.ts";
 
 export type { Bounds };
 

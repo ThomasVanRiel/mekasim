@@ -1,7 +1,7 @@
 import { NEW_MODEL } from "@mekasim/core";
+import type { Scene } from "@mekasim/ui";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useStore } from "../store.ts";
-import type { Scene } from "./scene.ts";
 import {
   clickCam,
   clickCrank,
