@@ -335,7 +335,7 @@ function compileExpanded(
     }
     const index = id === GROUND ? GROUND_INDEX : moving.push(id) - 1;
     // A shape still waiting for its drawing is left out, as when the drawing is not attached.
-    const written = body.shape && "path" in body.shape ? body.shape : undefined;
+    const written = body.shape && !("from" in body.shape) ? body.shape : undefined;
     const shape = written && attempt(() => shapeFrom(written, id, points));
     bodies.set(id, {
       id,

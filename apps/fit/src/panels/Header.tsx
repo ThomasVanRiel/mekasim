@@ -1,4 +1,4 @@
-import { asMekasim, flatten } from "@mekasim/fit";
+import { asMekasim, keepOutlines } from "@mekasim/fit";
 import { download, encodeModel, fileStem, sortFiles, useTheme } from "@mekasim/ui";
 import { useMemo, useRef, useState } from "react";
 import { useStore } from "../store.ts";
@@ -19,16 +19,18 @@ export function Header() {
   const input = useRef<HTMLInputElement>(null);
   const drawingInput = useRef<HTMLInputElement>(null);
   const missing = useStore((s) => s.simulation.missing);
+  /** Whether a body goes without its shape for want of a drawing. */
+  const wanting = useStore((s) => s.simulation.unshaped.length > 0);
   const [shared, setShared] = useState<"copied" | "failed">();
-  // Complete without its drawings: every shape from one written out. A model that then
+  // Complete without its drawings: each outline from one kept in the text. A model that
   // has nothing mekasim lacks can be taken there.
-  const whole = useMemo(() => flatten(text, files), [text, files]);
-  const plain = useMemo(() => (whole === undefined ? undefined : asMekasim(whole)), [whole]);
+  const whole = useMemo(() => keepOutlines(text, files), [text, files]);
+  const plain = useMemo(() => asMekasim(whole), [whole]);
 
   async function copyLink(): Promise<void> {
     try {
-      // A link carries no files, so it carries the shapes written out.
-      const fragment = await encodeModel(whole ?? useStore.getState().text);
+      // A link carries no files, so the outlines from them are kept in the text it carries.
+      const fragment = await encodeModel(whole);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
     } catch {
@@ -57,9 +59,9 @@ export function Header() {
       <button
         type="button"
         // Stands out while the model names a drawing that is not here.
-        className={missing.length > 0 ? `${button} border-brass` : button}
+        className={wanting ? `${button} border-brass` : button}
         title={
-          missing.length > 0
+          wanting
             ? `This model takes shapes from ${missing.join(", ")}, which ${missing.length === 1 ? "is" : "are"} not attached yet`
             : "Attach a DXF drawing to this model, or a newer one in place of one it has"
         }
@@ -85,7 +87,7 @@ export function Header() {
       <button
         type="button"
         className={button}
-        onClick={() => download(`${fileStem(name)}.mekafit.yaml`, text, "text/yaml")}
+        onClick={() => download(`${fileStem(name)}.mekafit.yaml`, whole, "text/yaml")}
       >
         Download
       </button>

@@ -4,6 +4,7 @@ import {
   EditError,
   editText,
   type Files,
+  keepOutlines,
   load as readModel,
   type Simulation,
   type SweepRun,
@@ -235,7 +236,9 @@ export const useStore = create<State>((set, get) => {
     coordinates: SHEET,
     fitRequest: 0,
 
-    load(text, files = new Map()) {
+    load(opened, files = new Map()) {
+      // Opened with its drawings, a model takes their outlines into its text at once.
+      const text = keepOutlines(opened, files);
       const next = solve(text, files);
       set({
         ...next,
@@ -257,12 +260,15 @@ export const useStore = create<State>((set, get) => {
     attach(picked) {
       const { simulation } = get();
       const added = withDrawings(get().text, simulation.sources, simulation.missing, picked);
-      set({ files: new Map([...get().files, ...added.files]) });
-      get().edit(added.text);
+      const files = new Map([...get().files, ...added.files]);
+      set({ files });
+      // The outlines the drawings give are kept in the text, where a saved model has them.
+      get().edit(keepOutlines(added.text, files));
     },
     replace(file, text) {
-      set({ files: new Map([...get().files, [file, text]]) });
-      get().edit(get().text);
+      const files = new Map([...get().files, [file, text]]);
+      set({ files });
+      get().edit(keepOutlines(get().text, files));
     },
     edit(text, event = "input.canvas") {
       const next = solve(text, get().files, get());

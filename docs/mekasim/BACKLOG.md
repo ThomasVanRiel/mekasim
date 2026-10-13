@@ -69,8 +69,10 @@ A body can take its outline from a DXF drawing (`geometry:`). Left to do:
 - **Splines and ellipses** in a drawing are left out and counted; they are to be
   replaced by arcs within a tolerance.
 - **SVG drawings.**
-- **Saving a model with its drawings** as one folder or `.zip`. "Download" saves the
-  YAML alone; the drawings are kept in the browser, where a large one may not fit.
+- **Saving the drawings themselves.** A saved model keeps the outlines it took from
+  its drawings, so it is complete, but the DXF files are not saved with it: they are
+  kept in the browser, where a large one may not fit, and a model opened elsewhere
+  shows its shapes without the layer table. A folder or `.zip` with both would do it.
 - **Following a file** as it changes on disk, and picking an outline on the sheet
   to give it to a body.
 - **True arcs in the parts' DXF.** Parts to make are exported with many-sided

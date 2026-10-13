@@ -107,6 +107,7 @@ export function simulate(text: string, options: SimulateOptions = {}): Simulatio
     plots: [],
     drawings: new Map(),
     missing: [],
+    unshaped: [],
     sources: {},
     uses: [],
   };

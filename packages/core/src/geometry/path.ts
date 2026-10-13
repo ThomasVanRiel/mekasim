@@ -21,10 +21,10 @@ const NUMBER = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
 const ARITY: Record<string, number> = { M: 2, L: 2, H: 1, V: 1, A: 7, Z: 0 };
 
 /** A number as it is written in a path or a message: no noise in the last digits. */
-export function tidy(value: number): string {
+export function tidy(value: number, digits = 12): string {
   // What is left of a sine or cosine that should have been nothing is nothing.
-  if (Math.abs(value) < 1e-12) return "0";
-  return Number(value.toPrecision(12)).toString();
+  if (Math.abs(value) < 10 ** -digits) return "0";
+  return Number(value.toPrecision(digits)).toString();
 }
 
 export function placeText([x, y]: Point): string {
@@ -230,13 +230,19 @@ export function parsePath(text: string): Loop[] {
   return loops;
 }
 
-function arcText(arc: Segment & { kind: "arc" }, from: number, sweep: number, to?: string): string {
+function arcText(
+  arc: Segment & { kind: "arc" },
+  from: number,
+  sweep: number,
+  digits: number,
+  to?: string,
+): string {
   const end = from + sweep;
   const x = arc.cx + arc.r * Math.cos(end);
   const y = arc.cy + arc.r * Math.sin(end);
-  const r = tidy(arc.r);
+  const r = tidy(arc.r, digits);
   const flags = `${Math.abs(sweep) > Math.PI ? 1 : 0} ${sweep > 0 ? 1 : 0}`;
-  return `A ${r} ${r} 0 ${flags} ${to ?? `${tidy(x)} ${tidy(y)}`}`;
+  return `A ${r} ${r} 0 ${flags} ${to ?? `${tidy(x, digits)} ${tidy(y, digits)}`}`;
 }
 
 /** The most of a circle that one arc of written path text covers. */
@@ -246,18 +252,19 @@ const MOST = (2 * Math.PI) / 3;
  * Outlines as path text, in capitals throughout. An arc of more than a third of a
  * circle is written as several, so a whole circle is three arcs.
  */
-export function writePath(loops: Loop[]): string {
+export function writePath(loops: Loop[], digits = 12): string {
+  const number = (value: number): string => tidy(value, digits);
   return loops
     .map((loop) => {
       const first = loop.segments[0];
       if (!first) return "";
-      const origin = startOf(first).map(tidy).join(" ");
+      const origin = startOf(first).map(number).join(" ");
       const parts = [`M ${origin}`];
       loop.segments.forEach((segment, i) => {
         // The last segment ends where the first began, to the digit, so the outline closes.
         const home = i === loop.segments.length - 1 ? origin : undefined;
         if (segment.kind === "line") {
-          parts.push(`L ${home ?? endOf(segment).map(tidy).join(" ")}`);
+          parts.push(`L ${home ?? endOf(segment).map(number).join(" ")}`);
         } else {
           // An arc near half a circle is poorly told by its two ends: the last digit of
           // a number moves its centre a thousand times as far. Written in pieces of no
@@ -266,7 +273,7 @@ export function writePath(loops: Loop[]): string {
           const each = segment.sweep / pieces;
           for (let k = 0; k < pieces; k++) {
             const last = k === pieces - 1 ? home : undefined;
-            parts.push(arcText(segment, segment.start + k * each, each, last));
+            parts.push(arcText(segment, segment.start + k * each, each, digits, last));
           }
         }
       });

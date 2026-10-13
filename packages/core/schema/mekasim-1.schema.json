@@ -264,6 +264,10 @@
                     "minItems": 3,
                     "maxItems": 3
                   },
+                  "path": {
+                    "description": "The outline as last read from the drawing, kept by the app so that the model is complete without it",
+                    "type": "string"
+                  },
                   "holes": {
                     "description": "Round holes, each at a named point of the body, with its diameter",
                     "type": "object",

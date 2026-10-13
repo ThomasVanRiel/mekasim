@@ -22,14 +22,14 @@ bodies:
     points: { O2: [0, 0], O4: [180, 0] }
   crank:
     points: { O: [0, 0], A: [r, 0] }
-    shape: { from: links, layer: CRANK, place: [20, 20, 0] }
+    shape: { from: links, layer: CRANK, place: [20, 20, 0], path: M 0 -14 L 40 -9 A 9 9 0 0 1 49 0 A 9 9 0 0 1 40 9 L 0 14 A 14 14 0 0 1 -14 0 A 14 14 0 0 1 0 -14 Z M 5 0 A 5 5 0 0 0 -2.5 -4.33012702 A 5 5 0 0 0 -2.5 4.33012702 A 5 5 0 0 0 5 0 Z M 43 0 A 3 3 0 0 0 38.5 -2.59807621 A 3 3 0 0 0 38.5 2.59807621 A 3 3 0 0 0 43 0 Z }
   coupler:
     points: { A: [0, 0], B: [160, 0], P: [80, 60] }
     layer: 1
-    shape: { from: links, layer: COUPLER, place: [20, 60, 0] }
+    shape: { from: links, layer: COUPLER, place: [20, 60, 0], path: M 0 -9 L 160 -9 A 9 9 0 0 1 169 0 A 9 9 0 0 1 160 9 L 104 9 L 89 60 A 9 9 0 0 1 80 69 A 9 9 0 0 1 71 60 L 56 9 L 0 9 A 9 9 0 0 1 -9 0 A 9 9 0 0 1 0 -9 Z M 3 0 A 3 3 0 0 0 -1.5 -2.59807621 A 3 3 0 0 0 -1.5 2.59807621 A 3 3 0 0 0 3 0 Z M 163 0 A 3 3 0 0 0 158.5 -2.59807621 A 3 3 0 0 0 158.5 2.59807621 A 3 3 0 0 0 163 0 Z M 82 60 A 2 2 0 0 0 79 58.2679492 A 2 2 0 0 0 79 61.7320508 A 2 2 0 0 0 82 60 Z }
   rocker:
     points: { B: [0, 0], O: [110, 0] }
-    shape: { from: links, layer: ROCKER, place: [30, 150, 15 deg] }
+    shape: { from: links, layer: ROCKER, place: [30, 150, 15 deg], path: M 0 -9 L 110 -9 A 9 9 0 0 1 119 0 A 9 9 0 0 1 110 9 L 0 9 A 9 9 0 0 1 -9 0 A 9 9 0 0 1 0 -9 Z M 2.89777748 -0.776457135 A 3 3 0 0 0 -2.12132034 -2.12132034 A 3 3 0 0 0 -0.776457135 2.89777748 A 3 3 0 0 0 2.89777748 -0.776457135 Z M 112.897777 -0.776457136 A 3 3 0 0 0 107.87868 -2.12132034 A 3 3 0 0 0 109.223543 2.89777748 A 3 3 0 0 0 112.897777 -0.776457136 Z }
 
 joints:
   main:  { type: revolute, connect: [ground.O2, crank.O] }

@@ -1,6 +1,6 @@
 import {
   type Files,
-  flatten as flattenModel,
+  keepOutlines as keepModelOutlines,
   type SimulateOptions,
   type Simulation,
   type SweepRun,
@@ -34,7 +34,7 @@ export function sweep(
   return sweepModel(text, param, values, unit, options(files));
 }
 
-/** The text with every shape from a drawing written out, complete without its files. */
-export function flatten(text: string, files?: Files): string | undefined {
-  return flattenModel(text, files, FitDocument);
+/** The text with the outline each body takes from a drawing kept in it, complete without its files. */
+export function keepOutlines(text: string, files?: Files): string {
+  return keepModelOutlines(text, files, FitDocument);
 }

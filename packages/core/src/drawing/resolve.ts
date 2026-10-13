@@ -78,6 +78,13 @@ export interface ShapeUse {
   layer?: string;
   /** Whether it picks its outline by a point inside it. */
   byPoint: boolean;
+  /** Whether the model keeps the outline itself, for when the drawing is not at hand. */
+  kept: boolean;
+  /**
+   * The outline as the drawing gives it now, as path text. Undefined when the
+   * drawing is not attached or the outline could not be found in it.
+   */
+  path?: string;
 }
 
 export interface Resolved {
@@ -87,6 +94,11 @@ export interface Resolved {
   drawings: Map<string, Drawing>;
   /** The files named under `geometry` that are not attached. */
   missing: string[];
+  /**
+   * The bodies left without their shape because the drawing is not attached and the
+   * model keeps no outline for them.
+   */
+  unshaped: string[];
   /** What `geometry` says, by name. */
   sources: Record<string, GeometrySource>;
   /** The bodies that take their shape from a drawing. */
@@ -115,6 +127,7 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
   const drawings = new Map<string, Drawing>();
   /** The files the model names that are not at hand. */
   const missing: string[] = [];
+  const unshaped: string[] = [];
 
   const fail = (severity: Diagnostic["severity"], message: string, path: Path): Reported => {
     report({ severity, message, path });
@@ -126,12 +139,9 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
     const text = files.get(source.file);
     try {
       if (text === undefined) {
+        // Whether that matters depends on the bodies: one that keeps its outline needs no drawing.
         if (!missing.includes(source.file)) missing.push(source.file);
-        throw fail(
-          "warning",
-          `The drawing "${source.file}" is not attached, so the shapes from it are left out. Add it with "Add drawing"`,
-          path,
-        );
+        continue;
       }
       let drawing: Drawing;
       try {
@@ -189,7 +199,15 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
       continue;
     }
     const at: Path = ["bodies", id, "shape"];
-    uses.push({ body: id, from: shape.from, layer: shape.layer, byPoint: shape.at !== undefined });
+    const use: ShapeUse = {
+      body: id,
+      from: shape.from,
+      layer: shape.layer,
+      byPoint: shape.at !== undefined,
+      kept: shape.path !== undefined,
+    };
+    uses.push(use);
+    const holes = shape.holes && { holes: shape.holes };
     const { shape: _, ...rest } = body;
     bodies[id] = rest;
     try {
@@ -197,7 +215,14 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
         throw fail("error", `There is no drawing "${shape.from}" under geometry`, [...at, "from"]);
       }
       const drawing = drawings.get(shape.from);
-      // Not attached, or without a unit: said once, where the drawing is named.
+      if (!files.has((sources[shape.from] as GeometrySource).file)) {
+        // The drawing is not at hand. The outline kept in the model stands in for it.
+        if (shape.path !== undefined)
+          bodies[id] = { ...rest, shape: { path: shape.path, ...holes } };
+        else unshaped.push(id);
+        continue;
+      }
+      // Could not be read, or without a unit: said once, where the drawing is named.
       if (!drawing || drawing.unit === undefined) continue;
       const drawingUnit = drawing.unit;
 
@@ -289,17 +314,35 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
         y: -(px * sin + py * cos) * scale,
       };
       const loops = [found.outer, ...found.holes].map((loop) => placeLoop(loop, into));
-      bodies[id] = {
-        ...rest,
-        shape: { path: writePath(loops), ...(shape.holes && { holes: shape.holes }) },
-      };
+      // To nine figures: far finer than a part is made, and free of the last digits
+      // that a drawing's own rounding leaves behind, so the text reads cleanly.
+      use.path = writePath(loops, 9);
+      bodies[id] = { ...rest, shape: { path: use.path, ...holes } };
     } catch (error) {
       if (!(error instanceof Reported)) throw error;
     }
   }
 
+  // A drawing that is not attached is worth a word only where a body goes without its shape for it.
+  for (const [name, source] of Object.entries(sources)) {
+    const without = uses.filter((use) => use.from === name && unshaped.includes(use.body));
+    if (without.length === 0 || files.has(source.file)) continue;
+    fail(
+      "warning",
+      `The drawing "${source.file}" is not attached, so ${without.map((use) => `"${use.body}"`).join(", ")} ${without.length === 1 ? "is" : "are"} drawn without ${without.length === 1 ? "its shape" : "their shapes"}. Add it under Geometry`,
+      ["geometry", name, "file"],
+    );
+  }
+
   const { geometry: __, ...withoutGeometry } = doc;
-  return { doc: { ...withoutGeometry, bodies } as Document, drawings, missing, sources, uses };
+  return {
+    doc: { ...withoutGeometry, bodies } as Document,
+    drawings,
+    missing,
+    unshaped,
+    sources,
+    uses,
+  };
 }
 
 /**
@@ -330,28 +373,26 @@ export function drawingFiles(text: string, schema?: Parameters<typeof load>[1]):
 }
 
 /**
- * The model's text with every shape that comes from a drawing written out as path
- * text, and `geometry` gone: complete without its files, for a link. The rest of the
- * text is left as written. Undefined when the text does not read.
+ * The model's text with the outline each body takes from a drawing kept beside its
+ * `from`, as `path`: what makes a saved model, or a link to one, complete without
+ * its drawings. An outline is written where the drawing gives one that the text does
+ * not have yet, or has differently; a body whose drawing is not attached keeps what
+ * it has. The rest of the text is left as written. A text that does not read is
+ * given back as it is.
  */
-export function flatten(
+export function keepOutlines(
   text: string,
   files: Files = new Map(),
   schema?: Parameters<typeof load>[1],
-): string | undefined {
+): string {
   const before = load(text, schema).doc;
-  if (!before) return undefined;
-  const { doc } = resolveShapes(before, files, () => {});
+  if (!before) return text;
+  const { uses } = resolveShapes(before, files, () => {});
   const edits: Edit[] = [];
-  for (const [id, body] of Object.entries(before.bodies)) {
-    if (!body.shape || !("from" in body.shape)) continue;
-    const written = doc.bodies[id]?.shape;
-    edits.push(
-      written
-        ? { op: "set", path: ["bodies", id, "shape"], value: written as never }
-        : { op: "delete", path: ["bodies", id, "shape"] },
-    );
+  for (const use of uses) {
+    const shape = before.bodies[use.body]?.shape;
+    if (use.path === undefined || !shape || !("from" in shape) || shape.path === use.path) continue;
+    edits.push({ op: "set", path: ["bodies", use.body, "shape", "path"], value: use.path });
   }
-  if (before.geometry !== undefined) edits.push({ op: "delete", path: ["geometry"] });
   return edits.length === 0 ? text : editText(text, edits);
 }

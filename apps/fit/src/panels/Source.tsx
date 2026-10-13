@@ -22,7 +22,7 @@ export function Source() {
   const diagnostics = useStore((s) => s.simulation.diagnostics);
   const height = useLayout((s) => s.messages);
   const resize = useLayout((s) => s.resize);
-  const missing = useStore((s) => s.simulation.missing.length);
+  const missing = useStore((s) => s.simulation.unshaped.length);
   const sources = useStore((s) => s.simulation.sources);
   const drawings = useStore((s) => s.simulation.drawings);
   const uses = useStore((s) => s.simulation.uses);
@@ -41,7 +41,7 @@ export function Source() {
           {
             id: "geometry",
             name: "Geometry",
-            note: missing > 0 ? `${missing} missing` : undefined,
+            note: missing > 0 ? "drawing missing" : undefined,
           },
         ]}
       />

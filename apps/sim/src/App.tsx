@@ -175,7 +175,7 @@ export function App() {
   const skill = useLayout((s) => s.skill);
   const setSkill = useLayout((s) => s.setSkill);
   const [tab, setTab] = useState<"source" | "geometry">("source");
-  const missing = useStore((s) => s.simulation.missing.length);
+  const missing = useStore((s) => s.simulation.unshaped.length);
   const sources = useStore((s) => s.simulation.sources);
   const drawings = useStore((s) => s.simulation.drawings);
   const uses = useStore((s) => s.simulation.uses);
@@ -213,7 +213,7 @@ export function App() {
             {
               id: "geometry",
               name: "Geometry",
-              note: missing > 0 ? `${missing} missing` : undefined,
+              note: missing > 0 ? "drawing missing" : undefined,
             },
           ]}
         >

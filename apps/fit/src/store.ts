@@ -1,5 +1,5 @@
 import type { Files, Simulation } from "@mekasim/core";
-import { simulate } from "@mekasim/fit";
+import { keepOutlines, simulate } from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
@@ -93,7 +93,9 @@ export const useStore = create<State>((set, get) => {
     step: 0,
     playing: true,
     rate: comfortableRate(first.shown?.compiled?.period ?? 0),
-    load(next, files = new Map()) {
+    load(opened, files = new Map()) {
+      // Opened with its drawings, a model takes their outlines into its text at once.
+      const next = keepOutlines(opened, files);
       keep(next, files);
       const solved = solve(next, files);
       set({
@@ -110,13 +112,16 @@ export const useStore = create<State>((set, get) => {
       const { simulation } = get();
       const added = withDrawings(get().text, simulation.sources, simulation.missing, picked);
       const files = new Map([...get().files, ...added.files]);
-      keep(added.text, files);
-      set({ ...solve(added.text, files, get()), text: added.text, files });
+      // The outlines the drawings give are kept in the text, where a saved model has them.
+      const text = keepOutlines(added.text, files);
+      keep(text, files);
+      set({ ...solve(text, files, get()), text, files });
     },
-    replace(file, text) {
-      const files = new Map([...get().files, [file, text]]);
-      keep(get().text, files);
-      set({ ...solve(get().text, files, get()), files });
+    replace(file, drawing) {
+      const files = new Map([...get().files, [file, drawing]]);
+      const text = keepOutlines(get().text, files);
+      keep(text, files);
+      set({ ...solve(text, files, get()), text, files });
     },
     setText(next) {
       keep(next, get().files);

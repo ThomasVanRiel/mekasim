@@ -168,6 +168,26 @@ function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
   );
 }
 
+/** What it means for the model that a drawing is not attached. */
+function Detached({ uses }: { uses: ShapeUse[] }) {
+  const without = uses.filter((use) => !use.kept).map((use) => label(use.body));
+  if (without.length === 0) {
+    return (
+      <p className="text-ink-soft text-sm">
+        Not attached. The model keeps the outlines it took from it, so nothing is missing; attach
+        the drawing to see what it holds, or a newer one to change the outlines.
+      </p>
+    );
+  }
+  return (
+    <p className="border border-brass px-2 py-1 text-sm">
+      Not attached, and the model keeps no outline for {without.join(", ")}:{" "}
+      {without.length === 1 ? "it is" : "they are"} drawn without{" "}
+      {without.length === 1 ? "a shape" : "shapes"}.
+    </p>
+  );
+}
+
 /**
  * The drawings of the model: which are attached, what each holds, and which body
  * takes its outline from where. Drawings are added and exchanged for newer ones here.
@@ -243,9 +263,7 @@ export function Geometry({
               </PickDrawing>
             </h3>
             {!attached ? (
-              <p className="border border-brass px-2 py-1 text-sm">
-                Not attached. The bodies that take their shape from it are drawn without one.
-              </p>
+              <Detached uses={uses.filter((use) => use.from === name)} />
             ) : drawing ? (
               <Report drawing={drawing} uses={uses.filter((use) => use.from === name)} />
             ) : (

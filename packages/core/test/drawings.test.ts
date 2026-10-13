@@ -4,7 +4,7 @@ import {
   circleLoop,
   drawingFiles,
   drawingName,
-  flatten,
+  keepOutlines,
   loopArea,
   readDrawing,
   type Shape,
@@ -17,7 +17,10 @@ const simulate = (text: string, files?: Map<string, string>) => simulateModel(te
 
 const read = (path: string): string =>
   readFileSync(new URL(`../../../examples/${path}`, import.meta.url), "utf8");
-const model = read("shaped-four-bar-dxf.mekasim.yaml");
+/** The example as it is saved: with the outlines of its drawing kept in it. */
+const saved = read("shaped-four-bar-dxf.mekasim.yaml");
+/** The same as it is first written, before any outline is kept: what needs its drawing. */
+const model = saved.replace(/, path: [^}]*\}/g, " }");
 const dxf = read("four-bar-links.dxf");
 const files = new Map([["four-bar-links.dxf", dxf]]);
 const written = simulateModel(read("shaped-four-bar.mekasim.yaml"));
@@ -63,11 +66,12 @@ describe("a drawing that is not there, or not as the model says", () => {
     expect(simulation.diagnostics.map((d) => [d.severity, d.message, d.position?.line])).toEqual([
       [
         "warning",
-        'The drawing "four-bar-links.dxf" is not attached, so the shapes from it are left out. Add it with "Add drawing"',
+        'The drawing "four-bar-links.dxf" is not attached, so "crank", "coupler", "rocker" are drawn without their shapes. Add it under Geometry',
         18,
       ],
     ]);
     expect(simulation.missing).toEqual(["four-bar-links.dxf"]);
+    expect(simulation.unshaped).toEqual(["crank", "coupler", "rocker"]);
     expect(simulate(model, files).missing).toEqual([]);
     expect(simulation.cycle?.count).toBe(360);
     expect(shapeOfBody(simulation, "crank")).toBeUndefined();
@@ -155,21 +159,29 @@ describe("a drawing that is not there, or not as the model says", () => {
   });
 });
 
-describe("a model made complete without its files", () => {
-  const flat = flatten(model, files) as string;
+describe("a model that keeps the outlines of its drawings", () => {
+  const bare = model;
+  const kept = keepOutlines(bare, files);
 
-  it("has its shapes written out, and no drawings named", () => {
-    expect(flat).not.toContain("geometry:");
-    expect(flat).not.toContain("from: links");
-    expect(flat).toContain("path: M ");
-    // The rest of the text is as it was written, comments and all.
-    expect(flat).toContain("# crank radius");
+  it("is the example itself, as it is saved", () => {
+    expect(bare).not.toBe(saved);
+    expect(kept).toBe(saved);
   });
 
-  it("gives the same shapes, with no files at hand", () => {
-    const alone = simulate(flat);
+  it("has each outline beside what says where it comes from", () => {
+    expect(bare).not.toContain("path:");
+    expect(kept).toContain("geometry:");
+    expect(kept).toMatch(/shape: \{ from: links, layer: CRANK, place: \[20, 20, 0\], path: M /);
+    // The rest of the text is as it was written, comments and all.
+    expect(kept).toContain("# crank radius");
+  });
+
+  it("runs the same without its drawing, and has nothing to say about it", () => {
+    const alone = simulate(kept);
     expect(alone.diagnostics).toEqual([]);
-    const withFiles = simulate(model, files);
+    expect(alone.missing).toEqual(["four-bar-links.dxf"]);
+    expect(alone.unshaped).toEqual([]);
+    const withFiles = simulate(kept, files);
     for (const id of ["crank", "coupler", "rocker"]) {
       const a = shapeOfBody(alone, id) as Shape;
       const b = shapeOfBody(withFiles, id) as Shape;
@@ -178,16 +190,34 @@ describe("a model made complete without its files", () => {
     }
   });
 
-  it("names the files a model needs, for whoever fetches them", () => {
-    expect(drawingFiles(model)).toEqual(["four-bar-links.dxf"]);
-    expect(drawingFiles(flat)).toEqual([]);
-    expect(drawingFiles("bodies: [")).toEqual([]);
+  it("follows the drawing when it is there, whatever outline is kept", () => {
+    const stale = kept.replace(/layer: CRANK, place: \[20, 20, 0\], path: [^}]*\}/, (found) =>
+      found.replace(/path: [^}]*\}/, "path: M 0 0 L 1 0 L 1 1 Z }"),
+    );
+    expect(stale).not.toBe(kept);
+    // With the drawing, the crank is the drawing's; without it, what the model keeps.
+    expect(loopArea((shapeOfBody(simulate(stale, files), "crank") as Shape).outer)).toBeGreaterThan(
+      1e-4,
+    );
+    expect(loopArea((shapeOfBody(simulate(stale), "crank") as Shape).outer)).toBeCloseTo(
+      0.5e-6,
+      12,
+    );
+    // Saved with the drawing at hand, the kept outline is the drawing's again.
+    expect(keepOutlines(stale, files)).toBe(kept);
   });
 
-  it("is the text itself when there is nothing to write out", () => {
+  it("is left as it is when there is nothing to keep, or the drawing is not there", () => {
+    expect(keepOutlines(kept, files)).toBe(kept);
+    expect(keepOutlines(bare)).toBe(bare);
     const text = read("four-bar.mekasim.yaml");
-    expect(flatten(text)).toBe(text);
-    expect(flatten("bodies: [")).toBeUndefined();
+    expect(keepOutlines(text)).toBe(text);
+    expect(keepOutlines("bodies: [")).toBe("bodies: [");
+  });
+
+  it("names the files a model needs, for whoever fetches them", () => {
+    expect(drawingFiles(model)).toEqual(["four-bar-links.dxf"]);
+    expect(drawingFiles("bodies: [")).toEqual([]);
   });
 });
 
@@ -226,10 +256,10 @@ describe("what a model says of its drawings", () => {
   it("is kept for showing: what is named, and which body uses which layer", () => {
     const simulation = simulate(model, files);
     expect(simulation.sources).toEqual({ links: { file: "four-bar-links.dxf" } });
-    expect(simulation.uses).toEqual([
-      { body: "crank", from: "links", layer: "CRANK", byPoint: false },
-      { body: "coupler", from: "links", layer: "COUPLER", byPoint: false },
-      { body: "rocker", from: "links", layer: "ROCKER", byPoint: false },
+    expect(simulation.uses.map(({ path, ...use }) => use)).toEqual([
+      { body: "crank", from: "links", layer: "CRANK", byPoint: false, kept: false },
+      { body: "coupler", from: "links", layer: "COUPLER", byPoint: false, kept: false },
+      { body: "rocker", from: "links", layer: "ROCKER", byPoint: false, kept: false },
     ]);
     // Also when the drawing is not there.
     expect(simulate(model).uses).toHaveLength(3);

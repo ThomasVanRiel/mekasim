@@ -61,6 +61,12 @@ const DrawnShape = z.strictObject({
     .describe(
       "Where the body's own frame sits in the drawing, as [x, y, angle]; default [0, 0, 0]",
     ),
+  path: z
+    .string()
+    .optional()
+    .describe(
+      "The outline as last read from the drawing, kept by the app so that the model is complete without it",
+    ),
   holes: Holes,
 });
 

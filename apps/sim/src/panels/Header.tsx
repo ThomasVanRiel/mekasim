@@ -1,4 +1,4 @@
-import { flatten, NEW_MODEL } from "@mekasim/core";
+import { keepOutlines, NEW_MODEL } from "@mekasim/core";
 import { download, encodeModel, exampleFragment, fileStem, sortFiles, useTheme } from "@mekasim/ui";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
@@ -24,8 +24,8 @@ export function Header() {
       // An untouched example has a short link by its name; anything else is packed into the link.
       const { text } = useStore.getState();
       const example = EXAMPLES.find((e) => e.text === text);
-      // A link carries no files, so shapes that come from drawings are written out into it.
-      const whole = flatten(text, useStore.getState().files) ?? text;
+      // A link carries no files, so the outlines from them are kept in the text it carries.
+      const whole = keepOutlines(text, useStore.getState().files);
       const fragment = example ? exampleFragment(example.id) : await encodeModel(whole);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
@@ -36,7 +36,9 @@ export function Header() {
   }
 
   function save(): void {
-    download(`${fileStem(name)}.mekasim.yaml`, useStore.getState().text, "text/yaml");
+    // Saved with the outlines of its drawings kept in it, so the one file is the whole model.
+    const { text, files } = useStore.getState();
+    download(`${fileStem(name)}.mekasim.yaml`, keepOutlines(text, files), "text/yaml");
   }
 
   return (

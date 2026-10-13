@@ -214,6 +214,7 @@ A body's `shape` then says which outline it is:
 | `at` | `[x, y]`, a point inside the wanted outline, in the drawing's coordinates. Needed when the layer has more than one outline, or when no layer is given |
 | `place` | `[x, y, angle]`: where the body's own frame sits in the drawing. Default `[0, 0, 0]`, which is right for a part drawn round its own origin |
 | `holes` | Round holes added at named points, as for a shape written out |
+| `path` | The outline as it was last read from the drawing. The app writes it; see below |
 
 `at` and the place of `place` are plain numbers in the drawing's own coordinates,
 not expressions over parameters.
@@ -225,9 +226,23 @@ are joined into outlines; an outline that does not close cannot be a shape, and 
 reported with the two ends it is open between. The app shows what each drawing
 holds, layer by layer, in the Geometry tab beside the source.
 
-A drawing that is not attached is not an error: the model runs, and the bodies that
-take their shape from it are drawn as plates until it is. A link to a model carries
-no files, so the shapes are written out into it as `path`.
+**A saved model is complete without its drawings.** When a drawing is attached, the
+app writes the outline each body takes from it into the model, as `path` beside
+`from`:
+
+```yaml
+shape: { from: links, layer: CRANK, place: [20, 20, 0], path: M 0 -14 L 40 -9 A 9 9 0 0 1 49 0 ... Z }
+```
+
+So the one YAML file, downloaded or sent as a link, opens with its shapes anywhere,
+with the drawing at hand or not. The drawing stays the source: while it is attached
+the outline comes from it, and attaching a newer export, or saving, writes the kept
+`path` afresh. Do not edit a kept `path` by hand; change the drawing, or remove
+`from` to make the shape a written one.
+
+A drawing that is not attached is not an error. A body that keeps its outline is
+drawn with it; one that has none yet is drawn as a plate, and the model says which
+drawing it is waiting for.
 
 ### Two ways to describe a mechanism
 
