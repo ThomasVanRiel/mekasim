@@ -29,6 +29,8 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 - `pnpm test`, `pnpm typecheck`, `pnpm lint` (`pnpm format` applies fixes)
 - `pnpm solve <model.mekasim.yaml>` — run the solver from the command line
 - `pnpm schema` — regenerate the JSON Schema after changing the format
+- `pnpm baseline` — rewrite what the examples solve to (`packages/core/test/baseline.json`),
+  only after a change that is meant to move their numbers; read the diff
 
 ## Conventions
 

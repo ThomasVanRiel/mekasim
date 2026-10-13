@@ -14,7 +14,8 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "solve": "node packages/core/src/cli.ts",
-    "schema": "node packages/core/scripts/write-schema.ts"
+    "schema": "node packages/core/scripts/write-schema.ts",
+    "baseline": "node packages/core/scripts/write-baseline.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

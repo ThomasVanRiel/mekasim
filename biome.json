@@ -6,7 +6,12 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!packages/core/schema", "!pnpm-lock.yaml"]
+    "includes": [
+      "**",
+      "!packages/core/schema",
+      "!packages/core/test/baseline.json",
+      "!pnpm-lock.yaml"
+    ]
   },
   "formatter": {
     "indentStyle": "space",
