@@ -84,6 +84,7 @@ export function App() {
   const units = useStore((s) => s.shown?.compiled?.units);
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const step = useStore((s) => s.step);
+  const gaps = useStore((s) => s.gaps);
   const opened = useStore((s) => s.opened);
   const stale = useStore((s) => s.simulation !== s.shown);
   const source = useLayout((s) => s.source);
@@ -121,7 +122,7 @@ export function App() {
               unit={docFactor(LENGTH, units)}
               fitKey={opened}
               label={`Drawing of ${name ?? "the model"}`}
-              overlay={<Names scene={scene} step={step} />}
+              overlay={<Names scene={scene} step={step} gaps={gaps} units={units} />}
             >
               <Drawing scene={scene} step={step} />
             </Sheet>

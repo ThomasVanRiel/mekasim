@@ -1,4 +1,5 @@
-import { type Shape, writePath } from "@mekasim/core";
+import { formatQuantity, type Shape, type Units, writePath } from "@mekasim/core";
+import type { MeasuredGap } from "@mekasim/fit";
 import {
   bodyColor,
   type Palette,
@@ -208,11 +209,41 @@ export function Drawing({ scene, step }: { scene: Scene; step: number }) {
   );
 }
 
+/** A gap as it is written beside its line: how wide, or how far the parts are into each other. */
+export function gapText(distance: number, units: Units): string {
+  const size = formatQuantity(Math.abs(distance), [1, 0, 0, 0], units, 4);
+  return distance < 0 ? `${size} into each other` : size;
+}
+
 /** The names and the measured distances of the drawing, in pixels, for the overlay of a `Sheet`. */
-export function Names({ scene, step }: { scene: Scene; step: number }) {
+export function Names({
+  scene,
+  step,
+  gaps,
+  units,
+}: {
+  scene: Scene;
+  step: number;
+  /** The gaps the model asks about, drawn where they are measured at this step. */
+  gaps: MeasuredGap[];
+  units: Units;
+}) {
   const poses = posesAt(scene, step);
   return (
     <>
+      {gaps.map(({ a, b, gaps: over }) => {
+        const found = over[Math.min(over.length - 1, Math.round(step))];
+        if (!found) return null;
+        return (
+          <SheetDimension
+            key={`${a} ${b}`}
+            from={found.a}
+            to={found.b}
+            text={gapText(found.distance, units)}
+            wrong={found.distance < 0}
+          />
+        );
+      })}
       {scene.dimensions.map((dimension) => (
         <SheetDimension
           key={dimension.id}

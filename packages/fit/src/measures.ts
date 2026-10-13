@@ -77,3 +77,48 @@ export const registry: Registry = {
     },
   },
 };
+
+/** A gap that the model asks about, at every sample of the motion. */
+export interface MeasuredGap {
+  /** The two bodies, as the model names them. */
+  a: string;
+  b: string;
+  gaps: Gap[];
+}
+
+/** Every call of a function in an expression, wherever it stands in it. */
+function callsOf(node: Node, name: string, found: (Node & { kind: "call" })[] = []) {
+  if (node.kind === "call") {
+    if (node.name === name) found.push(node);
+    for (const arg of node.args) callsOf(arg, name, found);
+  } else if (node.kind === "neg" || node.kind === "not") callsOf(node.arg, name, found);
+  else if (node.kind === "bin" || node.kind === "compare" || node.kind === "logic") {
+    callsOf(node.left, name, found);
+    callsOf(node.right, name, found);
+  }
+  return found;
+}
+
+/**
+ * The gaps that the measures, checks and plots of a model ask about, each pair of
+ * bodies once, for drawing them where they are measured.
+ */
+export function measuredGaps(compiled: Compiled, cycle: Cycle): MeasuredGap[] {
+  const asked = [
+    ...compiled.measures.map((measure) => measure.ast),
+    ...compiled.checks.map((check) => check.ast),
+    ...compiled.plots.flatMap((plot) => plot.series.map((series) => series.ast)),
+  ];
+  const found = new Map<string, MeasuredGap>();
+  for (const ast of asked) {
+    for (const call of callsOf(ast, "gap")) {
+      const [a, b] = call.args.map((arg) => (arg.kind === "ref" ? arg.name : undefined));
+      if (a === undefined || b === undefined || a === b) continue;
+      const key = [a, b].sort().join(" ");
+      if (found.has(key)) continue;
+      const gaps = gapsOf(compiled, cycle, a, b);
+      if (gaps) found.set(key, { a, b, gaps });
+    }
+  }
+  return [...found.values()];
+}

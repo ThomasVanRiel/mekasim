@@ -39,10 +39,13 @@ is only the schema with that first line and the calls into core.
 **Phase 2, clearance, is begun.** In `packages/fit`: the exact distance between two
 lines or arcs and between two shapes, with the two places it is between and a
 negative value where shapes overlap (`geometry/distance.ts`, `geometry/tree.ts`),
-and `gap(a, b)` as a function in measures, checks and plots (`measures.ts`). Still
-to do: `contacts:` and the message when parts run into each other, the gap drawn on
-the sheet, the Contacts fold, the Contact tool and "Find contacts", and the
-`clearance-check` example.
+and `gap(a, b)` as a function in measures, checks and plots (`measures.ts`). Every
+gap a model asks about is drawn on mekafit's sheet between its two nearest places,
+in red where the parts are into each other. Still to do: `contacts:` and the message
+when parts run into each other, the Contacts fold, the Contact tool and "Find
+contacts", and the `clearance-check` example. Open before `contacts:` is built:
+what to make of parts that lie over each other by design, as two links do round
+the pin that joins them.
 
 **Not built yet in phase 1:**
 

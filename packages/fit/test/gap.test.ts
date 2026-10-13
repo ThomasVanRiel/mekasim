@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Shape, simulate as simulateModel } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
-import { gap, gapsOf, poseOf, simulate } from "../src/index.ts";
+import { gap, gapsOf, measuredGaps, poseOf, simulate } from "../src/index.ts";
 
 const example = readFileSync(
   new URL("../../../examples/shaped-four-bar.mekasim.yaml", import.meta.url),
@@ -103,5 +103,34 @@ describe("gap() in a model's expressions", () => {
     expect(simulateModel(inMekasim).diagnostics.map((d) => d.severity)).toEqual(["error"]);
     // Opened in mekafit, a mekasim model can ask for it all the same.
     expect(messages(inMekasim)).toEqual([]);
+  });
+});
+
+describe("the gaps a model asks about", () => {
+  it("are found wherever gap() stands, each pair once", () => {
+    const simulation = simulate(
+      withMeasures(
+        "tightest: min(gap(crank, rocker))\n  again: gap(rocker, crank) * 2\n  over: gap(crank, coupler) < 0 mm",
+      ).replace(
+        "  rocker: angle(rocker)",
+        "  rocker: angle(rocker)\n  clear: gap(coupler, rocker)",
+      ),
+    );
+    expect(simulation.diagnostics).toEqual([]);
+    const { compiled, cycle } = simulation;
+    if (!compiled || !cycle) throw new Error("not solved");
+    const found = measuredGaps(compiled, cycle);
+    expect(found.map(({ a, b }) => `${a} ${b}`)).toEqual([
+      "crank rocker",
+      "crank coupler",
+      "coupler rocker",
+    ]);
+    expect(found[0]?.gaps).toHaveLength(cycle.count);
+  });
+
+  it("are none in a model that asks about none", () => {
+    const { compiled, cycle } = simulate(example);
+    if (!compiled || !cycle) throw new Error("not solved");
+    expect(measuredGaps(compiled, cycle)).toEqual([]);
   });
 });

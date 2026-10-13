@@ -245,21 +245,25 @@ export function SheetDimension({
   from,
   to,
   text,
+  wrong = false,
 }: {
   from: [number, number];
   to: [number, number];
   text: string;
+  /** Drawn in red, for a distance that should not be what it is. */
+  wrong?: boolean;
 }) {
   const { view, size } = useSheetView();
   const colors = useColors();
+  const ink = wrong ? colors.red : colors.dye;
   const a = toScreen(view, size, from[0], from[1]);
   const b = toScreen(view, size, to[0], to[1]);
   const at = dimensionGeometry(a, b);
   return (
     <g>
-      <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={colors.dye} strokeDasharray="5 3" />
-      <circle cx={a[0]} cy={a[1]} r={2.5} fill={colors.dye} />
-      <circle cx={b[0]} cy={b[1]} r={2.5} fill={colors.dye} />
+      <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={ink} strokeDasharray="5 3" />
+      <circle cx={a[0]} cy={a[1]} r={2.5} fill={ink} />
+      <circle cx={b[0]} cy={b[1]} r={2.5} fill={ink} />
       <text
         x={at.x}
         y={at.y}
@@ -267,7 +271,7 @@ export function SheetDimension({
         textAnchor="middle"
         dominantBaseline="middle"
         fontSize={12}
-        fill={colors.dye}
+        fill={ink}
         stroke={colors.paper}
         strokeWidth={3}
         paintOrder="stroke"
