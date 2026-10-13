@@ -9,6 +9,7 @@ import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
 import { advance, stepped } from "./playback.ts";
 import { Drawing, Names } from "./sheet/Drawing.tsx";
+import { Tools } from "./sheet/Tools.tsx";
 import { useStore } from "./store.ts";
 
 /** Moves the position in the run on with the clock while it plays. */
@@ -48,6 +49,12 @@ function useKeys(): void {
         event.preventDefault();
         state.setPlaying(false);
         state.setStep(stepped(state.step, event.key === "ArrowRight" ? 1 : -1, count));
+      } else if (event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        state.setTool("contact");
+      } else if (event.key.toLowerCase() === "v" || event.key === "Escape") {
+        event.preventDefault();
+        state.setTool("select");
       }
     }
     // On the way up, so that the sheet can take a Space that was held to move it.
@@ -88,6 +95,8 @@ export function App() {
   const step = useStore((s) => s.step);
   const gaps = useStore((s) => s.shown?.gaps);
   const contact = useStore((s) => s.contact);
+  const tool = useStore((s) => s.tool);
+  const contactDraft = useStore((s) => s.contactDraft);
   const opened = useStore((s) => s.opened);
   const stale = useStore((s) => s.simulation !== s.shown);
   const source = useLayout((s) => s.source);
@@ -138,9 +147,16 @@ export function App() {
                 />
               }
             >
-              <Drawing scene={scene} step={step} />
+              <Drawing
+                scene={scene}
+                step={step}
+                tool={tool}
+                contactDraft={contactDraft}
+                onBody={(body) => useStore.getState().pickContact(body)}
+              />
             </Sheet>
           ) : null}
+          <Tools />
           {stale && (
             <p
               role="status"

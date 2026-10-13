@@ -221,6 +221,9 @@ not.
 
 Without contact solving (no `move` driver, no springs, no locks), contacts are only
 checked: a pair that runs into each other is reported with the step and the place.
+The Contact tool writes a picked pair as `between`. "Find contacts" lists shaped
+pairs that come within a chosen distance during the run and writes only the pairs
+the user checks; pairs already in `contacts:` are shown checked.
 
 | Field | Meaning |
 |---|---|

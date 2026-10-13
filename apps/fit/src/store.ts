@@ -1,5 +1,11 @@
-import type { Files } from "@mekasim/core";
-import { type ContactResult, type FitSimulation, keepOutlines, simulate } from "@mekasim/fit";
+import { type Edit, editText, type Files } from "@mekasim/core";
+import {
+  addContacts,
+  type ContactResult,
+  type FitSimulation,
+  keepOutlines,
+  simulate,
+} from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
@@ -57,6 +63,11 @@ interface State extends Solved {
   step: number;
   playing: boolean;
   rate: number;
+  tool: "select" | "contact";
+  /** The first body picked by the Contact tool. */
+  contactDraft?: string;
+  /** A short explanation when a drawing action cannot be completed yet. */
+  notice?: string;
   /** Open another model, with its drawings: it replaces this one and plays from its start. */
   load(text: string, files?: Files): void;
   /**
@@ -75,6 +86,10 @@ interface State extends Solved {
   setRate(rate: number): void;
   /** Show a contact at its closest step while its row is under the pointer or keyboard focus. */
   showContact(contact?: ContactResult): void;
+  setTool(tool: State["tool"]): void;
+  pickContact(body: string): void;
+  /** Add selected contact pairs to the source. Returns how many were new. */
+  addContactPairs(pairs: [string, string][]): number;
 }
 
 function keep(text: string, files: Files): void {
@@ -99,6 +114,7 @@ export const useStore = create<State>((set, get) => {
     step: 0,
     playing: true,
     rate: comfortableRate(first.shown?.compiled?.period ?? 0),
+    tool: "select",
     load(opened, files = new Map()) {
       // Opened with its drawings, a model takes their outlines into its text at once.
       const next = keepOutlines(opened, files);
@@ -143,6 +159,35 @@ export const useStore = create<State>((set, get) => {
     setRate: (rate) => set({ rate }),
     showContact(contact) {
       set(contact ? { contact, step: contact.step, playing: false } : { contact: undefined });
+    },
+    setTool(tool) {
+      set({ tool, contactDraft: undefined, notice: undefined });
+    },
+    pickContact(body) {
+      const first = get().contactDraft;
+      if (!first) {
+        set({ contactDraft: body, notice: "Now click the other part." });
+        return;
+      }
+      if (first === body) {
+        set({ notice: "Choose a different part." });
+        return;
+      }
+      const added = get().addContactPairs([[first, body]]);
+      set({
+        contactDraft: undefined,
+        notice: added ? undefined : "Those parts are already listed.",
+      });
+    },
+    addContactPairs(pairs) {
+      const doc = get().simulation.doc;
+      if (!doc) {
+        set({ notice: "Fix the source before changing contacts from the drawing." });
+        return 0;
+      }
+      const edits: Edit[] = addContacts(doc, pairs);
+      if (edits.length > 0) get().setText(editText(get().text, edits));
+      return edits.length;
     },
   };
 });

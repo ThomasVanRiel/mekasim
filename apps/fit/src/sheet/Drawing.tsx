@@ -54,7 +54,19 @@ const LINE = { vectorEffect: "non-scaling-stroke", strokeWidth: 1.25 } as const;
  * The mechanism at a step of the run, in world coordinates, for inside a `Sheet`:
  * the plates mekasim draws, their pins and slots, wheels, cams and traces.
  */
-export function Drawing({ scene, step }: { scene: Scene; step: number }) {
+export function Drawing({
+  scene,
+  step,
+  tool = "select",
+  contactDraft,
+  onBody,
+}: {
+  scene: Scene;
+  step: number;
+  tool?: "select" | "contact";
+  contactDraft?: string;
+  onBody?(body: string): void;
+}) {
   const colors: Palette = useColors();
   // An outline and its holes as one path, filled where it is material.
   const outlines = useMemo(() => {
@@ -75,14 +87,18 @@ export function Drawing({ scene, step }: { scene: Scene; step: number }) {
     <>
       {/* What stands still lies under everything that moves. */}
       {ground && (
+        // biome-ignore lint/a11y/noStaticElementInteractions: Contact is a pointer tool on the drawing.
         <path
           d={ground}
           fillRule="evenodd"
           fill={colors.gridMajor}
           fillOpacity={0.6}
-          stroke={colors.ink}
+          stroke={contactDraft === "ground" ? colors.dye : colors.ink}
           strokeLinejoin="round"
+          className={tool === "contact" ? "cursor-crosshair" : undefined}
+          onClick={() => tool === "contact" && onBody?.("ground")}
           {...LINE}
+          strokeWidth={contactDraft === "ground" ? 2.5 : LINE.strokeWidth}
         />
       )}
       {scene.traces.map((trace) => (
@@ -121,14 +137,18 @@ export function Drawing({ scene, step }: { scene: Scene; step: number }) {
       ))}
       {bodies.map((body) => (
         <On key={body.id} poses={poses} body={body.index}>
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: Contact is a pointer tool on the drawing. */}
           <path
             d={outlines.get(body.id) ?? `${path(body.outline)}Z`}
             fillRule="evenodd"
             fill={bodyColor(colors, body.index)}
             fillOpacity={0.85}
-            stroke={colors.ink}
+            stroke={contactDraft === body.id ? colors.dye : colors.ink}
             strokeLinejoin="round"
+            className={tool === "contact" && body.shape ? "cursor-crosshair" : undefined}
+            onClick={() => tool === "contact" && body.shape && onBody?.(body.id)}
             {...LINE}
+            strokeWidth={contactDraft === body.id ? 2.5 : LINE.strokeWidth}
           />
         </On>
       ))}

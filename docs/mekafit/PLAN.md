@@ -47,8 +47,10 @@ their gap is 0 where they overlap, and the model warns about it. In mekafit,
 `contacts:` is read, checked and compiled to distinct pairs, and a run reports the
 first place a listed pair runs into each other by more than 0.001 mm. Each pair's
 closest gap is kept with the run and shown in the Contacts fold; hovering it moves
-the run there and draws the gap. This fold is waiting for Thomas's browser check.
-Still to do: the Contact tool and "Find contacts", and the `clearance-check` example.
+the run there and draws the gap. The Contact tool writes a picked pair into the
+model, and "Find contacts" proposes the shaped pairs that come within a chosen
+distance, leaving the choice of which to add to the user. Still to do: the
+`clearance-check` example and mekafit's example picker.
 
 **Not built yet in phase 1:**
 
@@ -60,16 +62,10 @@ Still to do: the Contact tool and "Find contacts", and the `clearance-check` exa
   example drawing; "Make" still writes polygons).
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
-**Waiting for Thomas before more is built** (commit `a5debb5` changed
-`packages/core` and `apps/sim`): he checks in `pnpm dev` that a `gap(a, b)` measure
-is drawn with its value in mekasim's 3D view and on mekafit's sheet, that
-`gap(crank, coupler)` in `examples/shaped-four-bar.mekasim.yaml` stays at 0 with the
-warning about the pin, and that mekasim's `dist` dimensions look as before
-(`apps/sim/src/viewport/Dimensions.tsx` now draws both). Ask him for that report
-first if it is not in the conversation.
-
-The new Contacts fold also needs Thomas's browser check before its next numbered
-step is built: its rows, closest values, hover-to-step behavior and gap dimension.
+**Browser checks passed by Thomas:** the `gap()` and unchanged `dist` drawing from
+commit `a5debb5`, and the Contacts fold's rows, closest values, hover-to-step
+behavior and gap dimension. In the shaped four-bar the two pinned pairs correctly
+stay at 0, while crank and rocker come closest at 97 mm at step 217.
 
 **Next, in this order** (the rest of phase 2, mekafit's alone, in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
@@ -85,13 +81,14 @@ step is built: its rows, closest values, hover-to-step behavior and gap dimensio
    message "`knuckle` runs into `head` at step 41, 0.3 mm deep", at the contacts
    entry. A pinned pair that lies over each other gets the same warning `gap()`
    gives, not this message.
-3. **Built; browser check waiting.** The result per pair (smallest gap, its step,
+3. **Built and browser-checked.** The result per pair (smallest gap, its step,
    its two places) kept beside the simulation for the Contacts fold, then the fold
    itself in `apps/fit/src/panels`, with hovering a row moving the run to that step.
-4. **After the browser check.** The Contact tool and "Find contacts" (§3 below,
-   DESIGN.md §4).
-5. `examples/fit/clearance-check.mekafit.yaml`, motor-driven, gaps only, solved by a
-   test as DESIGN.md §8 says.
+4. **Built; browser check waiting.** The Contact tool and "Find contacts" (§3
+   below, DESIGN.md §4).
+5. **Next.** `examples/fit/clearance-check.mekafit.yaml`, motor-driven, gaps only,
+   solved by a test as DESIGN.md §8 says, and mekafit's own example picker (Thomas
+   asked that mekafit's examples be separate from mekasim's).
 
 Then phase 3, the contact step (DESIGN.md §5), which starts with
 `contactPoints` (§3.3) on top of `geometry/distance.ts`.

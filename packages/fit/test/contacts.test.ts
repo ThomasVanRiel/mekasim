@@ -1,6 +1,14 @@
 import { readFileSync } from "node:fs";
+import { editText } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
-import { type FitCompiled, load, simulate } from "../src/index.ts";
+import {
+  addContacts,
+  type FitCompiled,
+  findContacts,
+  hasContact,
+  load,
+  simulate,
+} from "../src/index.ts";
 
 const example = readFileSync(
   new URL("../../../examples/shaped-four-bar.mekasim.yaml", import.meta.url),
@@ -120,5 +128,43 @@ describe("checking contacts after a run", () => {
     expect(contact?.smallest.b[0]).toBeCloseTo(0.009, 12);
     expect(contact?.smallest.b[1]).toBeCloseTo(0.002, 12);
     expect(contact?.measured.gaps).toHaveLength(1);
+  });
+});
+
+describe("finding and adding contacts", () => {
+  it("checks every shaped pair against a chosen distance and marks those already listed", () => {
+    const result = simulate(withContacts("  pinned: { between: [crank, coupler] }"));
+    // Three shaped moving bodies make exactly 3 choose 2 = 3 possible pairs.
+    const every = findContacts(result, 1);
+    expect(every.map(({ a, b }) => [a, b])).toEqual([
+      ["crank", "coupler"],
+      ["crank", "rocker"],
+      ["coupler", "rocker"],
+    ]);
+    expect(every.map(({ listed }) => listed)).toEqual([true, false, false]);
+    expect(findContacts(result, 0).map(({ a, b }) => [a, b])).toEqual([
+      ["crank", "coupler"],
+      ["coupler", "rocker"],
+    ]);
+  });
+
+  it("writes selected new pairs and does not write a pair twice", () => {
+    const before = simulate(withContacts("  pinned: { between: [crank, coupler] }")).doc;
+    if (!before) throw new Error("model did not read");
+    expect(hasContact(before, "coupler", "crank")).toBe(true);
+    const edits = addContacts(before, [
+      ["coupler", "crank"],
+      ["crank", "rocker"],
+      ["coupler", "rocker"],
+    ]);
+    expect(edits.map((edit) => edit.path)).toEqual([
+      ["contacts", "contact1"],
+      ["contacts", "contact2"],
+    ]);
+    const after = simulate(
+      editText(withContacts("  pinned: { between: [crank, coupler] }"), edits),
+    );
+    expect(after.diagnostics.filter(({ severity }) => severity === "error")).toEqual([]);
+    expect((after.compiled as FitCompiled).contacts).toHaveLength(3);
   });
 });

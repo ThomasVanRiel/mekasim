@@ -37,6 +37,16 @@ export interface ContactResult extends CompiledContact {
   step: number;
 }
 
+/** A pair proposed by Find contacts. */
+export interface ContactCandidate {
+  a: string;
+  b: string;
+  measured: MeasuredGap;
+  smallest: Gap;
+  step: number;
+  listed: boolean;
+}
+
 /** A core simulation with mekafit's contact results beside it. */
 export interface FitSimulation extends Simulation {
   compiled?: FitCompiled;
@@ -104,6 +114,42 @@ export function contactResults(simulation: Simulation): ContactResult[] {
     results.push({ ...contact, measured, smallest: measured.gaps[step] as Gap, step });
   }
   return results;
+}
+
+/** Every shaped pair that comes within `distance` over the run, plus already listed pairs. */
+export function findContacts(simulation: Simulation, distance: number): ContactCandidate[] {
+  const { compiled, cycle } = simulation;
+  if (!compiled || !cycle || distance < 0) return [];
+  const listed = (compiled as FitCompiled).contacts ?? [];
+  const listedKeys = new Set(listed.map(({ a, b }) => pairKey(a, b)));
+  const bodies = [...compiled.bodies.values()].filter((body) => body.shape);
+  const found: ContactCandidate[] = [];
+
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i]?.id as string;
+      const b = bodies[j]?.id as string;
+      const measured = gapsOf(compiled, cycle, a, b);
+      if (!measured?.gaps.length) continue;
+      let step = 0;
+      for (let k = 1; k < measured.gaps.length; k++) {
+        if ((measured.gaps[k]?.distance as number) < (measured.gaps[step]?.distance as number)) {
+          step = k;
+        }
+      }
+      const smallest = measured.gaps[step] as Gap;
+      const isListed = listedKeys.has(pairKey(a, b));
+      if (isListed || smallest.distance <= distance) {
+        found.push({ a, b, measured, smallest, step, listed: isListed });
+      }
+    }
+  }
+  return found;
+}
+
+/** An unordered body's pair as one stable key. */
+export function pairKey(a: string, b: string): string {
+  return a < b ? `${a}\0${b}` : `${b}\0${a}`;
 }
 
 /** Messages found by checking the measured contact pairs. */
