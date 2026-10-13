@@ -1,19 +1,62 @@
 # mekafit — plan
 
-Status (2026-10-13): phase 0 built but for its second Netlify site, which is
-described in `apps/fit/netlify.toml` and still has to be made in Netlify. Phase 1 is
-under way: outlines, path text, DXF reading and the Geometry tab are built, and all
-of it lives in mekasim too. mekasim gained `checks:`, comparisons and `shape` on the
-way; mekafit builds on all three. "mekafit" is a working name.
-
-mekafit is a second app in the mekasim repository. mekasim stays as it is: its app,
-its format and its behaviour do not change. mekafit shares mekasim's solver,
+mekafit is a second app in the mekasim repository. mekafit shares mekasim's solver,
 expressions and units, and its look, and adds what mekasim deliberately leaves out:
 real part shapes, clearance between them, parts that push each other, and studies
 that run a mechanism from many starting positions.
 
 The technical design is in [DESIGN.md](DESIGN.md); the file format in
-[FORMAT.md](FORMAT.md).
+[FORMAT.md](FORMAT.md). "mekafit" is a working name.
+
+## Where it stands (2026-10-13)
+
+**Phase 0, the split, is built**, except that the second Netlify site still has to
+be made in Netlify (package directory `apps/fit`, which has its own `netlify.toml`;
+set `VITE_MEKASIM_URL` there for "Open in mekasim").
+
+**Phase 1, shapes, is partly built, and most of it ended up in mekasim.** Thomas
+wanted shapes and drawings in mekasim too, so they are part of mekasim's format and
+their code is in the shared packages:
+
+- Outlines of lines and true arcs, path text, and the checks on them
+  (`packages/core/src/geometry`).
+- `shape: { path, holes }` on a body, drawn by both apps and exported as the part.
+- DXF reading (lines, arcs, circles, polylines, blocks), joining into outlines,
+  `geometry:` with `shape: { from, layer, at, place }` (`packages/core/src/drawing`).
+- A saved model keeps the outline each body takes from a drawing, as `path` beside
+  `from`, so the YAML alone is complete; the drawing wins while it is attached.
+- The Geometry tab, with a picture of each layer (`packages/ui/src/drawings`), in
+  both apps.
+- mekasim also gained `checks:` and conditions in expressions, which studies will
+  build on, and "Make" in its header.
+
+What mekafit itself has so far: its first line `mekafit: 1`, the app skeleton (the
+shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
+Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
+is only the schema with that first line and the calls into core.
+
+**Not built yet in phase 1:**
+
+- Splines and ellipses in a DXF (now left out and counted), replaced by arcs within
+  a tolerance, with `fit` per drawing.
+- SVG drawings.
+- `plate: true` as a shape, and the `copy` component.
+- Picking an outline on the sheet to give it to a body, and pins from holes.
+- Saving the drawings with the model (folder or `.zip`), and "Follow file".
+- True arcs when shapes are exported (`shapesToDxf` exists and is used for the
+  example drawing; "Make" still writes polygons).
+- A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
+
+**Next:** finish what phase 1 needs for Thomas's own coupler drawing to come in
+(splines and ellipses first, then whatever its import report shows), then phase 2:
+exact distance between shapes and `gap()`. Phase 2 is the first that is mekafit's
+alone, unless Thomas asks for it in mekasim as well.
+
+**Changed from the plan below:** the plan was written when mekasim was to stay
+untouched. Where it says that shapes, path text, geometry files or conditions are
+mekafit's, they are mekasim's now. Studies test the model's `checks` (mekasim's)
+unless a study has a `pass` of its own. `docs/mekafit/FORMAT.md` says at its top
+which of its sections describe things that moved to mekasim.
 
 ## 1. Why a second app
 

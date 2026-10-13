@@ -4,9 +4,19 @@ Status (2026-10-01): **phase 0 is built** (core package, command-line solver, fo
 reference). **Phase 1, the viewer, is built** and deployed to Netlify.
 **Phase 2, the editor, is built.** **Phase 3, analysis, is built.** **Phase 4,
 components, is built.** Phases 5 and 6 are parked in [BACKLOG.md](BACKLOG.md) while
-the backlog is worked through. A second app for part shapes, clearance,
-contact and studies, sharing mekasim's core, is planned in
-[../mekafit/PLAN.md](../mekafit/PLAN.md); it leaves mekasim as it is.
+the backlog is worked through.
+
+Added since (2026-10-13), outside the phases, and described in
+[FORMAT.md](FORMAT.md): `checks:` with conditions in expressions (`<`, `and`, ...);
+an optional `shape` on a body, written as path text or taken from a DXF drawing
+named under `geometry:`, drawn in place of the plate and exported as the part; the
+Geometry tab beside the source; "Make" in the header in place of the "Parts to
+make" fold. The interface parts that hold no model, the source editor and the
+description of the drawing moved to `packages/ui`, and the app's folder is
+`apps/sim`.
+
+A second app for clearance, contact and studies, mekafit, shares mekasim's core and
+interface parts; see [../mekafit/PLAN.md](../mekafit/PLAN.md) for where it stands.
 
 Phase 4 as built: gear, belt, cam and distance joints in the solver; crank and rod
 components that expand to bodies and joints; bodies layered automatically for the

@@ -3,9 +3,14 @@
 Explore planar mechanisms: describe linkages, eccentrics and joints in a YAML file,
 solve their exact motion and measure what they do.
 
-There is a solver core with a command-line runner, and a browser app that shows a
-model moving in 2D and 3D next to its source. Drawing tools are next; see
-[docs/mekasim/PLAN.md](docs/mekasim/PLAN.md).
+There is a solver core with a command-line runner, and a browser app, mekasim, that
+shows a model moving in 2D and 3D next to its source, with tools to draw it. A body
+can carry its real outline, written out or taken from a DXF drawing, and the parts
+can be exported to cut or print. See [docs/mekasim/PLAN.md](docs/mekasim/PLAN.md).
+
+A second app in this repository, mekafit, is being built for mechanisms that work by
+parts touching: clearance, contact and studies. It shares the core and the
+interface parts; see [docs/mekafit/PLAN.md](docs/mekafit/PLAN.md) for where it stands.
 
 ## Use
 
@@ -105,7 +110,8 @@ packages/core/src
   solver/     constraints, position/velocity/acceleration, degrees of freedom
   analysis/   motion cycle, measures, checks and plots, CSV, parameter sweeps
   fabricate/  parts as flat pieces, sheet layout, DXF
-  geometry/   outlines of plates
+  geometry/   outlines: plates, shapes of lines and arcs, path text
+  drawing/    DXF drawings: reading, joining into outlines, shapes from them
   edit/       changes to model text in place, model operations
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
@@ -115,7 +121,8 @@ packages/ui/src
   editor/     YAML source editor, renaming by editing
   plot/       chart geometry and drawing
   io/         share links, downloads
-  *.tsx       parts of the interface that hold no model: folds, dividers, choices
+  drawings/   the Geometry tab: what a drawing holds, attaching and replacing
+  *.tsx       parts of the interface that hold no model: folds, dividers, choices, tabs
   scene.ts    what is drawn of a model: outlines, pins, traces, the pose at a step
   sheet/      a flat SVG drawing sheet: pan, zoom, grid, names, dimensions
 packages/fit/src   mekafit's side of the pipeline (see docs/mekafit)

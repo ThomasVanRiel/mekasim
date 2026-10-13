@@ -10,36 +10,42 @@ Playwright.
 
 ## 1. Where the code goes
 
+As built, with what is still to come marked "(to come)". Shapes and drawings were
+first planned for `packages/fit`; they are mekasim's too, so they are in the shared
+packages.
+
 ```
-packages/core/src            mekasim's core; only the extension points of §2.3 are added
-packages/fit/src
-  schema.ts       mekafit document: mekasim's schema extended (§2.3)
-                  (shapes are mekasim's too, so their code is in packages/core:
-                  src/geometry for outlines and path text, src/drawing for reading
-                  DXF, joining outlines and resolving `geometry:`; the Geometry tab
-                  is in packages/ui/src/drawings)
-  load.ts         reads `mekafit: 1` and `mekasim: 1` files, with the geometry files they name
-  files.ts        resolves `geometry:` and `shape.from` into outlines; flattens them for share links
-  copy.ts         the `copy` component, expanded on the document before compile
-  compile.ts      shapes, contacts, springs, locks, stops, move drivers on top of core's compile
-  simulate.ts     the whole pipeline in one call, choosing the solve path (§5.10)
+packages/core/src            mekasim's core
   geometry/
-    path.ts       parse and write path text (M L H V A Z), validate outlines
-    shape.ts      Segment (line | arc), Loop, Shape; transforms, bounds, area
+    shape.ts      Segment (line | arc), Loop, Shape; area, bounds, placement, containment
+    path.ts       parse and write path text (M L H V A Z)
+    intersect.ts  where two segments meet
+    validate.ts   checks on outlines; a shape from its loops
+    outline.ts    the plate round a body's points (mekasim's from the start)
+  drawing/
+    read.ts       DXF entities -> segments by layer (LINE ARC CIRCLE LWPOLYLINE POLYLINE INSERT)
+    loops.ts      join ends into closed loops, report open ones, nest outlines and holes
+    resolve.ts    `geometry:` and `shape.from` -> path text; kept outlines; names for drawings
+    write.ts      shapes to DXF with true arcs
+    disk.ts       a model's drawings from beside it, for the command line and tests
+  simulate.ts     takes `files`, and the hooks of §2.3
+packages/fit/src
+  schema.ts       mekafit document: mekasim's schema with `mekafit: 1`
+  load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
+  simulate.ts     core's pipeline with mekafit's schema
+  (to come)
+  copy.ts         the `copy` component, expanded in core's `prepare` hook
+  compile.ts      contacts, springs, locks, stops, move drivers, in core's `extend` hook
+  geometry/
     distance.ts   exact nearest points between segments and between shapes
     contacts.ts   several nearest points per pair of shapes, for the contact step
     tree.ts       bounding-box tree over a shape's segments
-  import/
-    dxf.ts        DXF entities -> loops (LINE ARC CIRCLE LWPOLYLINE POLYLINE SPLINE ELLIPSE INSERT)
-    svg.ts        SVG elements -> loops
-    loops.ts      join ends, chain into closed loops, nest, fit arcs to curves
   solver/
     inequality.ts one-sided constraints: gap, stop, lock
     qp.ts         small dense quadratic program (dual active set)
     quasistatic.ts the contact step and the stage-driven run
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
-  measures.ts     gap, force, torque, latched, final, first (registered through §2.3)
-  export/dxf.ts   shapes to DXF, reusing core's DXF writer
+  measures.ts     gap, force, torque, latched, final, first (through core's registry)
   study/
     random.ts     seeded generator (splitmix32 seeding xoshiro128**)
     sample.ts     random, spread (Latin hypercube), grid
@@ -47,24 +53,30 @@ packages/fit/src
     stats.ts      pass rate with Wilson interval, per-parameter rates, telling parameters
   cli.ts          `pnpm fit:solve` and `pnpm fit:study`, studies in worker_threads
 packages/ui/src
-  theme.ts, theme.css, fonts     from apps/sim (§2.1)
-  Fold.tsx, Splitter.tsx, Choice.tsx
-  plot/           Chart.tsx, charts.ts, geometry.ts from apps/sim
-  io/             share.ts, download.ts from apps/sim
-  sheet/          SVG sheet: pan, zoom, grid, labels, dimensions (new; used by mekafit)
+  theme.ts, theme.css          colours, fonts and the page's base styles
+  names.ts                     names from the model as words
+  Fold.tsx, Splitter.tsx, Choice.tsx, Tabs.tsx
+  editor/         the YAML source editor, taking its text and messages as properties
+  plot/           Chart.tsx, charts.ts, geometry.ts
+  io/             share.ts, download.ts
+  scene.ts        what is drawn of a model, for mekasim's Three.js view and the sheet alike
+  sheet/          SVG sheet: pan, zoom, grid, labels, dimensions
+  drawings/       the Geometry tab, the picture of a layer, the handling of picked files
 apps/fit/src
-  store.ts        model text, solved run, playback, study results, shown run
+  store.ts        model text, drawings, solved run, playback
+  layout.ts       sizes of the panels
+  playback.ts     how the position in a run moves on
   App.tsx         layout (§7)
-  sheet/          the drawing: shapes, pins, gaps, contact points, locks
-  panels/         Header, Geometry (tab), Inspector, Contacts, SpringsLocks, Studies, Parameters,
-                  Run, StudyResults
-  io/project.ts   open and save: folder (File System Access API) or `.zip` (fflate), follow file
-  study/          worker, runner, scatter
+  sheet/Drawing.tsx   the mechanism on the sheet, shapes with true arcs
+  panels/         Header, Source (tabs Source and Geometry, messages), Run
+  (to come)       Inspector, Contacts, SpringsLocks, Studies, Parameters, StudyResults,
+                  io/project.ts (folder or `.zip`), study/ (worker, runner, scatter)
 ```
 
-Package names: `@mekasim/core` (as now), `@mekasim/fit`, `@mekasim/ui`, and the app
-`@mekasim/fit-web`. Root scripts added: `dev:fit`, `build:fit`, `fit:solve`,
-`fit:study`. `pnpm test`, `typecheck` and `lint` cover every package as they do now.
+Package names: `@mekasim/core`, `@mekasim/fit`, `@mekasim/ui`, and the apps
+`@mekasim/sim-web` and `@mekasim/fit-web`. Root scripts: `dev`, `build` (both apps),
+`dev:sim`, `dev:fit`, `build:sim`, `build:fit`; `fit:solve` and `fit:study` are to
+come. `pnpm test`, `typecheck` and `lint` cover every package.
 
 ## 2. Phase 0: the split
 
@@ -558,16 +570,19 @@ Each step ends with `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm build` 
 apps) passing. Each phase ends with PLAN.md's status line updated, FORMAT.md marked
 for what is built, and a short list for Thomas of what to look at in the dev servers.
 
-**Phase 0.** Baseline and schema tests → `packages/ui` with the store-free modules,
-mekasim importing them → **Thomas checks mekasim** → extension points 1–4, each with
-its test → `packages/fit` skeleton (load, simulate through core) → the SVG sheet in
-`packages/ui` → `apps/fit` skeleton playing a mekasim example → second Netlify site.
+**Phase 0.** Done, but for making the second Netlify site: baseline and schema
+tests, `packages/ui`, the extension points, the `packages/fit` and `apps/fit`
+skeletons, the SVG sheet.
 
-**Phase 1.** path.ts and shape.ts → `shape` with `path` in mekafit's schema and compile →
-shapes on the sheet → import/ (dxf, svg, loops) → `geometry:` and `shape.from` with
-files.ts → share-link flattening → Geometry tab (attach, layers, report, missing files)
-→ picking outlines on the sheet into bodies, pins from holes → open and save as folder
-and `.zip`, follow file → `copy` → shape export → help text.
+**Phase 1.** Done, in core and ui where mekasim shares it: path.ts and shape.ts →
+`shape` with `path` → shapes on the sheet (and in mekasim's 3D view) → DXF reading
+and loops → `geometry:` and `shape.from` → outlines kept in the model for saving
+and links → Geometry tab (attach, replace, layers with pictures, report) →
+`shapesToDxf`. Still to do, in this order unless Thomas says otherwise: splines and
+ellipses as arcs (biarc fitting within `fit`) → SVG drawings → picking outlines on
+the sheet into bodies, pins from holes → saving the drawings with the model (folder
+or `.zip`), follow file → `plate: true` → `copy` → true arcs in the parts' DXF →
+help text.
 
 **Phase 2.** distance.ts and tree.ts → `gap()` → `contacts:` and the overlap message →
 Contacts fold and gap dimensions → Contact tool and "Find contacts" →
