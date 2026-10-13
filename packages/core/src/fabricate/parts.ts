@@ -1,6 +1,7 @@
 import { pointMotion } from "../analysis/measures.ts";
 import { pinDiameters } from "../analysis/sizes.ts";
 import { type Point, plateOutline } from "../geometry/outline.ts";
+import { flattenLoop } from "../geometry/shape.ts";
 import { GROUND } from "../schema/document.ts";
 import type { Simulation } from "../simulate.ts";
 
@@ -36,6 +37,8 @@ export interface Part {
   outline: Point[];
   holes: Hole[];
   slots: Slot[];
+  /** Openings of any form cut out of it, each as a closed polygon: the holes of a body's own shape. */
+  cutouts: Point[][];
 }
 
 /** Corners per full turn of the rounded outlines. */
@@ -44,7 +47,9 @@ const SMOOTH = 96;
 /**
  * The parts of a mechanism as flat pieces: every moving body as a plate round its
  * points with a hole at each pinned point, a slot where a pin travels, each cam as
- * its own plate, and the ground as a base plate carrying the fixed pivots.
+ * its own plate, and the ground as a base plate carrying the fixed pivots. A body
+ * with a shape of its own is made as drawn: that outline with its holes, and nothing
+ * added to it.
  */
 export function buildParts(simulation: Simulation, fabrication: Fabrication): Part[] {
   const { compiled, cycle } = simulation;
@@ -119,12 +124,23 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
         outline: joint.detail.surface,
         holes: [{ x: 0, y: 0, diameter: fabrication.hole + fabrication.clearance }],
         slots: [],
+        cutouts: [],
       });
     }
   }
 
   const parts: Part[] = [];
   for (const body of compiled.bodies.values()) {
+    if (body.shape) {
+      parts.push({
+        id: body.id,
+        outline: flattenLoop(body.shape.outer, SMOOTH),
+        holes: [],
+        slots: [],
+        cutouts: body.shape.holes.map((hole) => flattenLoop(hole, SMOOTH)),
+      });
+      continue;
+    }
     const bodyHoles = [...(holes.get(body.id)?.values() ?? [])];
     const bodySlots = slots.get(body.id) ?? [];
     const reach: Point[] = bodySlots.flatMap((slot) => [slot.from, slot.to]);
@@ -143,6 +159,7 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
       outline: plateOutline(points, margin, SMOOTH),
       holes: bodyHoles,
       slots: bodySlots,
+      cutouts: [],
     });
   }
   // The base plate first, then the links in the order of the model, then the cams.
@@ -212,6 +229,7 @@ export function layoutParts(parts: Part[], gap: number): Part[] {
         to: turn(slot.to, c, s, dx, dy),
         width: slot.width,
       })),
+      cutouts: part.cutouts.map((cutout) => cutout.map((p) => turn(p, c, s, dx, dy))),
     };
   });
 }

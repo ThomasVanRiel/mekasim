@@ -175,6 +175,9 @@ plots:
 - **Choosing between values.** There is no `if`. Use `min`, `max`, `abs`, `range`
   and `mean`. A condition such as `x(rod.B) > 40 mm` is 1 or 0; `mean` of it is the
   share of the cycle it holds for.
+- **A shape nobody asked for.** `shape` on a body is its real outline as path text,
+  for when the user gives one or wants parts to make. A linkage needs none: leave it
+  out and the body is drawn as a plate round its points.
 - **A check that is not a condition.** Every entry under `checks` compares
   something: `stroke > 70 mm`, not `stroke`.
 

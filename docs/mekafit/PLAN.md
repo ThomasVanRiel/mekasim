@@ -1,9 +1,10 @@
 # mekafit — plan
 
 Status (2026-10-13): phase 0 built but for its second Netlify site, which is
-described in `apps/fit/netlify.toml` and still has to be made in Netlify. mekasim
-gained `checks:` and comparisons on the way, which studies build on. "mekafit" is a
-working name.
+described in `apps/fit/netlify.toml` and still has to be made in Netlify. Phase 1 is
+under way: outlines, path text and DXF reading are built. mekasim gained `checks:`,
+comparisons and `shape` written as path text on the way; mekafit builds on all
+three. "mekafit" is a working name.
 
 mekafit is a second app in the mekasim repository. mekasim stays as it is: its app,
 its format and its behaviour do not change. mekafit shares mekasim's solver,
@@ -46,7 +47,7 @@ angle, with either knuckle open or closed, and it must hold when pulled.
 | Sharing | `packages/core` is shared as it is, with a few extension points that mekasim does not use. New code for shapes, contact and studies goes in a new package, `packages/fit`. Shared interface parts move to a new package, `packages/ui`. |
 | Guarding mekasim | Every mekasim example solves to the same numbers before and after, and the generated JSON Schema is byte for byte the same. Both are tests. |
 | File format | Its own: `.mekafit.yaml`, starting `mekafit: 1`. It is mekasim's format with sections added, so a mekasim model opens in mekafit as it is. A mekafit file does not open in mekasim. |
-| Shapes | A body may carry a real outline with holes, made of straight lines and true arcs. Outlines come from DXF or SVG files kept beside the model and named in a `geometry:` section; a body picks its outline by the file's layer, or by a point inside it. Short outlines can also be written in the model as path text. |
+| Shapes | A body may carry a real outline with holes, made of straight lines and true arcs. Written in the model as path text, a shape is mekasim's own (`shape: { path, holes }`): mekasim draws it and exports it as the part. mekafit adds where outlines come from: DXF or SVG files kept beside the model and named in a `geometry:` section; a body picks its outline by the file's layer, or by a point inside it. |
 | Geometry files | Kept as files, not copied into the YAML, so a drawing re-exported from CAD replaces the old one and the study re-runs on it. Saved as a folder (YAML plus files) where the browser allows it, otherwise as a `.zip` of the same. The share link carries the outlines in use as path text, so it stays complete without the files. |
 | Clearance | An exact distance between two shapes with its two nearest points, as a measure function, `gap(a, b)`: it plots, reduces with `min` and goes to CSV like any other. |
 | Which parts may touch | Listed in a `contacts:` section. The app proposes pairs and writes them in; nothing is guessed silently. |

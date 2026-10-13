@@ -1,8 +1,9 @@
-# The crank-rocker four-bar of mekasim's examples, with real outlines for its links.
+# yaml-language-server: $schema=../packages/core/schema/mekasim-1.schema.json
+# The crank-rocker four-bar, with real outlines for its links.
 # Each outline is written out as path text in the link's own frame; the holes sit on
 # the link's named points. Path text holds plain numbers, so the crank's outline is
 # drawn for a radius of 40 mm and does not follow `r`.
-mekafit: 1
+mekasim: 1
 meta:
   name: Four-bar with shaped links
 

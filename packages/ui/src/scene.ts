@@ -3,6 +3,7 @@ import {
   type Cycle,
   centreOf,
   docFactor,
+  flattenLoop,
   GROUND,
   LENGTH,
   modelExtent,
@@ -13,6 +14,7 @@ import {
   pinDiameters,
   plateOutline,
   pointMotion,
+  type Shape,
   type Simulation,
 } from "@mekasim/core";
 import { label } from "./names.ts";
@@ -34,7 +36,12 @@ export interface DrawBody {
   index: number;
   /** Back face of the plate. */
   z: number;
+  /** The plate round the body's points, or the outside of its own shape, as a polygon. */
   outline: Point[];
+  /** The holes of the body's own shape, as polygons. A plate has none. */
+  holes: Point[][];
+  /** The body's own shape with its true arcs, when the model gives one. */
+  shape?: Shape;
   points: DrawPoint[];
 }
 
@@ -152,6 +159,8 @@ export interface Scene {
   /** Grid spacing in metres, a round number of document units. */
   gridStep: number;
   ground: DrawPoint[];
+  /** The shape of what stands still, when the model gives the ground one. */
+  groundShape?: Shape;
   /** Ground points that carry a pin, drawn as fixed supports. */
   supports: Point[];
   groundZ: number;
@@ -249,10 +258,14 @@ export function buildScene(simulation: Simulation): Scene | undefined {
       id: body.id,
       index: body.index,
       z,
-      outline: plateOutline(
-        points.map((p): Point => [p.u, p.v]),
-        half,
-      ),
+      outline: body.shape
+        ? flattenLoop(body.shape.outer)
+        : plateOutline(
+            points.map((p): Point => [p.u, p.v]),
+            half,
+          ),
+      holes: body.shape?.holes.map((hole) => flattenLoop(hole)) ?? [],
+      shape: body.shape,
       points,
     });
   }
@@ -501,6 +514,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     depth,
     gridStep: nice((extent / unit / 14) * 1) * unit,
     ground: groundBody ? [...groundBody.points].map(([name, { u, v }]) => ({ name, u, v })) : [],
+    groundShape: groundBody?.shape,
     supports,
     groundZ,
     bodies,

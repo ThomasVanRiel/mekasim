@@ -42,6 +42,21 @@ export function motionBounds(compiled: Compiled, cycle: Cycle): Bounds {
       }
     }
   }
+  // An outline reaches beyond its body's points. It is taken as the circle round the
+  // body's origin that holds all of it, which is quick and never too small.
+  for (const body of compiled.bodies.values()) {
+    const reach = body.shape?.radius;
+    if (reach === undefined) continue;
+    for (let k = 0; k < (body.index < 0 ? 1 : cycle.count); k++) {
+      const at = k * cycle.width + 3 * body.index;
+      const x = body.index < 0 ? 0 : cycle.q[at];
+      const y = body.index < 0 ? 0 : cycle.q[at + 1];
+      bounds.minX = Math.min(bounds.minX, x - reach);
+      bounds.maxX = Math.max(bounds.maxX, x + reach);
+      bounds.minY = Math.min(bounds.minY, y - reach);
+      bounds.maxY = Math.max(bounds.maxY, y + reach);
+    }
+  }
   if (!Number.isFinite(bounds.minX)) {
     const unit = docFactor(LENGTH, compiled.units);
     return { minX: -150 * unit, maxX: 150 * unit, minY: -100 * unit, maxY: 100 * unit };

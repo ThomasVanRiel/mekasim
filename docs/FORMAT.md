@@ -141,6 +141,44 @@ leaves free.
 
 A point is referred to elsewhere as `body.point`, for example `coupler.P`.
 
+### Shapes
+
+```yaml
+bodies:
+  rocker:
+    points: { B: [0, 0], O: [110, 0] }
+    shape:
+      path: "M 0 -9 L 110 -9 A 9 9 0 0 1 110 9 L 0 9 A 9 9 0 0 1 0 -9 Z"
+      holes: { B: 6 mm, O: 6 mm }
+```
+
+A body is drawn as a plate round its points. `shape` gives it its real outline
+instead. It is optional, and it does not change the motion: the points and the
+joints do that. The shape is what is drawn, and what is exported as the part.
+
+| Field | Meaning |
+|---|---|
+| `path` | Closed outlines as path text, in the body's frame and the document unit. The largest is the outside; outlines inside it are cut out |
+| `holes` | Round holes, each at a named point of the body, with its diameter. A diameter may be an expression |
+
+The path text is the part of SVG path data that real outlines need:
+
+| Command | Meaning |
+|---|---|
+| `M x y` | Start an outline at a point |
+| `L x y`, `H x`, `V y` | Straight line to a point, or along x or y |
+| `A r r 0 large sweep x y` | Arc of a circle with radius `r` to a point. Both radii must be equal and the turn 0. `large` is 1 for the longer way round, `sweep` 1 for anticlockwise |
+| `Z` | Close the outline |
+
+Coordinates are plain numbers in the document unit; expressions are not read
+inside a path, so an outline does not follow a parameter. Small letters (`l`, `h`,
+`v`, `a`) give steps from the last place, as in SVG. A whole circle is two arcs.
+Put the path in quotes.
+
+Every outline must be closed, and outlines must not cross themselves or each other;
+a hole must lie inside the outside. A problem is reported with the place on the
+outline where it is.
+
 ### Two ways to describe a mechanism
 
 **By dimensions.** Give each body in a convenient frame of its own, typically with
@@ -502,6 +540,10 @@ cut and an STL solid to print. Each moving body becomes a plate round its points
 with a hole at every pinned point; a slider or pin-slot gives a slot as long as the
 pin travels; a cam becomes a plate of its own; the ground becomes a base plate
 carrying the fixed pivots.
+
+A body with a `shape` is exported as drawn: its outline with the holes it gives,
+and nothing added. Give it its own holes for the pins. In the DXF its arcs are
+polygons with many sides, as the rounded plates are.
 
 ## Messages
 

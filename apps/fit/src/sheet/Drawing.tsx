@@ -1,4 +1,4 @@
-import { type Shape, writePath } from "@mekasim/fit";
+import { type Shape, writePath } from "@mekasim/core";
 import {
   bodyColor,
   type Palette,
@@ -54,25 +54,17 @@ const LINE = { vectorEffect: "non-scaling-stroke", strokeWidth: 1.25 } as const;
  * The mechanism at a step of the run, in world coordinates, for inside a `Sheet`:
  * the plates mekasim draws, their pins and slots, wheels, cams and traces.
  */
-export function Drawing({
-  scene,
-  step,
-  shapes,
-}: {
-  scene: Scene;
-  step: number;
-  /** The real outline of each body that has one; the others are drawn as plates. */
-  shapes: Map<string, Shape>;
-}) {
+export function Drawing({ scene, step }: { scene: Scene; step: number }) {
   const colors: Palette = useColors();
   // An outline and its holes as one path, filled where it is material.
-  const outlines = useMemo(
-    () =>
-      new Map(
-        [...shapes].map(([id, shape]) => [id, writePath([shape.outer, ...shape.holes])] as const),
-      ),
-    [shapes],
-  );
+  const outlines = useMemo(() => {
+    const d = (shape: Shape): string => writePath([shape.outer, ...shape.holes]);
+    const found = new Map(
+      scene.bodies.flatMap((body) => (body.shape ? [[body.id, d(body.shape)] as const] : [])),
+    );
+    if (scene.groundShape) found.set("ground", d(scene.groundShape));
+    return found;
+  }, [scene]);
   const poses = posesAt(scene, step);
   // Drawn from the back to the front, as the layers lie.
   const bodies = [...scene.bodies].sort((a, b) => a.z - b.z);

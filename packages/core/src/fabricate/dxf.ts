@@ -77,6 +77,7 @@ export function toDxf(
       );
     }
     for (const slot of part.slots) polygon("holes", slotOutline(slot));
+    for (const cutout of part.cutouts) polygon("holes", cutout);
 
     // The name stands to the right of the part, clear of what is cut.
     const right = Math.max(...part.outline.map((p) => p[0]));

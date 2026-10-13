@@ -7,12 +7,16 @@ import {
   compatible,
   DEFAULT_UNITS,
   type Dim,
+  docFactor,
   formatQuantity,
   LENGTH,
   NONE,
   type Units,
 } from "../expr/units.ts";
 import type { Fabrication } from "../fabricate/parts.ts";
+import { OutlineError, parsePath } from "../geometry/path.ts";
+import { circleLoop, type Loop, placeShape, type Shape } from "../geometry/shape.ts";
+import { shapeOf } from "../geometry/validate.ts";
 import type { Registry } from "../registry.ts";
 import { type Document, type Expr, GROUND, type Joint, paramValue } from "../schema/document.ts";
 import { camOutlines, camProfile } from "../solver/cam.ts";
@@ -42,7 +46,12 @@ export interface CompiledBody {
   layer: number;
   /** Whether the model itself says which layer the body is on. */
   layerGiven: boolean;
+  /** The real outline, where the model gives one, in metres. */
+  shape?: Shape;
 }
+
+/** How near two places on an outline count as one, in metres. */
+const SAME_PLACE = 1e-9;
 
 export interface CompiledMeasure {
   id: string;
@@ -283,6 +292,36 @@ function compileExpanded(
     });
   }
 
+  type BodyShape = NonNullable<Document["bodies"][string]["shape"]>;
+
+  /**
+   * The outline of a body. It is read and checked in the document's unit, so that a
+   * problem is told in the numbers that were written, and kept in metres.
+   */
+  function shapeFrom(
+    source: BodyShape,
+    id: string,
+    points: Map<string, { u: number; v: number }>,
+  ): Shape {
+    const at = ["bodies", id, "shape"];
+    const unit = docFactor(LENGTH, units);
+    try {
+      const loops: Loop[] = parsePath(source.path);
+      for (const [name, diameter] of Object.entries(source.holes ?? {})) {
+        const path = [...at, "holes", name];
+        const place = points.get(name);
+        if (!place) throw fail(`Body "${id}" has no point "${name}"`, path);
+        const size = scalar(diameter, LENGTH, path);
+        if (size <= 0) throw fail("A hole's diameter must be more than zero", path);
+        loops.push(circleLoop(place.u / unit, place.v / unit, size / 2 / unit));
+      }
+      return placeShape(shapeOf(loops, SAME_PLACE / unit), { scale: unit });
+    } catch (error) {
+      if (error instanceof OutlineError) throw fail(error.message, [...at, "path"]);
+      throw error;
+    }
+  }
+
   const bodies = new Map<string, CompiledBody>();
   const moving: string[] = [];
   for (const [id, body] of Object.entries(doc.bodies)) {
@@ -294,10 +333,12 @@ function compileExpanded(
       if (u !== undefined && v !== undefined) points.set(name, { u, v });
     }
     const index = id === GROUND ? GROUND_INDEX : moving.push(id) - 1;
+    const shape = body.shape && attempt(() => shapeFrom(body.shape as BodyShape, id, points));
     bodies.set(id, {
       id,
       index,
       points,
+      shape,
       layer: body.layer ?? 0,
       layerGiven: body.layer !== undefined,
     });

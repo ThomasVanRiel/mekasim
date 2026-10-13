@@ -31,11 +31,26 @@ const PointRef = z
   .regex(POINT_REF, "Expected a point written as body.point")
   .describe("A point on a body, written as body.point");
 
+const Shape = z
+  .strictObject({
+    path: z
+      .string()
+      .describe(
+        "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit",
+      ),
+    holes: z
+      .record(Id, Expr)
+      .optional()
+      .describe("Round holes, each at a named point of the body, with its diameter"),
+  })
+  .describe("The real outline of the body: one outline, with the outlines inside it cut out");
+
 const Body = z.strictObject({
   points: z
     .record(Id, z.tuple([Expr, Expr]))
     .describe("Named points in the body's own frame, as [x, y]"),
   layer: z.int().optional().describe("Depth order for the 3D view; higher is nearer the viewer"),
+  shape: Shape.optional(),
 });
 
 const Revolute = z.strictObject({

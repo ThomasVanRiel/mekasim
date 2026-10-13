@@ -24,6 +24,9 @@ export function toStl(parts: Part[], thickness: number): ArrayBuffer {
       const outline = slotOutline(slot).reverse();
       shape.holes.push(new Path(outline.map(([x, y]) => new Vector2(x * MM, y * MM))));
     }
+    for (const cutout of part.cutouts) {
+      shape.holes.push(new Path(cutout.map(([x, y]) => new Vector2(x * MM, y * MM))));
+    }
     const geometry = new ExtrudeGeometry(shape, {
       depth: thickness * MM,
       bevelEnabled: false,

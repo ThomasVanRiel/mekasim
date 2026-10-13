@@ -7,9 +7,11 @@
     "node": ">=26"
   },
   "scripts": {
-    "dev": "pnpm --filter @mekasim/web dev",
+    "dev": "pnpm --parallel --filter @mekasim/web --filter @mekasim/fit-web dev",
+    "dev:sim": "pnpm --filter @mekasim/web dev",
     "dev:fit": "pnpm --filter @mekasim/fit-web dev",
-    "build": "pnpm --filter @mekasim/web build && pnpm --filter @mekasim/fit-web build",
+    "build": "pnpm --filter @mekasim/web --filter @mekasim/fit-web build",
+    "build:sim": "pnpm --filter @mekasim/web build",
     "build:fit": "pnpm --filter @mekasim/fit-web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",

@@ -137,6 +137,35 @@
             "type": "integer",
             "minimum": -9007199254740991,
             "maximum": 9007199254740991
+          },
+          "shape": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "Closed outlines as path text (M L H V A Z), in the body's frame and the document unit"
+              },
+              "holes": {
+                "description": "Round holes, each at a named point of the body, with its diameter",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "additionalProperties": {
+                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                  "type": [
+                    "number",
+                    "string"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "path"
+            ],
+            "additionalProperties": false,
+            "description": "The real outline of the body: one outline, with the outlines inside it cut out"
           }
         },
         "required": [

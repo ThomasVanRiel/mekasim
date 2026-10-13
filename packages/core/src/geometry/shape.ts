@@ -1,3 +1,5 @@
+import type { Point } from "./outline.ts";
+
 /**
  * Outlines of parts, made of straight lines and true arcs. Lengths are in whatever
  * unit the caller works in; a compiled shape is in metres, in its body's frame.
@@ -35,7 +37,7 @@ export interface Shape {
   radius: number;
 }
 
-export type Point = [x: number, y: number];
+export type { Point };
 
 const TURN = 2 * Math.PI;
 
@@ -237,6 +239,25 @@ export function insideLoop(loop: Loop, x: number, y: number): boolean {
 /** Whether a point is in the material of a shape: inside its outline and in none of its holes. */
 export function insideShape(shape: Shape, x: number, y: number): boolean {
   return insideLoop(shape.outer, x, y) && !shape.holes.some((hole) => insideLoop(hole, x, y));
+}
+
+/**
+ * A loop as a polygon, for what can only take straight sides: its arcs cut into
+ * `perTurn` sides to a full circle. The first corner is not given again at the end.
+ */
+export function flattenLoop(loop: Loop, perTurn = 96): Point[] {
+  const corners: Point[] = [];
+  for (const segment of loop.segments) {
+    if (segment.kind === "line") {
+      corners.push([segment.ax, segment.ay]);
+      continue;
+    }
+    const sides = Math.max(1, Math.ceil((Math.abs(segment.sweep) / TURN) * perTurn));
+    for (let k = 0; k < sides; k++) {
+      corners.push(pointAt(segment, segment.start + (segment.sweep * k) / sides));
+    }
+  }
+  return corners;
 }
 
 /** A round hole as a loop: one arc all the way round, clockwise as holes go. */

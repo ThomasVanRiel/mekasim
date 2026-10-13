@@ -9,7 +9,9 @@ studies, is planned in `docs/mekafit/PLAN.md`, designed in `docs/mekafit/DESIGN.
 and its format drafted in `docs/mekafit/FORMAT.md`. It lives in `apps/fit` with
 `packages/fit` and shares `packages/ui` and `packages/core` with mekasim. Work through
 it in the order of section 9 of the design. mekasim's behaviour, format and look must
-not change: the example baseline and schema tests guard that, and any change to
+not change for mekafit's sake (what Thomas asks for in mekasim itself, such as
+`checks` and `shape`, is another matter): the example baseline and schema tests
+guard that, and any change to
 `apps/web` or `packages/core` for mekafit's sake is checked by Thomas in mekasim's
 dev server before more is built on it.
 
@@ -24,8 +26,9 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 
 ## Commands
 
-- `pnpm dev` — mekasim's dev server; `pnpm dev:fit` — mekafit's, on port 5174
-- `pnpm build` — production build of both apps (`pnpm build:fit` for mekafit alone)
+- `pnpm dev` — both dev servers: mekasim on port 5173, mekafit on 5174
+  (`pnpm dev:sim` and `pnpm dev:fit` for one alone)
+- `pnpm build` — production build of both apps (`pnpm build:sim`, `pnpm build:fit`)
 - `pnpm test`, `pnpm typecheck`, `pnpm lint` (`pnpm format` applies fixes)
 - `pnpm solve <model.mekasim.yaml>` — run the solver from the command line
 - `pnpm schema` — regenerate the JSON Schema after changing the format

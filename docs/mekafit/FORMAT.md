@@ -15,8 +15,10 @@ drivers, pose, traces, measures, plots, frames.
 This page is written ahead of the build. The phase that adds each part is given in
 its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
 
-Built so far: the first line `mekafit: 1`, and a shape written out as `path` with
-`holes`. Everything else on this page is still to come.
+Built so far: the first line `mekafit: 1`. A shape written out as `path` with
+`holes` is mekasim's own by now ([../FORMAT.md](../FORMAT.md), "Shapes"), and so are
+`checks:` and conditions. What mekafit adds to shapes is where they come from: a
+drawing kept beside the model. Everything else on this page is still to come.
 
 ## A whole example
 
@@ -158,28 +160,16 @@ dimensions gives `place`, so the outline lands where its points are.
 
 ### Shape written out
 
+`shape: { path, holes }` is mekasim's, described in [../FORMAT.md](../FORMAT.md)
+under "Shapes", with the path text it reads. mekafit adds one more way to write it:
+
 | Field | Meaning |
 |---|---|
-| `path` | Closed outlines as path text, in the body's frame and the document unit. One outline is the outside; outlines inside it are cut out |
-| `holes` | Round holes, each at a named point of the body, with its diameter |
-| `plate` | `true` instead of `path`: the plate mekasim draws and fabricates round the body's points |
+| `plate` | `true` instead of `path`: the plate mekasim draws and fabricates round the body's points, as a shape that gaps and contact can use |
 
-A share link carries every shape written out this way, so that the link is
-complete without the files.
-
-The path text is the part of SVG path data that real outlines need:
-
-| Command | Meaning |
-|---|---|
-| `M x y` | Start an outline at a point |
-| `L x y`, `H x`, `V y` | Straight line to a point, or along x or y |
-| `A r r 0 large sweep x y` | Arc of a circle with radius `r` to a point. Both radii must be equal and the turn 0. `large` is 1 for the longer way round, `sweep` 1 for anticlockwise |
-| `Z` | Close the outline |
-
-Coordinates are plain numbers in the document unit; expressions are not allowed
-inside the path. Lower-case (relative) commands are accepted as in SVG. Outlines
-must be closed and must not cross themselves or each other; a problem is reported
-with the place where it is.
+A share link carries every shape that comes from a drawing written out as `path`,
+so that the link is complete without the files. A model whose shapes are all
+written out, and that has nothing else of mekafit's, opens in mekasim.
 
 Curves in a drawing that are not arcs, such as splines and ellipses, are replaced
 by arcs within `fit`, and the Geometry tab lists where it did so.

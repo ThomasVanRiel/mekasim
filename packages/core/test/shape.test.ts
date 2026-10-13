@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { intersections } from "../src/geometry/intersect.ts";
-import { checkLoops, shapeOf } from "../src/geometry/outline.ts";
 import { arcBetween, OutlineError, parsePath, writePath } from "../src/geometry/path.ts";
 import {
   circleLoop,
@@ -15,6 +14,7 @@ import {
   startOf,
   windingOf,
 } from "../src/geometry/shape.ts";
+import { checkLoops, shapeOf } from "../src/geometry/validate.ts";
 
 const SQUARE = "M 0 0 L 10 0 L 10 10 L 0 10 Z";
 /** A slot: two straight sides with a half circle at each end. */

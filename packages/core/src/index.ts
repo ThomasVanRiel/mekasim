@@ -99,7 +99,35 @@ export {
   type Slot,
   slotOutline,
 } from "./fabricate/parts.ts";
+export { intersections } from "./geometry/intersect.ts";
 export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
+export { arcBetween, OutlineError, parsePath, writePath } from "./geometry/path.ts";
+export {
+  alongArc,
+  type Box,
+  circleLoop,
+  emptyBox,
+  endOf,
+  flattenLoop,
+  insideLoop,
+  insideShape,
+  type Loop,
+  lengthOf,
+  loopArea,
+  loopBounds,
+  type Placement,
+  placeLoop,
+  placeShape,
+  pointAt,
+  reach,
+  reverseLoop,
+  type Segment,
+  type Shape,
+  segmentBounds,
+  startOf,
+  windingOf,
+} from "./geometry/shape.ts";
+export { checkLoops, shapeOf } from "./geometry/validate.ts";
 export type { FunctionCall, Registry } from "./registry.ts";
 export {
   Document,

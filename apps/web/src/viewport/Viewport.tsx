@@ -18,6 +18,7 @@ import {
   type Group,
   MOUSE,
   type OrthographicCamera,
+  Path,
   Shape,
   SRGBColorSpace,
   type Texture,
@@ -72,10 +73,13 @@ function Plate({
   seeThrough: boolean;
 }) {
   const colors = useColors();
-  const shape = useMemo(
-    () => new Shape(body.outline.map(([x, y]) => new Vector2(x, y))),
-    [body.outline],
-  );
+  const shape = useMemo(() => {
+    const plate = new Shape(body.outline.map(([x, y]) => new Vector2(x, y)));
+    for (const hole of body.holes) {
+      plate.holes.push(new Path(hole.map(([x, y]) => new Vector2(x, y))));
+    }
+    return plate;
+  }, [body.outline, body.holes]);
   const front = body.z + sizes.thickness;
   const lift = sizes.thickness * 0.03;
   return (
@@ -95,6 +99,14 @@ function Plate({
         lineWidth={selected ? 3 : 1.4}
       />
       <Line points={loop(body.outline, body.z - lift)} color={colors.ink} lineWidth={1.4} />
+      {body.holes.map((hole) => (
+        <Line
+          key={hole[0]?.join(" ")}
+          points={loop(hole, front + lift)}
+          color={colors.ink}
+          lineWidth={1.4}
+        />
+      ))}
       {body.points.map((p) => (
         <mesh key={p.name} position={[p.u, p.v, front + lift]}>
           <circleGeometry args={[sizes.half * 0.16, 16]} />

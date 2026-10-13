@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { parsePath } from "../src/geometry/path.ts";
 import {
   circleLoop,
   endOf,
   type Loop,
   loopArea,
   loopBounds,
+  parsePath,
   type Segment,
   startOf,
-} from "../src/geometry/shape.ts";
+} from "@mekasim/core";
+import { describe, expect, it } from "vitest";
 import { readDxf } from "../src/import/dxf.ts";
 import { chain, nest } from "../src/import/loops.ts";
 
