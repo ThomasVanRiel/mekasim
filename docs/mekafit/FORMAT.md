@@ -253,7 +253,10 @@ springs:
 A torsion spring on a revolute joint, or a straight spring between two points.
 `rest` is the joint angle and `length` the length at which it pushes nothing.
 `preload` instead of `rest` or `length` gives the torque or force at the starting
-position. New units: `N`, `N*m`, `N*mm`, `N/mm`, `N*m/rad`, `N*mm/deg`.
+position. A positive preload on a straight spring is tension: it pulls its two
+points together. A positive preload on a torsion spring turns the joint in its
+positive-angle direction. A negative preload acts the other way. New units: `N`,
+`N*m`, `N*mm`, `N/mm`, `N*m/rad`, `N*mm/deg`.
 
 ## Locks (phase 3)
 

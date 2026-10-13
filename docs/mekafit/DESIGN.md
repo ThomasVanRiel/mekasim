@@ -390,7 +390,10 @@ does), repeat up to 30 times:
 
 `springs.ts` gives energy, gradient and Gauss-Newton Hessian in `q` for torsion
 springs (on the relative angle of a revolute joint) and straight springs (on the
-distance between two points). Preloads are turned into rest values at compile.
+distance between two points). Preloads are turned into rest values at compile. A
+positive straight-spring preload is tension, pulling the points together; a
+positive torsion preload acts in the joint's positive-angle direction. Negative
+preloads act the other way.
 
 ### 5.6 The move driver
 

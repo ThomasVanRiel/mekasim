@@ -118,6 +118,9 @@ too.
 - A drawing whose file does not say its unit gets it picked in the Geometry tab,
   which writes `unit:` under `geometry:`.
 - `fit` (how closely splines and ellipses are replaced by arcs) is mekasim's.
+- A positive straight-spring `preload` is tension, pulling its two points together.
+  A positive torsion-spring `preload` turns its joint in the positive-angle
+  direction. Negative values act the other way.
 - A push-to-open latch, a pin riding in a heart-shaped slot as in a drawer catch, is
   wanted as a mekafit example once contact is solved (DESIGN.md §8).
 
