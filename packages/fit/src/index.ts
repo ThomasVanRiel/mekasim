@@ -40,6 +40,7 @@ export {
   linearizeInequalities,
 } from "./solver/inequality.ts";
 export { type QpSolution, solveQp } from "./solver/qp.ts";
+export { type Jam, type QuasistaticRun, solveQuasistatic } from "./solver/quasistatic.ts";
 export {
   type CompiledSpring,
   type SpringTerms,
@@ -48,3 +49,11 @@ export {
   springValue,
   type TorsionSpring,
 } from "./solver/springs.ts";
+export {
+  type CompiledMove,
+  moveConstraint,
+  moveDuration,
+  poseAt,
+  type Stage,
+  type ToStage,
+} from "./solver/stages.ts";

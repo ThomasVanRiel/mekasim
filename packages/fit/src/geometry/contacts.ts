@@ -1,9 +1,11 @@
 import {
   alongArc,
   endOf,
+  gap,
   insideShape,
   lengthOf,
   nearest,
+  nearestOn,
   nearestOnShape,
   type Point,
   type Pose,
@@ -22,12 +24,18 @@ export const CONTACT_MERGE = 0.2e-3;
 export const MAX_CONTACT_POINTS = 4;
 
 export interface ContactPoint {
+  /** Less than nothing where the shapes are into each other there, by how deep. */
   distance: number;
   a: Point;
   b: Point;
-  /** Unit direction from the first shape towards the second. */
+  /** Unit direction the second shape goes to get clear of the first. */
   normal: Point;
 }
+
+/** Nearer than this, two places are one, in metres. */
+const SAME = 1e-12;
+/** Two directions closer than this angle are one, in radians. */
+const PARALLEL = 1e-9;
 
 interface BoundarySegment {
   segment: Segment;
@@ -75,6 +83,21 @@ function boundaryPlace(found: BoundarySegment, point: Point): number {
     found.before +
     Math.min(1, Math.max(0, parameter(found.segment, point))) * lengthOf(found.segment)
   );
+}
+
+/** The piece of a shape's boundary a place on it belongs to. */
+function nearestSegment(boundary: Map<Segment, BoundarySegment>, point: Point): BoundarySegment {
+  let best: BoundarySegment | undefined;
+  let least = Number.POSITIVE_INFINITY;
+  for (const found of boundary.values()) {
+    const at = nearestOn(found.segment, point);
+    const d = Math.hypot(at[0] - point[0], at[1] - point[1]);
+    if (d < least) {
+      least = d;
+      best = found;
+    }
+  }
+  return best as BoundarySegment;
 }
 
 function unit([x, y]: Point, fallback: Point = [1, 0]): Point {
@@ -126,6 +149,37 @@ function alignmentOf(segmentA: Segment, pointA: Point, segmentB: Segment, pointB
   return -(outA[0] * outB[0] + outA[1] * outB[1]);
 }
 
+/**
+ * Two flat faces that lie along each other, facing: the two ends of the stretch they
+ * share, each with the distance between the faces, which is less than nothing once
+ * they have passed each other. Their nearest places alone would be one arbitrary
+ * place along the stretch, and no direction at all where the faces touch.
+ */
+function facingLines(segmentA: Segment, segmentB: Segment): ContactPoint[] | undefined {
+  if (segmentA.kind !== "line" || segmentB.kind !== "line") return undefined;
+  const lengthA = lengthOf(segmentA);
+  const lengthB = lengthOf(segmentB);
+  if (lengthA <= SAME || lengthB <= SAME) return undefined;
+  const ux = (segmentA.bx - segmentA.ax) / lengthA;
+  const uy = (segmentA.by - segmentA.ay) / lengthA;
+  const vx = (segmentB.bx - segmentB.ax) / lengthB;
+  const vy = (segmentB.by - segmentB.ay) / lengthB;
+  // Along each other, and going opposite ways round: the material of each is on its own side.
+  if (Math.abs(ux * vy - uy * vx) > PARALLEL || ux * vx + uy * vy > 0) return undefined;
+  const from = (segmentB.bx - segmentA.ax) * ux + (segmentB.by - segmentA.ay) * uy;
+  const to = (segmentB.ax - segmentA.ax) * ux + (segmentB.ay - segmentA.ay) * uy;
+  const low = Math.max(0, from);
+  const high = Math.min(lengthA, to);
+  if (high - low <= SAME) return undefined;
+  const normal: Point = [uy, -ux];
+  const distance =
+    (segmentB.ax - segmentA.ax) * normal[0] + (segmentB.ay - segmentA.ay) * normal[1];
+  return [low, high].map((along) => {
+    const a: Point = [segmentA.ax + along * ux, segmentA.ay + along * uy];
+    return { distance, a, b: [a[0] + distance * normal[0], a[1] + distance * normal[1]], normal };
+  });
+}
+
 function boxDistance(a: Tree["box"], b: Tree["box"]): number {
   const dx = Math.max(a.minX - b.maxX, b.minX - a.maxX, 0);
   const dy = Math.max(a.minY - b.maxY, b.minY - a.maxY, 0);
@@ -155,7 +209,8 @@ interface Candidate {
 /**
  * Up to four distinct nearby places on two shapes. The exact segment distances are
  * pruned by boundary trees; duplicates at shared segment ends are merged by distance
- * along both outlines.
+ * along both outlines. Where the shapes are into each other the distance is less
+ * than nothing, and the normal still says which way the second gets clear.
  */
 export function contactPoints(
   shapeA: Shape,
@@ -172,24 +227,56 @@ export function contactPoints(
   const boundaryB = boundaries(b);
   const candidates: Candidate[] = [];
 
-  const take = (segmentA: Segment, segmentB: Segment): void => {
-    const pair = nearest(segmentA, segmentB);
-    if (pair.d > margin) return;
+  const push = (
+    segmentA: Segment,
+    segmentB: Segment,
+    found: ContactPoint,
+    alignment: number,
+  ): void => {
     const onA = boundaryA.get(segmentA) as BoundarySegment;
     const onB = boundaryB.get(segmentB) as BoundarySegment;
     candidates.push({
-      distance: pair.d,
-      a: pair.pa,
-      b: pair.pb,
-      normal: normalOf(segmentA, pair.pa, segmentB, pair.pb, a, b),
-      alignment: alignmentOf(segmentA, pair.pa, segmentB, pair.pb),
+      ...found,
+      alignment,
       loopA: onA.loop,
       loopB: onB.loop,
-      alongA: boundaryPlace(onA, pair.pa),
-      alongB: boundaryPlace(onB, pair.pb),
+      alongA: boundaryPlace(onA, found.a),
+      alongB: boundaryPlace(onB, found.b),
       loopLengthA: onA.loopLength,
       loopLengthB: onB.loopLength,
     });
+  };
+
+  const take = (segmentA: Segment, segmentB: Segment): void => {
+    const faces = facingLines(segmentA, segmentB);
+    if (faces) {
+      for (const found of faces) {
+        if (Math.abs(found.distance) <= margin) push(segmentA, segmentB, found, 1);
+      }
+      return;
+    }
+    const pair = nearest(segmentA, segmentB);
+    if (pair.d > margin) return;
+    // Two edges in one line that meet end to end hold nothing: the faces beside them do.
+    if (pair.d <= SAME && alignmentOf(segmentA, pair.pa, segmentB, pair.pb) < -0.5) return;
+    const normal = normalOf(segmentA, pair.pa, segmentB, pair.pb, a, b);
+    // Two boundaries that have passed each other face away from each other: the
+    // material of each lies on the other's side, and they are that far in.
+    const outA = outward(segmentA, pair.pa);
+    const outB = outward(segmentB, pair.pb);
+    const passed =
+      pair.d > SAME && normal[0] * (outA[0] - outB[0]) + normal[1] * (outA[1] - outB[1]) < 0;
+    push(
+      segmentA,
+      segmentB,
+      {
+        distance: passed ? -pair.d : pair.d,
+        a: pair.pa,
+        b: pair.pb,
+        normal: passed ? [-normal[0], -normal[1]] : normal,
+      },
+      alignmentOf(segmentA, pair.pa, segmentB, pair.pb),
+    );
   };
 
   const visit = (treeA: Tree, treeB: Tree): void => {
@@ -208,6 +295,31 @@ export function contactPoints(
     }
   };
   visit(treeOf(a), treeOf(b));
+
+  // Where a corner or a bulge of one is inside the other, the crossings of their
+  // boundaries say nothing of how deep: the deepest place does, and stands for them.
+  const over = gap(shapeA, poseA, shapeB, poseB, margin);
+  if (over && over.distance < -SAME) {
+    const depth = -over.distance;
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      if (Math.abs((candidates[i] as Candidate).distance) <= SAME) candidates.splice(i, 1);
+    }
+    const onA = nearestSegment(boundaryA, over.a);
+    const onB = nearestSegment(boundaryB, over.b);
+    candidates.push({
+      distance: -depth,
+      a: over.a,
+      b: over.b,
+      normal: unit([over.a[0] - over.b[0], over.a[1] - over.b[1]]),
+      alignment: 1,
+      loopA: onA.loop,
+      loopB: onB.loop,
+      alongA: boundaryPlace(onA, over.a),
+      alongB: boundaryPlace(onB, over.b),
+      loopLengthA: onA.loopLength,
+      loopLengthB: onB.loopLength,
+    });
+  }
 
   candidates.sort(
     (left, right) => left.distance - right.distance || right.alignment - left.alignment,

@@ -82,8 +82,20 @@ quadratic program. `springs:` is read and checked (`packages/fit/src/compile.ts`
 both kinds, their stiffness and preload with units, and each preload turned into a
 rest value where the joints close from the starting pose. `solver/springs.ts` gives
 their energy, gradient and Gauss-Newton Hessian. A model with springs still runs as
-it does without them, since nothing minimises that energy yet. The quasi-static
-step for `to` stages (`quasistatic.ts`) is next.
+it does without them, since no run calls the contact step yet.
+
+The contact step itself is built for `to` stages (`solver/quasistatic.ts`, with the
+stage paths and the pose constraint in `solver/stages.ts`): at each sample the
+spring energy is minimised under the joints, the drivers and the contact rows, with
+samples split where a body moves far or the step does not settle, and a jam that
+names the touching rows. Its tests push a loose block, squeeze it against a wall
+until it jams, and let a sprung lever follow a bar down and back. `contactPoints`
+was changed for it: where shapes are into each other the distance is negative and
+the normal keeps its direction, and two flat faces along each other give their two
+ends. **It is not wired into a run yet**: the `move` driver is not in the format,
+and adding it needs a way into core's schema and compile (DESIGN.md §2.3), which
+Thomas checks in mekasim before more is built on it. That is next, then `pull`
+stages.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):

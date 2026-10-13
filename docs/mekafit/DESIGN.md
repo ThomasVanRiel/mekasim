@@ -47,11 +47,11 @@ packages/fit/src
     inequality.ts one-sided constraints: contact rows built; stop and lock rows to come
     qp.ts         small dense quadratic program (dual active set)
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
+    stages.ts     a move's pose over its stages, and the constraint that holds it there
+    quasistatic.ts the contact step and the stage-driven run (`to` stages; not yet called by a run)
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
-  solver/
-    quasistatic.ts the contact step and the stage-driven run
   study/
     random.ts     seeded generator (splitmix32 seeding xoshiro128**)
     sample.ts     random, spread (Latin hypercube), grid
@@ -270,7 +270,15 @@ nearest: a knuckle face against another can touch at both ends.
    same boundaries gives a smaller distance within `merge` (0.2 mm) along the
    boundary.
 3. Keep the four smallest. Each carries the distance, the two points and the unit
-   normal from A to B (for crossing segments, the normal of the deeper side).
+   normal: the way B goes to get clear of A.
+
+Where the shapes are into each other the distance is less than nothing and the
+normal keeps its direction, so the contact step pushes them apart again: two
+boundaries that have passed each other are told by their outward directions, and a
+corner or bulge inside the other shape is measured by core's `gap`, in place of the
+crossings round it. Two flat faces that lie along each other, facing, give the two
+ends of the stretch they share with the distance between the faces; their nearest
+points alone would be one arbitrary place, with no direction once they touch.
 
 ### 3.4 Import
 
@@ -363,8 +371,15 @@ does), repeat up to 30 times:
    minimise   1/2 dq' (H + eps W) dq + (grad E + eps W (q - q_prev))' dq
    subject to J dq = -Phi,   G dq >= -g
    ```
-3. Take the step. Stop when `|Phi| < 1e-10`, every `g > -1e-9 m` and `|dq|_W` is below
-   1e-10 of the model size.
+3. Take the step, cut short where it would carry a body of a contact pair further
+   than it may go in one sample (§5.6): the step is laid out for the parts as they
+   touch now, and a longer one could pass what is in its way. Stop when
+   `|Phi| < 1e-10`, every `g > -1e-9 m` and `|dq|_W` is below 1e-10 of the model size.
+
+The first sample closes the joints from the pose as mekasim does, then settles the
+springs and contacts with up to 400 such steps, since a spring may carry a part a
+long way before it rests. `eps` is 1e-6 of the softest spring's stiffness (a torsion
+spring's over the square of its body's reach), or 1 where there are no springs.
 
 ### 5.3 The quadratic program
 
@@ -408,14 +423,18 @@ two points are on one place has no direction and adds no gradient there.
   moving; when it has moved more than ten times the largest shape size since the
   stage began with no contact force against the pull, the driver "came free" and
   the stage ends there. That is a result, not an error.
-- Samples are `cycle.steps` spread over the stages by their time; a sample is split
-  in two (up to six times) wherever any point of a body in a contact pair would
-  move more than a quarter of the smallest feature size of its shape (against
-  tunnelling).
+- The run has `cycle.steps` intervals over the stages by their time, so one sample
+  more than that, the start and the end both among them. A sample is split
+  in two (up to six times) wherever a body in a contact pair has moved more than a
+  quarter of its shape's thickness (against tunnelling); this is seen once the
+  sample is solved, and the added samples are part of the result. The thickness is
+  twice the outline's area over its length: a long bar's width, a disc's radius.
+- Without a `move` driver the run lasts the model's period, sampled the same way.
 
 ### 5.7 Jams
 
-A sample that does not converge is split in halves, down to 1/64 of its step. If the
+A sample that does not converge is split in halves, down to 1/64 of its step (the
+same splitting as against tunnelling). If the
 last still fails, the run ends with a jam: "Jams at 1.24 s: `b_knuckle` against
 `knuckle`, `knuckle` against its stop", listing the one-sided rows active in the
 last attempt. Measures and plots cover the samples reached, as mekasim's do for

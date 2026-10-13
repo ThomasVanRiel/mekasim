@@ -47,17 +47,51 @@ describe("contact points between two shapes", () => {
     expect(pin[0]?.distance).toBeCloseTo(0.001, 12);
   });
 
+  it("measures faces that have passed each other as less than nothing, the same way round", () => {
+    const passed = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
+      x: 0.0099,
+      y: 0,
+      angle: 0,
+    });
+    expect(passed).toHaveLength(2);
+    for (const point of passed) {
+      expect(point.distance).toBeCloseTo(-0.0001, 12);
+      expectPoint(point.normal, [1, 0]);
+    }
+    // And by a hair, where rounding alone may put one face behind the other.
+    const hair = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
+      x: 0.01 - 1e-11,
+      y: 0,
+      angle: 0,
+    });
+    for (const point of hair) expectPoint(point.normal, [1, 0]);
+  });
+
+  it("measures a corner inside the other shape by how deep it is", () => {
+    // A square on its corner, the corner 0.1 mm into the top face of a box.
+    const found = contactPoints(box(0.02, 0.01), HOME, box(0.005, 0.005), {
+      x: 0.01,
+      y: 0.0099,
+      angle: Math.PI / 4,
+    });
+    expect(found[0]?.distance).toBeCloseTo(-0.0001, 12);
+    expectPoint(found[0]?.normal as [number, number], [0, 1]);
+    expectPoint(found[0]?.b as [number, number], [0.01, 0.0099]);
+  });
+
   it("gives touching and crossing boundaries a finite unit normal", () => {
     const touching = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
       x: 0.01,
       y: 0,
       angle: 0,
     });
-    // Coincident faces have a third exact answer in their middle; both ends remain present.
-    expect(touching).toHaveLength(3);
-    expect(touching.map(({ a }) => a[1]).sort()).toEqual([0, 0.005, 0.01]);
-    expect(touching.some(({ normal }) => Math.abs(normal[0] - 1) < 1e-12)).toBe(true);
-    for (const point of touching) expect(Math.hypot(...point.normal)).toBeCloseTo(1, 12);
+    // Faces that lie on each other still hold at both ends, squarely.
+    expect(touching).toHaveLength(2);
+    expect(touching.map(({ a }) => a[1]).sort()).toEqual([0, 0.01]);
+    for (const point of touching) {
+      expect(point.distance).toBeCloseTo(0, 15);
+      expectPoint(point.normal, [1, 0]);
+    }
 
     const crossing = contactPoints(box(0.01, 0.01), HOME, box(0.008, 0.008), {
       x: 0.008,
