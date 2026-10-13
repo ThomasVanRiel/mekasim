@@ -12,6 +12,13 @@ export {
   pairKey,
 } from "./contacts.ts";
 export { addContacts, asFitText, hasContact } from "./edit.ts";
+export {
+  CONTACT_MARGIN,
+  CONTACT_MERGE,
+  type ContactPoint,
+  contactPoints,
+  MAX_CONTACT_POINTS,
+} from "./geometry/contacts.ts";
 export { asMekasim, load } from "./load.ts";
 export {
   FIT_REGISTRY,

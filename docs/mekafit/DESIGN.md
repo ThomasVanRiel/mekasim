@@ -40,14 +40,14 @@ packages/fit/src
   registry.ts     force, torque and stiffness units added to mekafit's expressions
   contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   edit.ts         additions to `contacts:` made by the tool and finder
+  geometry/
+    contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
     qp.ts         small dense quadratic program (dual active set)
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   compile.ts      springs, locks, stops, move drivers, in core's `extend` hook
-  geometry/
-    contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
     inequality.ts one-sided constraints: gap, stop, lock
     quasistatic.ts the contact step and the stage-driven run
