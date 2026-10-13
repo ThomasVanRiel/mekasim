@@ -26,6 +26,21 @@ export {
   type Scene,
   type Sizes,
 } from "./scene.ts";
+export { dimensionGeometry } from "./sheet/dimension.ts";
+export { gridLines, gridStep } from "./sheet/grid.ts";
+export { Sheet, SheetDimension, SheetLabel, useSheetView } from "./sheet/Sheet.tsx";
+export {
+  type Box,
+  fitted,
+  panned,
+  type Size,
+  toScreen,
+  toWorld,
+  type View,
+  visible,
+  worldTransform,
+  zoomed,
+} from "./sheet/view.ts";
 export { clamp } from "./size.ts";
 export {
   bodyColor,
