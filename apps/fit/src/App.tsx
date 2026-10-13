@@ -1,6 +1,7 @@
 import { docFactor, LENGTH } from "@mekasim/core";
-import { decodeModel, Sheet } from "@mekasim/ui";
-import { useEffect } from "react";
+import { decodeModel, Sheet, Splitter } from "@mekasim/ui";
+import { type CSSProperties, useEffect } from "react";
+import { useLayout } from "./layout.ts";
 import { Header } from "./panels/Header.tsx";
 import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
@@ -85,16 +86,33 @@ export function App() {
   const step = useStore((s) => s.step);
   const opened = useStore((s) => s.opened);
   const stale = useStore((s) => s.simulation !== s.shown);
+  const source = useLayout((s) => s.source);
+  const resize = useLayout((s) => s.resize);
   usePlayback();
   useKeys();
   useLinkedModel();
 
   return (
-    <div className="grid h-full grid-cols-[minmax(20rem,28%)_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]">
-      <div className="col-span-2">
+    <div
+      // The source's width, as set by dragging the divider, or else the default.
+      style={
+        { "--source": source === undefined ? "minmax(20rem, 28%)" : `${source}px` } as CSSProperties
+      }
+      className="grid h-full grid-cols-[var(--source)_auto_minmax(0,1fr)] grid-rows-[auto_minmax(0,1fr)]"
+    >
+      <div className="col-span-3">
         <Header />
       </div>
       <Source />
+      <Splitter
+        size={source}
+        onResize={(size) => resize("source", size)}
+        axis="x"
+        target="previous"
+        min={220}
+        max={(width) => width * 0.6}
+        label="Width of the source"
+      />
       <main className="flex min-h-0 flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden bg-paper">
           {scene && units ? (

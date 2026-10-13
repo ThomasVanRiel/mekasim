@@ -1,5 +1,6 @@
 import type { Severity } from "@mekasim/core";
-import { SourceEditor } from "@mekasim/ui";
+import { SourceEditor, Splitter } from "@mekasim/ui";
+import { useLayout } from "../layout.ts";
 import { useStore } from "../store.ts";
 
 const KIND: Record<Severity, string> = { error: "Error", warning: "Warning", info: "Note" };
@@ -15,16 +16,31 @@ export function Source() {
   const text = useStore((s) => s.text);
   const setText = useStore((s) => s.setText);
   const diagnostics = useStore((s) => s.simulation.diagnostics);
+  const height = useLayout((s) => s.messages);
+  const resize = useLayout((s) => s.resize);
 
   return (
-    <div className="flex min-h-0 flex-col border-rule border-r">
+    <div className="flex min-h-0 flex-col">
       <h2 className="border-rule border-b px-3 py-1.5 font-semibold">Source</h2>
       <div className="relative min-h-0 flex-1">
         <div className="absolute inset-0">
           <SourceEditor text={text} diagnostics={diagnostics} onEdit={setText} />
         </div>
       </div>
-      <section aria-label="Messages" className="max-h-[35%] overflow-y-auto border-rule border-t">
+      <Splitter
+        size={height}
+        onResize={(size) => resize("messages", size)}
+        axis="y"
+        target="next"
+        min={34}
+        max={(available) => available * 0.6}
+        label="Height of the messages"
+      />
+      <section
+        aria-label="Messages"
+        style={{ height: height === undefined ? undefined : `${height}px` }}
+        className={`shrink-0 overflow-y-auto ${height === undefined ? "max-h-[35%]" : ""}`}
+      >
         <h2 className="border-rule border-b px-3 py-1.5 font-semibold">Messages</h2>
         {diagnostics.length === 0 ? (
           <p className="px-3 py-2 text-ink-soft text-sm">Nothing to report.</p>
