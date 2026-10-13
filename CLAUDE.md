@@ -65,7 +65,9 @@ run the tools directly: `node_modules/.bin/biome check .`, and in each package
 - A part of the interface that both apps need goes in `packages/ui` and takes its
   data as properties; each app wires it to its own store.
 - Examples are in `examples/`, with the drawings some of them use beside them. A
-  new example is added to the baseline with `pnpm baseline`.
+  new example is added to the baseline with `pnpm baseline`. mekafit's own are in
+  `examples/fit/`: each is solved by `packages/fit/test/examples.test.ts`, which
+  also holds what is known of its result, and named in `apps/fit/src/examples.test.ts`.
 - Messages and interface text are plain sentences without solver terms; see the
   wording notes in `docs/mekafit/PLAN.md` §5.
 - Core runs as TypeScript directly in Node, so no `enum` or parameter properties,

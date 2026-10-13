@@ -31,10 +31,12 @@ their code is in the shared packages:
 - mekasim also gained `checks:` and conditions in expressions, which studies will
   build on, and "Make" in its header.
 
-What mekafit itself has so far: its first line `mekafit: 1`, the app skeleton (the
-shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
-Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
-has the schema, contact-pair compilation and the calls into core.
+What mekafit itself has: its first line `mekafit: 1`, its own sections of the
+format (`contacts:`, `springs:`, `latches:`, `stops` on a joint, the `move` driver),
+the contact step that solves them, and the app: the shared editor and Geometry tab,
+the SVG sheet drawing shapes with true arcs, the Select and Contact tools, the Run
+panel with playback and plots, the Contacts and the Springs and locks folds,
+dividers, its own example picker, and "Open in mekasim".
 
 **Phase 2, clearance, is built and browser-checked.** In
 `packages/core`: the exact distance between two lines or arcs and between two
@@ -64,117 +66,96 @@ motor-driven example, solved by a test, and the app has its own example picker.
   example drawing; "Make" still writes polygons).
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
-**Browser checks passed by Thomas:** the `gap()` and unchanged `dist` drawing from
+**Phase 2's browser checks, passed by Thomas:** the `gap()` and unchanged `dist` drawing from
 commit `a5debb5`; the Contacts fold's rows, closest values, hover-to-step behavior
 and gap dimension; the Contact tool; "Find contacts"; and mekafit's own example
 picker with the clearance example. In the shaped four-bar the two pinned pairs
 correctly stay at 0, while crank and rocker come closest at 97 mm at step 217.
 
-**Waiting for Thomas:** nothing in phase 2.
+**Phase 3, contact, is built and browser-checked.** A model with springs, stops,
+locks or a `move` driver is solved by the contact step; any other still goes down
+mekasim's cycle solve, with contacts only checked. In `packages/fit/src`:
 
-**Phase 3, contact, has started.** Its force, torque and spring-stiffness units are
-built through mekafit's expression registry, without adding them to mekasim. The
-small dense quadratic program is built and checked against hand-solved, redundant
-and infeasible cases. `contactPoints` finds up to four distinct nearby places with
-their normals, including both ends of flat faces. Contact points now become
-one-sided rows with their translation and rotation gradients, ready for the
-quadratic program. `springs:` is read and checked (`packages/fit/src/compile.ts`):
-both kinds, their stiffness and preload with units, and each preload turned into a
-rest value where the joints close from the starting pose. `solver/springs.ts` gives
-their energy, gradient and Hessian.
+- **Units and format.** Force, torque and stiffness units through mekafit's
+  expression registry, without adding them to mekasim (`registry.ts`). `springs:`,
+  `latches:`, joint `stops` and the `move` driver with `to`, `via`, `pull` and
+  `push` stages are read and checked (`schema.ts`, `compile.ts`), each problem told
+  at its place. The `move` driver needed nothing in core: mekafit's schema gives the
+  `drivers` section again with the move in it, and core's `prepare` hook sets the
+  moves aside before core compiles the rest.
+- **The contact step** (`solver/quasistatic.ts`, DESIGN.md §5): at each sample the
+  spring energy is minimised under the joints, the drivers and the one-sided rows
+  of contacts, stops and locks (`solver/inequality.ts`), with a small quadratic
+  program (`solver/qp.ts`), the springs' energy from `solver/springs.ts` and the
+  stages of a move from `solver/stages.ts`. Samples are split where a body moves
+  far or the step does not settle.
+- **Contact points** (`geometry/contacts.ts`, DESIGN.md §3.3): up to six places per
+  pair, each corner against the nearest place of the other shape, facing flat faces
+  at both ends of the stretch they share, and curves where they are nearest. Where
+  shapes are into each other the distance is negative and the direction holds.
+- **What a run tells.** A jam names the parts in each other's way ("Jams at
+  0.876 s: `pusher` against `block`, `ram` against its stop"). A pull that nothing
+  holds "came free", which is a remark and is kept with the run (`free`). Whether
+  each lock is in at each sample is kept too (`latched`).
+- **Forces** at every solved sample, from the balance of the parts (`Loads`): what
+  presses each contact together, what each spring carries, how hard each stop and
+  lock is held, and what each driver puts on its body.
+- **Measures** `force`, `torque`, `latched`, `final` and `first` (`measures.ts`).
+  mekafit's plots show forces in N and torques in N·mm (N·m in a model not drawn in
+  millimetres).
+- **A body that a driver has let go moves at a pace**, however it is taken along:
+  at most the model's size over its stage. So a drawer that a spring brings back is
+  seen to come back. Thomas found the return in one sample odd (2026-10-13).
 
-The contact step runs models (`solver/quasistatic.ts`, with the stage paths and the
-pose constraint in `solver/stages.ts`): at each sample the spring energy is
-minimised under the joints, the drivers and the contact rows, with samples split
-where a body moves far or the step does not settle, and a jam that names the parts
-in each other's way ("Jams at 0.876 s: `pusher` against `block`, ..."). A model with
-springs or a `move` driver is solved by it; any other still goes down mekasim's
-cycle solve. The `move` driver is in the format, with `to` and `via` stages and
-with `pull` and `push`, which let the body go and pull it: it rests where a spring
-or a contact holds it, and a pull that nothing holds comes free, which is told as
-a remark and kept with the run. It
-needed nothing in core: mekafit's schema gives the `drivers` section again with the
-move in it, and core's `prepare` hook sets the moves aside before core compiles the
-rest. `contactPoints` was changed for the step: where shapes are into each other
-the distance is negative and the normal keeps its direction, and two flat faces
-along each other give their two ends. `examples/fit/sprung-lever.mekafit.yaml` is
-the first example solved by contact.
+In `apps/fit/src`: the Springs and locks fold (`panels/SpringsLocks.tsx`, its
+wording in `springs.ts`) lists each spring, each joint with stops and each lock,
+with what it is and how it stands at the step being shown ("Pulling with 40 N",
+"Against its stop with 60 N", "In, holding 20 N"). A lock is drawn on the sheet as
+a small brass square on its joint, filled when it is in.
 
-Joint `stops` and `latches:` are built: a stop holds a revolute joint's angle or a
-slider's or pin-slot's travel between its two ends, and a lock drops in once its
-joint has passed its place and then holds it there. Both are one-sided rows of the
-contact step, and a model with either is solved by it. Whether each lock is in at
-each sample is kept with the run (`latched`), for the `latched()` measure to come.
-A jam names them too: "`ram` against its stop".
+The examples in `examples/fit/`, each solved by a test and in the app's picker:
 
-Forces are found at every solved sample from the balance of the parts
-(`Loads` in `solver/quasistatic.ts`): what presses each contact together, what each
-spring carries, how hard each stop and lock is held, and what each driver puts on
-its body. The measures `force`, `torque`, `latched`, `final` and `first` read them
-(`packages/fit/src/measures.ts`, through core's registry), and mekafit's plots show
-forces in N and torques in N·mm (N·m in a model not drawn in millimetres).
+| Example | What it shows |
+|---|---|
+| `clearance-check` | Phase 2: a knuckle turned by a motor, gaps only |
+| `sprung-lever` | A lever held up against a bar by a spring gives way under it and follows it back |
+| `door-latch` | A sprung bolt with a slanted nose is pushed back by the strike, then holds the door against a pull of 20 N |
+| `ratchet` | A wheel turned against a spring; a sprung pawl rides up each tooth and drops behind it, and holds the wheel when it is let go |
+| `knuckle-coupler` | Two much simplified couplers: the nose of one swings the other's open knuckle shut, its lock drops, and a pull of 150 N is held |
+| `push-latch` | Thomas's push-to-open catch: a pin in a track round a heart; one push and the drawer stays in, the next and it comes out |
 
-The Springs and locks fold is built (`apps/fit/src/panels/SpringsLocks.tsx`, its
-wording in `apps/fit/src/springs.ts`): each spring, each joint with stops and each
-lock, with what it is and how it stands at the step being shown ("Pulling with
-40 N", "Against its stop with 60 N", "In, holding 20 N"). A lock is drawn on the
-sheet as a small brass square on its joint, filled when it is in. Not yet checked
-in the browser.
+Where phase 3 as built differs from what was planned:
 
-`examples/fit/door-latch.mekafit.yaml` is built: a sprung bolt with a slanted nose
-that a strike pushes back and that then holds the door against a pull. Building it
-found two faults, both fixed: the quadratic program gave up when two rows it held
-said the same thing in part (it now lets go of the one that carries nothing), and
-two corners near each other were taken for parts into each other (overlap is now
-told by a place lying in the other shape's material).
+- **The coupler** starts with one knuckle open, not both. In this simple shape two
+  open knuckles pass each other's tails; closing both at once needs the thrower a
+  real coupler has inside its head. With both knuckles shut the run jams and names
+  them, as the phase asks.
+- **The push latch** has no spring on its pin. The pin goes round one way because
+  each peak of the track stands to one side of the pocket before it. The shapes are
+  drawn to work, not to look like a bought catch.
+- **No measure for a stop, a lock or a pin.** How hard a stop or a lock is held is
+  found and kept with the run and shown in the fold, but `force()` and `torque()`
+  cover contacts, springs and drivers only, since a joint's name could mean its
+  pin's force or its stop's. The force in a pin is not kept.
+- **Jerk on a contact run** is still worked out from the joints as in mekasim,
+  which does not hold where parts push each other; speed and acceleration are from
+  the sampled positions (DESIGN.md §5.9).
+- **Speed budgets** (DESIGN.md §8) are not tests yet. The examples run in 50 to
+  250 ms each.
 
-`examples/fit/ratchet.mekafit.yaml` is built too: a toothed wheel turned 100
-degrees against a spring, a sprung pawl that rides up each tooth and drops behind
-it, and the wheel let go, which the pawl then holds. It needed the contact finder
-on a firmer footing (DESIGN.md §3.3): every corner of one shape against the nearest
-place of the other, which is the face's own corner once the corner has passed the
-face's end, in place of every pair of segments with rules for the special cases.
-And where the rows as laid out do not let the whole of a closing step through, the
-step now takes part of it and lays the rows out again.
+**Browser checks passed by Thomas (2026-10-13):** every example in mekafit's
+picker with its motion and plots, the Springs and locks fold, the lock markers, and
+that the page no longer scrolls behind its panels; in mekasim, that a middle click
+on the view no longer pastes, and the strandbeest's ground plate in the STL.
 
-`examples/fit/knuckle-coupler.mekafit.yaml` is built: two much simplified couplers,
-one standing with its knuckle open, the other pushed into it with its knuckle shut
-and locked. The nose strikes the open knuckle's tail and swings it shut, its lock
-drops, and a pull of 150 N is then held by the hooked noses and both locks. With
-both knuckles shut the run jams and names them, as phase 3 asks. It differs from
-the "done when" of phase 3 in one thing: only one knuckle starts open. In this
-simple shape two open knuckles pass each other's tails; closing both at once needs
-the thrower a real coupler has inside its head.
+**Waiting for Thomas:** a look at the pace of a let-go body, the last change: the
+push latch's drawer and the ratchet's wheel coming back over a number of steps.
 
-`examples/fit/push-latch.mekafit.yaml` is built, Thomas's push-to-open catch: a pin
-that can only go sideways, in a track round a heart on the drawer. One push and
-the pin is caught in the heart's cleft with the drawer in; the next and it goes
-down the other side and the drawer comes out. It goes round one way because each
-peak of the track stands to one side of the pocket before it; there is no spring
-on the pin. The shapes are drawn to work, not to look like a bought catch.
+**Open, for Thomas to say:**
 
-A part that a spring carries a long way, as the drawer coming out, now takes
-several samples over it instead of failing to settle in one.
-
-A body that a driver has let go now moves at a pace however it is taken along, so
-the drawer of the push latch and the wheel of the ratchet are seen to come back
-(Thomas found their return in one sample odd, 2026-10-13).
-
-**Phase 3 is built.** Its examples are in mekafit's picker. Thomas has checked the
-examples, the Springs and locks fold and the lock markers in the browser, and the
-middle click, the ground plate's holes and the scrolling (2026-10-13). Phase 4, studies, is next (DESIGN.md §6 and §9), unless
-Thomas would first have what phase 1 still lacks.
-
-**Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
-springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and
-the force in a pin, are found and kept with the run but have no measure yet, since
-a joint's name could mean its pin's force or its stop's.
-
-**Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev
-server (the lever should lie against the bar's corner all the way down and back,
-and its angle plot should be a smooth dip to 0; its force plots in N and N·mm; the
-Springs and locks fold beside it); and the two mekasim fixes of the
-same day, the middle click that pasted and the ground plate's doubled holes.
+1. Whether phase 4, studies, comes next (DESIGN.md §6 and §9), or first what phase
+   1 still lacks (the list above).
+2. Whether stops, locks and pins get measures of their force, and under what names.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
@@ -199,10 +180,9 @@ same day, the middle click that pasted and the ground plate's doubled holes.
    motor-driven, gaps only, solved by a test as DESIGN.md §8 says, and mekafit's
    own example picker (Thomas asked that its examples be separate from mekasim's).
 
-Then phase 3, the contact step (DESIGN.md §5), which starts with
-`contactPoints` (§3.3) on top of `geometry/distance.ts`. Its force units were built
-first, following DESIGN.md §9; the quadratic program, `contactPoints`, the contact
-rows, the springs and the step for `to` stages are built too.
+Phase 3 followed in the order of DESIGN.md §9: force units, the quadratic program,
+contact points and their rows, springs, the step for `to` stages and then `pull`,
+stops and locks, forces, the measures, the fold, the examples.
 
 **Settled with Thomas on 2026-10-13**, beyond what the sections below say:
 
@@ -222,7 +202,10 @@ rows, the springs and the step for `to` stages are built too.
   `0` preload is read as none. (Claude's choice while building springs; say if a
   default unit is wanted instead.)
 - A push-to-open latch, a pin riding in a heart-shaped slot as in a drawer catch, is
-  wanted as a mekafit example once contact is solved (DESIGN.md §8).
+  wanted as a mekafit example once contact is solved. It is built
+  (`examples/fit/push-latch.mekafit.yaml`).
+- A body that a spring brings back must be seen to come back, not be found there
+  in the next step.
 
 **Thomas's own coupler drawing** is `ref/coupler.dxf`. `ref/` is ignored by git, so
 it may not be there, and nothing of it is committed or used in tests. It reads as
@@ -273,10 +256,10 @@ angle, with either knuckle open or closed, and it must hold when pulled.
 | Geometry files | Kept as files, not copied into the YAML, so a drawing re-exported from CAD replaces the old one and the study re-runs on it. The model keeps the outline each body takes from a drawing, as `path` beside `from` (mekasim's format does this), so the YAML alone, saved or in a link, is complete without the files. Saving the files with it, as a folder or `.zip`, is still to come. |
 | Clearance | An exact distance between two shapes with its two nearest points, as a measure function, `gap(a, b)`: it plots, reduces with `min` and goes to CSV like any other. |
 | Which parts may touch | Listed in a `contacts:` section. The app proposes pairs and writes them in; nothing is guessed silently. |
-| Contact | Quasi-static: parts move slowly, so at every step the mechanism is in equilibrium. Solved by mekasim's Newton solver extended with one-sided constraints (gap ≥ 0, joint stops, locks). No game-physics engine, no forward dynamics, no impacts. |
+| Contact | Quasi-static: parts move slowly, so at every step the mechanism is in equilibrium. Solved as mekasim solves its joints, with one-sided constraints added (gap ≥ 0, joint stops, locks) and a small quadratic program for each step. No game-physics engine, no forward dynamics, no impacts. |
 | Springs | Torsion and linear springs, as energy the quasi-static step minimises. No mass needed. |
 | Locks | Out-of-plane locks, pawls and detents are `latches` on a joint: a one-way stop that drops in at an angle. Not geometry. |
-| Moving a body | A `move` driver carries a body along a line or arc, then can pull it with a force. This is how one coupler is pushed into the other. |
+| Moving a body | A `move` driver carries a body along a line or arc, and can let it go and pull it with a force. This is how one coupler is pushed into the other. |
 | Studies | A `studies:` section in the model, as `plots:` is in mekasim, so a shared model arrives with its studies. A study varies parameters within ranges, runs the model for each draw and tests it against the model's `checks`, which mekasim has too. |
 | Replay | A run is replayed by solving the model with that run's values. Only the values and the outcome are stored. |
 | Determinism | Every run is reproducible from the model text and the study seed. No `Math.random` in the solver or studies. |
@@ -399,8 +382,8 @@ part, and the frictionless result already shows whether the geometry works at al
   wander (DESIGN.md §5.1), as a real knuckle with a little friction in its pin does.
 - **Jams versus failures to solve.** The step halves itself several times before a
   jam is reported, and a jam names the contacts that block.
-- **Tunnelling.** The `move` driver limits how far any point may travel in one step
-  to a fraction of the smallest shape feature, and adds samples as needed.
+- **Tunnelling.** No body that can touch another may go further in one step than a
+  quarter of its shape's thickness; samples are added as needed.
 - **Friction** makes the step a harder problem, with no unique answer in some poses.
   Kept out until phase 5.
 - **Outlines changing identity.** A re-exported DXF may list its entities in another

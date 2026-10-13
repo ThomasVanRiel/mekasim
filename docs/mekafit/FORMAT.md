@@ -12,28 +12,35 @@ drivers, pose, traces, measures, plots, frames.
 - Every addition is optional. A mekafit model without any of them is a mekasim model
   with another first line.
 
-This page is written ahead of the build. The phase that adds each part is given in
-its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
+This page was written ahead of the build. The phase that adds each part is given in
+its heading (see [PLAN.md](PLAN.md)), with "built" where it is.
 
-Built so far: the first line `mekafit: 1`. Shapes are mekasim's own by now, written
-out as `path` or taken from a DXF drawing with `geometry:`, `from`, `layer`, `at`
-and `place` ([../mekasim/FORMAT.md](../mekasim/FORMAT.md), "Shapes" and "Shapes
-from a drawing"), and so are `checks:` and conditions. The sections on shapes below
-are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
-(`fit` is mekasim's too by now, and so is `gap(a, b)`). The `contacts:` forms below
-are built and compile to checked, distinct pairs; a run reports the first overlap
-deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
-The force, torque and spring-stiffness units listed under Springs are built for
-expressions. `springs:` and the `move` driver with all its stages are built:
-a model with either is solved by the contact step, in which listed contacts push
-and springs settle. Joint `stops` and `latches:` are built too, and so are the
-measures `force`, `torque`, `latched`, `final` and `first`.
+**Built:** the first line `mekafit: 1`; `contacts:`; `stops` on a joint;
+`springs:` with the units of force, torque and stiffness; `latches:`; the `move`
+driver with all its stages; and the measures `force`, `torque`, `latched`, `final`
+and `first`. A model with springs, stops, locks or a `move` driver is solved by the
+contact step, in which listed contacts push and springs settle; any other is solved
+as mekasim solves it, with its contacts only checked. The models in
+[`examples/fit/`](../../examples/fit) use all of it and run as they are.
+
+**Not built:** `studies:` (phase 4), and of the shapes below SVG drawings, `plate`
+and the `copy` component. `friction` is phase 5.
+
+**mekasim's own by now**, and described in [../mekasim/FORMAT.md](../mekasim/FORMAT.md):
+shapes written out as `path` or taken from a DXF drawing with `geometry:`, `from`,
+`layer`, `at`, `place` and `fit` ("Shapes" and "Shapes from a drawing" there),
+`checks:` and conditions, and `gap(a, b)`. The sections on shapes below are kept
+for what mekasim does not have yet.
 
 ## A whole example
 
 A knuckle coupler, modelled once and placed a second time turned round. The
 outlines come from `coupler.dxf`, kept beside the model, where the head and the
 knuckle were drawn on layers of their own.
+
+This is what the format is meant to carry in the end. It does not run yet: `copy`
+and `studies:` are not built. `examples/fit/knuckle-coupler.mekafit.yaml` is a
+coupler that does.
 
 ```yaml
 mekafit: 1
@@ -110,7 +117,7 @@ studies:
     vary: [dx, turn, a_open, b_open]            # each over its min to max
 ```
 
-## Shapes (phase 1)
+## Shapes (phase 1; what is built is mekasim's, the rest is to come)
 
 ```yaml
 geometry:
@@ -208,7 +215,7 @@ is not copied is not copied.
 | `at` | Shift after turning, `[x, y]`; default `[0, 0]` |
 | `mirror` | `true` mirrors across the y axis before turning; default `false` |
 
-## Contacts (phase 2 built)
+## Contacts (phases 2 and 3, built)
 
 ```yaml
 contacts:
@@ -223,8 +230,14 @@ other is not counted as running into each other, as with `gap`: their outlines h
 to be drawn clear of each other round the pin, and a warning says so when they are
 not.
 
-Without contact solving (no `move` driver, no springs, no locks), contacts are only
-checked: a pair that runs into each other is reported with the step and the place.
+In a model that the contact step solves (one with springs, stops, locks or a `move`
+driver), the listed pairs push each other: neither goes into the other, and a part
+that nothing else holds is moved by the part that meets it. Pairs that are not
+listed pass through each other. A run that cannot go on because parts are in each
+other's way stops there and names them: "Jams at 0.876 s: `pusher` against `block`".
+
+Without contact solving, contacts are only checked: a pair that runs into each
+other by more than 0.001 mm is reported with the step and how deep.
 The Contact tool writes a picked pair as `between`. "Find contacts" lists shaped
 pairs that come within a chosen distance during the run and writes only the pairs
 the user checks; pairs already in `contacts:` are shown checked.
@@ -245,7 +258,8 @@ joints:
 `stops` limits a revolute joint's relative angle, or the travel along a pin-slot or
 slider measured from the first axis point. Either end may be `null`. The angle is
 that of the second body the joint connects less that of the first, as for a driver
-and a spring. A joint that starts beyond a stop is brought back to it at the start.
+and a spring. A plain number is in the document's unit. A joint that starts beyond
+a stop is brought back to it at the start.
 
 ## Springs (phase 3, built)
 
@@ -279,6 +293,8 @@ latches:
 A lock that drops in behind a joint, as the lock block of a coupler drops behind
 the knuckle's tail. When the joint's angle (or travel) passes `at` going the way
 `drops` says, the lock is in, and from then on the joint cannot go back past `at`.
+Nothing lets a lock out again. The app draws a lock as a small square on its joint,
+filled while it is in.
 
 | Field | Meaning |
 |---|---|
@@ -319,7 +335,12 @@ If nothing does, it moves on at an even pace for the stage's time, and the run
 says that the driver came free; that is a result to check for, not a fault in the
 model. A body that is let go never goes faster than that pace, the model's size in
 the time of its stage, so a longer `time` shows a spring bringing it back more
-slowly. `pull: [0, 0]` lets a body go without pulling it. A stage after a pull begins where the pull left the body.
+slowly. `pull: [0, 0]` lets a body go without pulling it. A stage after a pull
+begins where the pull left the body.
+
+A model with springs, stops or locks and no `move` driver is solved by the contact
+step over the cycle of its motor, or at its starting position alone when nothing
+is driven.
 
 ## Measures (phases 2–3, built)
 
@@ -342,6 +363,13 @@ what most checks on a contact run want.
 Forces are those that hold the parts in balance at each sample, so they come from
 springs and pulls: in a model with neither, every force is zero, and the model says
 so. A contact, a spring and a driver that are asked about need different names.
+Asking `force` of something that turns, or `torque` of something that pushes in a
+line, says which to use. The force of a contact that touches in several places is
+all of them added up.
+
+The app shows a force in N and a torque in N·mm, or in N·m where the model's length
+is not millimetres. How hard a stop or a lock is held has no measure; the Springs
+and locks fold shows it.
 
 ## Studies (phase 4)
 

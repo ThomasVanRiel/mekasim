@@ -8,9 +8,14 @@ shows a model moving in 2D and 3D next to its source, with tools to draw it. A b
 can carry its real outline, written out or taken from a DXF drawing, and the parts
 can be exported to cut or print. See [docs/mekasim/PLAN.md](docs/mekasim/PLAN.md).
 
-A second app in this repository, mekafit, is being built for mechanisms that work by
-parts touching: clearance, contact and studies. It shares the core and the
-interface parts; see [docs/mekafit/PLAN.md](docs/mekafit/PLAN.md) for where it stands.
+A second app in this repository, mekafit, is for mechanisms that work by parts
+touching. It measures the gaps between the outlines of the parts, and solves models
+in which listed parts push each other, with springs, joint stops, locks, and a
+driver that carries a body and lets it go: a door latch, a ratchet, a knuckle
+coupler and a push-to-open catch are among its [examples](examples/fit). Studies
+over many starting positions are still to come. It shares the core and the
+interface parts; its format is in [docs/mekafit/FORMAT.md](docs/mekafit/FORMAT.md),
+and [docs/mekafit/PLAN.md](docs/mekafit/PLAN.md) says where it stands.
 
 ## Use
 
@@ -126,8 +131,15 @@ packages/ui/src
   *.tsx       parts of the interface that hold no model: folds, dividers, choices, tabs
   scene.ts    what is drawn of a model: outlines, pins, traces, the pose at a step
   sheet/      a flat SVG drawing sheet: pan, zoom, grid, names, dimensions
-packages/fit/src   mekafit's side of the pipeline (see docs/mekafit)
-apps/fit/src       mekafit, a second app for parts that touch (see docs/mekafit)
+packages/fit/src   mekafit's side of the pipeline (see docs/mekafit/DESIGN.md)
+  schema.ts, compile.ts   what mekafit adds to the format, read and checked
+  geometry/   the places where two shapes are about to touch
+  solver/     the contact step: one-sided rows, a small quadratic program, springs,
+              the stages of a move, forces
+  measures.ts force, torque, latched, final, first
+  simulate.ts the whole pipeline in one call, as core's
+apps/fit/src       mekafit: the sheet, the Run panel, the Contacts and the Springs
+                   and locks folds
 apps/sim/src
   store.ts    model text, solved result, playback state
   viewport/   the drawing: three.js rendering, labels,
@@ -136,4 +148,5 @@ apps/sim/src
   io/         3MF, STL
 ```
 
-The app deploys to Netlify from `netlify.toml` as a static site.
+mekasim deploys to Netlify from `netlify.toml` as a static site; mekafit has its own
+`apps/fit/netlify.toml` for a second site.

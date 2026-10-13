@@ -99,14 +99,14 @@ Decided:
 
 What it would take:
 
-- The description of the drawing (`viewport/scene.ts`: outlines, pins, traces and
-  the pose at each step) and the charts (`plot/`) need only the core and React,
-  not the app's store. They move to a package that both the app and the viewer
-  use. The colours of links and curves are fixed in those modules today and would
-  become something that is passed in.
-- A new SVG drawing of that description. The app's drawing is written for
-  Three.js and reads the store for selection, tools and the tracing picture, so it
-  is not reused. Playback is a small piece of state inside the component.
+- Done: the description of the drawing (`scene.ts`: outlines, pins, traces and the
+  pose at each step) and the charts (`plot/`) are in `packages/ui`, which needs only
+  the core and React, not the app's store. The colours come from the theme there,
+  and would still have to become something the page can pass in.
+- Done, for mekafit: a flat SVG sheet (`packages/ui/src/sheet`) with pan, zoom, grid,
+  names and dimensions, and a drawing of the description on it
+  (`apps/fit/src/sheet/Drawing.tsx`), which would move to `packages/ui` for the
+  viewer. Playback is a small piece of state inside the component.
 - The viewer keeps nothing in the browser, so it never touches the model the
   visitor has open in the app.
 
@@ -166,5 +166,5 @@ Left out of the phases built so far, noted as each was handed over.
 - **Tracing picture:** images only, no DXF; not kept across a reload.
 - **Parameter comparison** is capped at five values and its results are not in the
   CSV export.
-- **Bundle size:** the app is a single JavaScript file of about 1.9 MB (about
-  550 kB compressed); it has not been split.
+- **Bundle size:** the app is a single JavaScript file of about 2.1 MB (about
+  630 kB compressed); it has not been split.

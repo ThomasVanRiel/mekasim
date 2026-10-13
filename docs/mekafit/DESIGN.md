@@ -34,22 +34,26 @@ packages/core/src            mekasim's core
     disk.ts       a model's drawings from beside it, for the command line and tests
   simulate.ts     takes `files`, and the hooks of §2.3
 packages/fit/src
-  schema.ts       mekafit document: mekasim's schema with `mekafit: 1` and `contacts:`
+  schema.ts       mekafit document: mekasim's schema with `mekafit: 1`, `contacts:`,
+                  `springs:`, `latches:`, `stops` on a joint and the `move` driver
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
-  simulate.ts     core's pipeline with mekafit's schema and extension hook
-  registry.ts     force, torque and stiffness units added to mekafit's expressions
-  contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
+  simulate.ts     core's pipeline with mekafit's schema and hooks; which solve a model gets;
+                  the messages of a contact run
+  registry.ts     force, torque and stiffness units, the measure functions, and the
+                  units forces are shown in
+  measures.ts     force, torque, latched, final, first (through core's registry)
+  contacts.ts     checked pairs; gaps over a run, closest results and overlap messages;
+                  the compiled model and the simulation as mekafit has them
   edit.ts         additions to `contacts:` made by the tool and finder
   compile.ts      core's `prepare` and `extend` hooks: contacts, springs, move drivers, stops and locks
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
-    inequality.ts one-sided constraints: contact, stop and lock rows
+    inequality.ts one-sided constraints: contact, stop and lock rows; the value of a joint
     qp.ts         small dense quadratic program (dual active set)
-    springs.ts    spring energy, gradient and Gauss-Newton Hessian
+    springs.ts    spring energy, gradient and Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
-    quasistatic.ts the contact step and the stage-driven run
-  measures.ts     force, torque, latched, final, first (through core's registry)
+    quasistatic.ts the contact step, the stage-driven run, and the forces at each sample
   (to come)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   study/
@@ -67,17 +71,20 @@ packages/ui/src
   io/             share.ts, download.ts
   scene.ts        what is drawn of a model, for mekasim's Three.js view and the sheet alike
   sheet/          SVG sheet: pan, zoom, grid, labels, dimensions
+  middle.ts       keeps a middle click on a view from pasting
   drawings/       the Geometry tab, the picture of a layer, the handling of picked files
 apps/fit/src
-  store.ts        model text, drawings, solved run, playback
+  store.ts        model text, drawings, solved run, playback, the tool in hand
   examples.ts     mekafit's own examples from `examples/fit`, with their drawings
   layout.ts       sizes of the panels
   playback.ts     how the position in a run moves on
+  contacts.ts     the wording of the Contacts fold
+  springs.ts      the wording of the Springs and locks fold; the locks for the sheet
   App.tsx         layout (§7)
-  sheet/Drawing.tsx   the mechanism on the sheet, shapes with true arcs
-  panels/         Header, Source (tabs Source and Geometry, messages), Run, Contacts and finder
-  sheet/          SVG mechanism drawing and the Select and Contact tools
-  panels/SpringsLocks, springs.ts   the Springs and locks fold and its wording
+  sheet/          Drawing.tsx: the mechanism on the sheet, shapes with true arcs, gaps, lock
+                  markers; Tools.tsx: the Select and Contact tools
+  panels/         Header, Source (tabs Source and Geometry, messages), Run,
+                  Contacts with its finder, SpringsLocks
   (to come)       Inspector, Studies, Parameters, StudyResults,
                   io/project.ts (folder or `.zip`), study/ (worker, runner, scatter)
 ```
@@ -129,7 +136,8 @@ props instead of reading the store: `panels/Field.tsx`, `panels/Messages.tsx`,
 `editor/linked.ts`. Each move is its own change, checked in mekasim before going on.
 
 New in `packages/ui/src/sheet/`: an SVG sheet with pan (middle button or Space and
-drag; a Space that moved the sheet does not also start or stop playback), zoom to
+drag; a Space that moved the sheet does not also start or stop playback, and
+letting the middle button go does not paste, as it would on Linux), zoom to
 the cursor (wheel), fit (F), a grid that follows the zoom, labels
 that keep their size, and dimension lines with values. The geometry (view
 transform, grid spacing, label placement) is in plain modules with tests. The
@@ -163,9 +171,10 @@ nothing, so nothing new becomes valid in a mekasim model.
    driver (taken from `Document`) or a move, and its `prepare` hook sets the moves
    aside under `moves` before core compiles the drivers it knows.
 2. **Expressions.** `expr/` and `analysis/measures.ts` accept a registry of extra
-   units and extra functions. A function gets its arguments and a context with the
-   compiled model and the sample index, and returns a value or a signal. mekasim
-   passes no registry.
+   units and extra functions. A function gets its arguments as written, a way to
+   evaluate one, the compiled model and the solved cycle, and returns a value or a
+   signal. mekasim passes no registry. What a contact run finds beside the motion
+   (forces, locks) is kept on the cycle, where mekafit's functions read it.
 
    Comparisons, `and`, `or` and `not` need no extension: mekasim has them, with
    its `checks:` section (`docs/mekasim/FORMAT.md`). A study's `pass` is made of the same
@@ -183,8 +192,6 @@ nothing, so nothing new becomes valid in a mekasim model.
    `cycleFromPositions`, which builds a `Cycle` from sampled positions with
    velocities and accelerations as their differences (§5.9).
 
-`copy` needs no hook: it is expanded on the parsed document before compile.
-
 ### 2.4 apps/fit skeleton
 
 Vite and React as in `apps/sim`, with the same Biome, TypeScript and Tailwind
@@ -195,9 +202,11 @@ mekasim draws, until shapes exist), plays and scrubs. A mekasim model opens as i
 The skeleton has the header, the source in the editor mekasim has (moved to
 `packages/ui/src/editor` and given its text, messages and callbacks as properties)
 with the messages under it, the sheet, and the Run panel with playback and the
-model's plots. Still to come as their phases need them: the side panel and the tools. Dividers between the panels and a first Geometry tab
-(drawings with their layers, who uses them, the import report, attach and replace)
-are there; picking outlines on the sheet is not.
+model's plots. Dividers between the panels and a first Geometry tab (drawings with
+their layers, who uses them, the import report, attach and replace) are there;
+picking outlines on the sheet is not. Since then the side panel has the Contacts and
+the Springs and locks folds, and the sheet the Select and Contact tools; the
+inspector, the Pin and Measure tools, parameters and studies are still to come.
 "Open in mekasim" needs `VITE_MEKASIM_URL` set for the site's build; in the dev
 server it points at mekasim's dev server.
 
@@ -214,14 +223,15 @@ type Segment =
   | { kind: "line"; ax: number; ay: number; bx: number; by: number }
   | { kind: "arc"; cx: number; cy: number; r: number; start: number; sweep: number }; // sweep > 0 anticlockwise
 interface Loop { segments: Segment[] }        // closed, end of each = start of next
-interface Shape { outer: Loop; holes: Loop[]; tree: Tree; bounds: Box; radius: number }
+interface Shape { outer: Loop; holes: Loop[]; bounds: Box; radius: number }
+// treeOf(shape) gives the bounding-box tree over its segments, made once per shape
 ```
 
 - In the body frame, in metres. Outer loop anticlockwise, holes clockwise
   (normalised on compile).
 - `holes:` entries become full-circle arcs.
 - `radius` is the largest distance of the shape from the body frame origin; used for
-  quick rejection and as the length scale of the body's angle (§5.3).
+  quick rejection and, with the body's points, as the length scale of its angle (§5.3).
 - Path text: a small hand-written parser. Arcs in SVG endpoint form are converted to
   centre form with the standard formulas; an arc whose radius is too small for its
   chord is an error (SVG would scale it up; here it means a broken export).
@@ -299,16 +309,16 @@ the other shape by core's `gap`.
   entities listed in §1, `$INSUNITS` for the unit (asked for when missing). Blocks
   are expanded. Text, dimensions and hatches are skipped and counted in the import
   report. No dependency.
-- SVG: `path`, `rect`, `circle`, `ellipse`, `polygon`, `polyline`, with transforms;
-  Béziers are fitted with arcs.
+- SVG, to come: `path`, `rect`, `circle`, `ellipse`, `polygon`, `polyline`, with
+  transforms; Béziers are fitted with arcs.
 - Fitting: biarcs within 0.002 mm (a setting per file in the Geometry tab).
 - Loops: join ends within 1e-6 mm with a grid hash, drop zero-length and duplicate
   segments, walk into closed loops, report open chains with their ends, offer to
   close gaps up to a chosen size, nest by containment. Loops are kept in order of
   area, so a re-import of an edited drawing lists them the same way.
-- Files are not converted into the YAML. `load(text, files)` takes the model text and
-  a map of file name to contents; `files.ts` reads each file named in `geometry:`
-  once, then gives each body its outline:
+- `simulate(text, { files })` takes the model text and a map of file name to
+  contents; `drawing/resolve.ts` reads each file named in `geometry:` once, then
+  gives each body its outline:
   - `layer`: the closed outlines on that DXF layer (or SVG group id). If there is
     more than one outer outline, `at` is needed.
   - `at: [x, y]`: the outer outline that contains this point (in the file's
@@ -319,10 +329,10 @@ the other shape by core's `gap`.
 - A missing file or layer is a message pointing at the line; the model still loads
   and solves, without that shape, so the motion stays visible while a file is being
   attached.
-- Share links (`@mekasim/ui` `io/share.ts`) carry the YAML with every
-  `shape: { from: ... }` replaced by the `path` and `holes` it resolved to, so a link
-  opens without the files. Saving to disk keeps the references.
-- Open and save: in Chromium-based browsers a folder holding the YAML and its files
+- A saved model and a share link (`@mekasim/ui` `io/share.ts`) keep the outline each
+  body takes from a drawing, as `path` beside `from` (core's `keepOutlines`), so
+  both open without the files; the drawing wins while it is attached.
+- Open and save, to come: in Chromium-based browsers a folder holding the YAML and its files
   (File System Access API); "Follow file" polls a file's `lastModified` every second
   while the tab is visible. Elsewhere, and for sending, a `.zip` of the same, made with
   `fflate` (small, no other dependencies). Opening accepts the YAML with its files
@@ -343,7 +353,7 @@ the other shape by core's `gap`.
   checked; the first overlap deeper than 0.001 mm gives a message: "`knuckle` runs
   into `head` at step 41, 0.3 mm deep", pointing at the contacts entry.
 - Contacts fold: per pair, the smallest gap over the run, its step, its nearest
-  points. Computed in the same pass as the measures.
+  points. Computed once the run is solved, with core's `gapsOf`.
 - "Find contacts": every pair of bodies with shapes whose gap comes under a chosen
   distance at any sample, with the pairs already listed checked.
 
@@ -376,8 +386,8 @@ Starting from the previous sample's `q`, repeat up to 30 times (not from where t
 bodies seemed to be going, as core's `solveCycle` does: a part that has just been
 let go would be carried past where it comes to rest, onto another branch):
 
-1. Evaluate `Phi` and its Jacobian `J` (core), the spring gradient and Gauss-Newton
-   Hessian, and the one-sided rows: for each contact pair, the points of §3.3 with
+1. Evaluate `Phi` and its Jacobian `J` (core), the spring gradient and Hessian
+   (§5.5), and the one-sided rows: for each contact pair, the points of §3.3 with
    `g = d` and gradient `n · (dpB/dq - dpA/dq)`; for each stop and engaged lock, the
    joint value minus its limit.
 2. Solve the quadratic program for the step `dq`:
@@ -386,7 +396,8 @@ let go would be carried past where it comes to rest, onto another branch):
    subject to J dq = -Phi,   G dq >= -g
    ```
    Where the program has no solution with the whole closing step `dq0`, it is
-   tried with a half of it, a quarter and so on: the rows are flat, laid out for the
+   tried with a half of it, a quarter and so on down to a ten-thousandth: the rows
+   are flat, laid out for the
    parts as they touch now, and a corner that is about to pass the end of a face is
    held by that face until it has. From where the part step leads, the rows are
    laid out anew.
@@ -416,8 +427,9 @@ spring's over the square of its body's reach), or 1 where there are no springs.
 - What is left is a small strictly convex problem in `z` with inequalities only,
   solved with the Goldfarb–Idnani dual active-set method, dense, in plain TypeScript
   (`qp.ts`). Sizes are tens of variables and constraints.
-- `W` weights each body's angle by its shape `radius` squared, so that a turn and a
-  shift of similar size on the sheet weigh alike.
+- `W` weights each body's angle by its reach squared, so that a turn and a shift of
+  similar size on the sheet weigh alike. The reach is how far the body's shape and
+  its points go from its origin; a body with neither takes the model's size.
 - Rows that say the same thing in part, as a stop and a contact on one sliding
   part, cannot all be held with equality. The program then shifts force between
   them at no cost until one carries nothing, and lets that one go.
@@ -437,15 +449,15 @@ spring's over the square of its body's reach), or 1 where there are no springs.
 
 ### 5.5 Springs
 
-`springs.ts` gives energy, gradient and Gauss-Newton Hessian in `q` for torsion
+`springs.ts` gives energy, gradient and a Hessian in `q` for torsion
 springs (on the relative angle of a revolute joint) and straight springs (on the
 distance between two points). Preloads are turned into rest values at compile,
 from the position in which the joints close at time 0 starting from the pose. A
 positive straight-spring preload is tension, pulling the points together; a
 positive torsion preload acts in the joint's positive-angle direction. Negative
-preloads act the other way. To the Gauss-Newton Hessian is added the stiffness a
-stretched straight spring has sideways of its line, its tension over its length;
-without it a spring pulled across a slider never settles. The same term of a spring
+preloads act the other way. The Hessian is the Gauss-Newton one, with the stiffness a
+stretched straight spring has sideways of its line added, its tension over its
+length; without it a spring pulled across a slider never settles. The same term of a spring
 pushed short is left out, and so is how a turning body carries the spring's end
 round, so the Hessian is never negative. A straight spring whose two points are on
 one place has no direction and adds no gradient there.
@@ -484,36 +496,46 @@ one place has no direction and adds no gradient there.
 A sample that does not converge is split in halves, down to 1/64 of its step (the
 same splitting as against tunnelling). If the
 last still fails, the run ends with a jam: "Jams at 1.24 s: `b_knuckle` against
-`knuckle`, `knuckle` against its stop", listing the one-sided rows active in the
-last attempt. Measures and plots cover the samples reached, as mekasim's do for
-"locks up at step N".
+`knuckle`, `knuckle` against its stop", listing the one-sided rows that were within
+a micrometre of touching in the last attempt, and pointing at the first of them in
+the source. A stop or a lock is told by the part it holds. Where no row was
+touching, the message is mekasim's own "locks up at ... cannot close ..." for a
+joint or driver left open, or "The parts do not come to rest at ...". Measures and
+plots cover the samples reached, as mekasim's do for "locks up at step N".
 
 ### 5.8 Forces
 
-After a sample converges, the forces in the active one-sided rows and in the joints
-come from the equilibrium `J' lambda + G_active' mu = -grad E` with `mu >= 0`, solved
-as non-negative least squares on the active rows (not taken from the regularised
-program, whose multipliers include the `eps` term). `force(contact)` is the sum of
-its points' `mu`; `force(push)` is the force the pose constraint of the `move`
-driver carries. Without springs or pulls every force is zero, and the app says that
-forces need springs or a pull to mean anything.
+After a sample is solved, the forces come from the balance of every body: what the
+springs and pulls ask for, `grad E`, is carried by the joints and drivers
+(`J' lambda`) and by the one-sided rows that touch (`G' mu`, `mu >= 0`). They are
+not taken from the regularised program, whose multipliers include the `eps` term.
 
-As built: `mu` is found first, in the directions the joints leave free, where only
-the rows can answer, among the rows within a micrometre of touching; `lambda` then
-takes what is left. Where balance does not settle how several places share a force,
-as the two ends of a flat face, they get the least forces that hold, so the sum
-reported for such a contact is one of the values that balance allows. A spring's
-load is counted as its preload is. In a `pull` stage the driver's force is the pull
-itself. `torque(name)` gives a torsion spring's torque, a move's about its body's
-origin, and a motor's; asking `force` of something that turns, or `torque` of
-something that pushes, says which to use. A name that is two of a contact, a spring
-and a driver is refused, since they are named apart in the model.
+- `mu` is found first, in the directions the joints leave free, where only the rows
+  can answer, among the rows within a micrometre of touching, as non-negative least
+  squares. `lambda` then takes what is left.
+- Where balance does not settle how several places share a force, as the two ends
+  of a flat face, they get the least forces that hold, so the sum reported for such
+  a contact is one of the values that balance allows.
+- Kept per sample (`Loads`): the force on each `contacts` entry, all its places
+  added up; each spring's load, counted as its preload is; how hard each stop and
+  lock is held; and what each driver puts on its body. In a `pull` stage that is
+  the pull itself. The force in a pin is found on the way but not kept.
+- `force(name)` is for a contact, a straight spring or a move; `torque(name)` for a
+  torsion spring, a move (about its body's origin) or a motor. Asking `force` of
+  something that turns, or `torque` of something that pushes, says which to use. A
+  name that is two of a contact, a spring and a driver is refused, since they are
+  named apart in the model. Stops and locks have no measure yet.
+- Without springs or pulls every force is zero, and a model that asks for one then
+  says so.
 
 ### 5.9 Velocities
 
 A contact run has no velocity solve: the motion is not set by the drivers alone.
-Velocities, accelerations and jerks are central differences of the sampled
-positions, and the measures of speed say "from positions" in their tooltip.
+Velocities and accelerations are differences of the sampled positions (core's
+`cycleFromPositions`, the slope of the parabola through three samples, since the
+samples are not evenly spaced). Still to come: jerk from positions too, which is
+worked out from the joints as in mekasim and so does not hold in a contact run, and
+a word in the app that these speeds are from positions.
 
 ### 5.10 Choosing the path
 
@@ -655,12 +677,13 @@ fit:study`; each replay gives its stored outcome.
 
 **Budgets** (on the CI runner, with a generous factor): `gap` between two
 200-segment shapes under 50 µs on average; one contact sample of the coupler under
-1 ms; one coupling run under 150 ms.
+1 ms; one coupling run under 150 ms. Not tests yet. As built, the examples take 50
+to 250 ms a run, the coupler about 150 ms for its 186 samples.
 
 **Examples.** mekafit's examples go in `examples/fit/` and are solved by a test like
-`examples.test.ts`: `knuckle-coupler.mekafit.yaml` (simplified, drawn for the
-purpose, not Thomas's design), `ratchet.mekafit.yaml`, `door-latch.mekafit.yaml`,
-`clearance-check.mekafit.yaml` (motor-driven, gaps only),
+`examples.test.ts`, all built: `knuckle-coupler.mekafit.yaml` (simplified, drawn for
+the purpose, not Thomas's design), `ratchet.mekafit.yaml`, `door-latch.mekafit.yaml`,
+`sprung-lever.mekafit.yaml`, `clearance-check.mekafit.yaml` (motor-driven, gaps only),
 `push-latch.mekafit.yaml` (Thomas's idea: a push-to-open catch as in a drawer, a
 pin riding in a heart-shaped slot, which rests in one of two places and goes from
 one to the other with each push).
@@ -685,13 +708,15 @@ the sheet into bodies, pins from holes → saving the drawings with the model (f
 or `.zip`), follow file → `plate: true` → `copy` → true arcs in the parts' DXF →
 help text.
 
-**Phase 2.** distance.ts and tree.ts → `gap()` → `contacts:` and the overlap message →
+**Phase 2.** Done: distance.ts and tree.ts → `gap()` → `contacts:` and the overlap message →
 Contacts fold and gap dimensions → Contact tool and "Find contacts" →
 `clearance-check` example.
 
-**Phase 3.** Force units (through the expression registry) → qp.ts → inequality.ts and contacts.ts → springs.ts → quasistatic.ts for
-`to` stages, then `pull` stages → stops and locks → forces → `force`, `latched`,
-`final`, `first` → Springs and locks fold → examples (ratchet, door latch, coupler).
+**Phase 3.** Done: force units (through the expression registry) → qp.ts →
+inequality.ts and contacts.ts → springs.ts → quasistatic.ts for `to` stages, then
+`pull` stages → stops and locks → forces → `force`, `torque`, `latched`, `final`,
+`first` → Springs and locks fold → examples (sprung lever, door latch, ratchet,
+coupler, push latch).
 
 **Phase 4.** random.ts and sample.ts → run.ts → stats.ts → `pnpm fit:study` → workers
 and store → Studies fold → Study tab and scatter → replay → before and after.

@@ -620,7 +620,8 @@ that they fit side by side.
 
 The app exports the parts as flat pieces with these dimensions: a DXF drawing to
 cut, and a 3MF or an STL solid to print. Each moving body becomes a plate round its points
-with a hole at every pinned point; a slider or pin-slot gives a slot as long as the
+with a hole at every pinned point, one hole where several of its points are pinned
+on the same place; a slider or pin-slot gives a slot as long as the
 pin travels; a cam becomes a plate of its own; the ground becomes a base plate
 carrying the fixed pivots.
 

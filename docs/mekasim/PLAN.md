@@ -11,7 +11,8 @@ Added since (2026-10-13), outside the phases, and described in
 an optional `shape` on a body, written as path text or taken from a DXF drawing
 named under `geometry:`, drawn in place of the plate and exported as the part; the
 Geometry tab beside the source; "Make" in the header in place of the "Parts to
-make" fold. The interface parts that hold no model, the source editor and the
+make" fold, with a 3MF download beside the STL; `gap(a, b)` between the outlines of
+two bodies. The interface parts that hold no model, the source editor and the
 description of the drawing moved to `packages/ui`, and the app's folder is
 `apps/sim`.
 
