@@ -317,7 +317,9 @@ A pull acts at the origin of the body's frame, and its force is written with its
 unit. The body goes where the pull takes it until a spring or a contact holds it.
 If nothing does, it moves on at an even pace for the stage's time, and the run
 says that the driver came free; that is a result to check for, not a fault in the
-model. A stage after a pull begins where the pull left the body.
+model. A body that is let go never goes faster than that pace, the model's size in
+the time of its stage, so a longer `time` shows a spring bringing it back more
+slowly. `pull: [0, 0]` lets a body go without pulling it. A stage after a pull begins where the pull left the body.
 
 ## Measures (phases 2–3, built)
 

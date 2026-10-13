@@ -457,11 +457,17 @@ one place has no direction and adds no gradient there.
   through `via`, over the stage's time.
 - A `pull` stage drops those equations and adds `-F · x_body` to `E`. If something
   holds the body, the program finds the equilibrium. If nothing does, the body keeps
-  moving. So that it moves on evenly and not all at once, a one-sided row of the
-  run's own lets it go only so far along its pull in each sample: at a pace that
-  takes it ten times the model's size over the stage. A pull in which that row was
-  the only thing against the body in every sample "came free". That is a result,
-  not an error: an `info` message, and `free` on the simulation.
+  moving.
+- A body that is let go moves at a pace, whatever takes it along: its pull, a
+  spring, or another part. One-sided rows of the run's own let its frame go only so
+  far each way in a sample, and turn only so far (counted as the way a turn carries
+  the far end of the body): at most the model's size over the stage. So a drawer
+  that a spring brings back is seen to come back over a number of samples, and is
+  not found there in the next one. Parts that are not let go by a driver, as a bolt
+  that springs out, still go at once: holding them back would change what they meet.
+- A pull in which that pace was the only thing against the body in every sample
+  "came free". That is a result, not an error: an `info` message, and `free` on the
+  simulation.
 - The stage after a pull begins where the pull left the body. Each stage's end is
   a sample, so that this place is one the run has solved.
 - The run has `cycle.steps` intervals spread over the stages by their time, at

@@ -57,6 +57,11 @@ describe("mekafit's examples", () => {
     expect(end).toBeGreaterThan(-86);
     expect(end).toBeLessThan(-84);
     expect(wheel.at(-1)).toBeCloseTo(wheel.at(-20) as number, 9);
+    // And it is seen to come back, not found there: it turns a degree or two a sample.
+    const lowest = wheel.indexOf(Math.min(...wheel));
+    const back = ((wheel[lowest + 3] as number) - (wheel[lowest + 2] as number)) * (180 / Math.PI);
+    expect(back).toBeGreaterThan(0.2);
+    expect(back).toBeLessThan(3);
     expect(value("holding")).toBeGreaterThan(2);
     expect(result.free).toEqual([]);
   });
@@ -109,6 +114,11 @@ describe("mekafit's examples", () => {
     expect(drawer[at(2)]).toBeGreaterThan(0.025);
     expect(drawer[at(2)]).toBeLessThan(0.033);
     expect(drawer[at(2)]).toBeCloseTo(drawer[at(1.6)] as number, 8);
+    // It is seen to come back: a few samples on it is on its way, a millimetre or so a sample.
+    const onItsWay = drawer[at(1) + 4] as number;
+    expect(onItsWay).toBeLessThan(0.044);
+    expect(onItsWay).toBeGreaterThan((drawer[at(2)] as number) + 0.004);
+    expect((drawer[at(1) + 3] as number) - onItsWay).toBeLessThan(0.002);
     expect(result.loads?.contacts.island?.[at(2)]).toBeGreaterThan(1);
     // Pushed again, the pin goes down the left; let go, the drawer comes all the way out.
     expect(pin[at(3)]).toBeLessThan(-0.003);

@@ -367,9 +367,9 @@ cycle: { steps: 20 }
       },
     ]);
     const cycle = result.cycle as NonNullable<typeof result.cycle>;
-    // It goes on evenly, ten times the model's size of 100 mm in the stage.
-    expect(cycle.q[10 * 3]).toBeCloseTo(0.54, 8);
-    expect(cycle.q[20 * 3]).toBeCloseTo(1.04, 8);
+    // It goes on evenly, the model's size of 100 mm in the stage.
+    expect(cycle.q[10 * 3]).toBeCloseTo(0.09, 8);
+    expect(cycle.q[20 * 3]).toBeCloseTo(0.14, 8);
   });
 
   it("is followed by a stage that begins where the pull left the body", () => {

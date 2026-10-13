@@ -89,8 +89,8 @@ const NEARLY = 1e-7;
 const LEAST_PART = 1e-4;
 /** Rows nearer than this are named in a jam, in metres. */
 const TOUCHING = 1e-6;
-/** A pulled body that nothing holds goes this many times the model's size in its stage. */
-const FREE_TRAVEL = 10;
+/** A body that is let go covers at most this many times the model's size in its stage. */
+const FREE_PACE = 1;
 /** A force below this fraction of the largest in a sample is none. */
 const NO_FORCE = 1e-9;
 /** How much softer than the softest spring the resistance to being moved is. */
@@ -196,7 +196,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
   /** The locks that are in, as the run goes. */
   const engaged = new Set(compiled.locks.filter((lock) => lock.engaged).map((lock) => lock.id));
 
-  // How far the whole model reaches, for how far a pulled body goes when nothing holds it.
+  // How far the whole model reaches, for the pace of a body that is let go.
   let span = size;
   for (const body of compiled.bodies.values()) {
     if (body.index < 0) {
@@ -220,25 +220,31 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
   ): Attempt {
     const q = Float64Array.from(guess);
     const now = modelAt(t);
-    // The bodies let go and pulled in this sample. Each may go only so far in it along
-    // its pull, so that one that nothing holds moves on evenly and not all at once.
+    // The bodies let go in this sample, pulled or not. Each may go only so far in it,
+    // whichever way and whatever takes it there: its pull, a spring, or another part.
+    // So one that nothing holds moves on evenly, and one that a spring brings back
+    // is seen to come back, not found there all at once.
     const pulls = moves.flatMap((move) => {
       const stage = stageAt(move, t)?.stage;
       if (stage?.kind !== "pull") return [];
-      const force = Math.hypot(stage.force[0], stage.force[1]);
-      const most = (FREE_TRAVEL * span * (t - since)) / stage.time;
-      return [{ move, stage, at: 3 * move.body, force, most }];
+      const most = (FREE_PACE * span * (t - since)) / stage.time;
+      return [{ move, stage, at: 3 * move.body, most }];
     });
-    const limit = ({ move, stage, at, force, most }: (typeof pulls)[number]): Inequality => {
-      const gradient = new Float64Array(width);
-      if (force === 0) return { source: move.id, kind: "limit", value: most, gradient };
-      const ux = stage.force[0] / force;
-      const uy = stage.force[1] / force;
-      gradient[at] = -ux;
-      gradient[at + 1] = -uy;
-      const gone = (q[at] - previous[at]) * ux + (q[at + 1] - previous[at + 1]) * uy;
-      return { source: move.id, kind: "limit", value: most - gone, gradient };
-    };
+    const limit = ({ move, at, most }: (typeof pulls)[number]): Inequality[] =>
+      [0, 1, 2].flatMap((k) => {
+        // A turn counts as the way it carries the far end of the body.
+        const room = k === 2 ? most / (reach[move.body] || size) : most;
+        return [1, -1].map((way): Inequality => {
+          const gradient = new Float64Array(width);
+          gradient[at + k] = -way;
+          return {
+            source: move.id,
+            kind: "limit",
+            value: room - way * (q[at + k] - previous[at + k]),
+            gradient,
+          };
+        });
+      });
     let limited: string[] = [];
     let stepped = Number.POSITIVE_INFINITY;
     let onItsWay = false;
@@ -248,7 +254,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         ...contactInequalities(compiled, q),
         ...stopInequalities(compiled.stops, q),
         ...lockInequalities(compiled.locks, engaged, q),
-        ...pulls.map(limit),
+        ...pulls.flatMap(limit),
       ];
       const closed = phi.every((value) => Math.abs(value) < TOLERANCE);
       if (closed && stepped < SETTLED * size && rows.every((row) => row.value > -PENETRATION))

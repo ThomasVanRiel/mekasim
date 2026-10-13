@@ -156,8 +156,13 @@ on the pin. The shapes are drawn to work, not to look like a bought catch.
 A part that a spring carries a long way, as the drawer coming out, now takes
 several samples over it instead of failing to settle in one.
 
-**Phase 3 is built.** Its examples are in mekafit's picker; none of it has been
-seen in the browser yet. Phase 4, studies, is next (DESIGN.md §6 and §9), unless
+A body that a driver has let go now moves at a pace however it is taken along, so
+the drawer of the push latch and the wheel of the ratchet are seen to come back
+(Thomas found their return in one sample odd, 2026-10-13).
+
+**Phase 3 is built.** Its examples are in mekafit's picker. Thomas has checked the
+examples, the Springs and locks fold and the lock markers in the browser, and the
+middle click, the ground plate's holes and the scrolling (2026-10-13). Phase 4, studies, is next (DESIGN.md §6 and §9), unless
 Thomas would first have what phase 1 still lacks.
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
