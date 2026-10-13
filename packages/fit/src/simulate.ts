@@ -21,10 +21,7 @@ import {
 } from "./contacts.ts";
 import { FIT_REGISTRY } from "./registry.ts";
 import { FitDocument } from "./schema.ts";
-import { type Jam, type QuasistaticRun, solveQuasistatic } from "./solver/quasistatic.ts";
-
-/** A cycle that remembers where its contact run stopped, for the message about it. */
-type FitCycle = Cycle & Partial<Pick<QuasistaticRun, "jam" | "free" | "latched">>;
+import { type FitCycle, type Jam, solveQuasistatic } from "./solver/quasistatic.ts";
 
 /**
  * A model with springs, stops, locks or a `move` driver is solved by the contact step; any other
@@ -39,8 +36,8 @@ function byContact(fit: FitCompiled): boolean {
 function solve(compiled: Compiled): Cycle {
   const fit = compiled as FitCompiled;
   if (!byContact(fit)) return solveCycle(compiled.model, compiled.period, compiled.steps);
-  const { cycle, jam, free, latched } = solveQuasistatic(fit);
-  return Object.assign(cycle, { jam, free, latched });
+  const { cycle, ...found } = solveQuasistatic(fit);
+  return Object.assign(cycle, found);
 }
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
@@ -98,8 +95,27 @@ function finish(text: string, simulation: SweepRun["simulation"]): FitSimulation
       position: locate(path),
     });
   }
+  // A force comes from a spring or a pull; where there is neither, every force is none.
+  const pushed =
+    fit !== undefined &&
+    (fit.springs.length > 0 ||
+      fit.moves.some((move) => move.stages.some((stage) => stage.kind === "pull")));
+  const { doc } = simulation;
+  const asked = [
+    ...Object.values(doc?.measures ?? {}),
+    ...Object.values(doc?.checks ?? {}),
+    ...Object.values(doc?.plots ?? {}).flat(),
+  ].some((source) => /\b(force|torque)\s*\(/.test(String(source)));
+  if (fit && asked && !pushed) {
+    simulation.diagnostics.push({
+      severity: "info",
+      message:
+        "Every force here is zero: nothing in the model pushes. Forces come from a spring or from a pull",
+    });
+  }
   const latched = (simulation.cycle as FitCycle | undefined)?.latched ?? {};
-  return Object.assign(simulation, { contacts, jam, free, latched }) as FitSimulation;
+  const loads = (simulation.cycle as FitCycle | undefined)?.loads;
+  return Object.assign(simulation, { contacts, jam, free, latched, loads }) as FitSimulation;
 }
 
 function list(ids: string[]): string {

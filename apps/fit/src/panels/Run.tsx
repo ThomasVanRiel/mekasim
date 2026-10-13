@@ -1,3 +1,4 @@
+import { shownUnit } from "@mekasim/fit";
 import { buildCharts, Chart, PLOT_LEFT, PLOT_PAD, PLOT_RIGHT, Splitter } from "@mekasim/ui";
 import { type CSSProperties, useMemo } from "react";
 import { useLayout } from "../layout.ts";
@@ -22,7 +23,7 @@ export function Run() {
   const playing = useStore((s) => s.playing);
   const rate = useStore((s) => s.rate);
   const { setStep, setPlaying, setRate } = useStore.getState();
-  const charts = useMemo(() => (shown ? buildCharts(shown) : []), [shown]);
+  const charts = useMemo(() => (shown ? buildCharts(shown, shownUnit) : []), [shown]);
   const height = useLayout((s) => s.run);
   const resize = useLayout((s) => s.resize);
 

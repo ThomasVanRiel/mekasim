@@ -21,11 +21,13 @@ export {
   MAX_CONTACT_POINTS,
 } from "./geometry/contacts.ts";
 export { asMekasim, load } from "./load.ts";
+export { FIT_FUNCTIONS } from "./measures.ts";
 export {
   FIT_REGISTRY,
   FORCE,
   FORCE_UNITS,
   LINEAR_STIFFNESS,
+  shownUnit,
   TORQUE,
   TORSIONAL_STIFFNESS,
 } from "./registry.ts";
@@ -46,7 +48,13 @@ export {
   stopInequalities,
 } from "./solver/inequality.ts";
 export { type QpSolution, solveQp } from "./solver/qp.ts";
-export { type Jam, type QuasistaticRun, solveQuasistatic } from "./solver/quasistatic.ts";
+export {
+  type FitCycle,
+  type Jam,
+  type Loads,
+  type QuasistaticRun,
+  solveQuasistatic,
+} from "./solver/quasistatic.ts";
 export {
   type CompiledSpring,
   type SpringTerms,

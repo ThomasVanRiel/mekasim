@@ -26,8 +26,8 @@ deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 The force, torque and spring-stiffness units listed under Springs are built for
 expressions. `springs:` and the `move` driver with all its stages are built:
 a model with either is solved by the contact step, in which listed contacts push
-and springs settle. Joint `stops` and `latches:` are built too. The measures of
-force, `latched`, `final` and `first` are still to come.
+and springs settle. Joint `stops` and `latches:` are built too, and so are the
+measures `force`, `torque`, `latched`, `final` and `first`.
 
 ## A whole example
 
@@ -319,12 +319,13 @@ If nothing does, it moves on at an even pace for the stage's time, and the run
 says that the driver came free; that is a result to check for, not a fault in the
 model. A stage after a pull begins where the pull left the body.
 
-## Measures (phases 2–3)
+## Measures (phases 2–3, built)
 
 | Function | Result |
 |---|---|
 | `gap(a, b)` | mekasim's own by now. Smallest distance between the shapes of two bodies; negative where they overlap, by how much; never less than 0 for two bodies joined by a pin |
-| `force(name)` | Contact force of a contact pair, force of a spring, or the force a `move` driver needs (its torque in a turning stage is `torque(name)`) |
+| `force(name)` | The force pressing the parts of a contact together, the tension of a straight spring (less than nothing when it pushes), or the force a `move` driver puts on its body |
+| `torque(name)` | The torque of a spring on a joint, counted the joint's positive way; what a `move` driver turns its body with, about the origin of its frame; or the torque of a motor |
 | `latched(lock)` | 1 while the lock is in, 0 while it is out |
 | `final(e)`, `first(e)` | The value at the last and the first sample |
 
@@ -335,6 +336,10 @@ what most checks on a contact run want.
 
 `gap` is drawn on the sheet as a dimension between its two nearest points, as
 `dist` is now.
+
+Forces are those that hold the parts in balance at each sample, so they come from
+springs and pulls: in a model with neither, every force is zero, and the model says
+so. A contact, a spring and a driver that are asked about need different names.
 
 ## Studies (phase 4)
 

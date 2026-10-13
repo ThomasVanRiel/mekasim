@@ -107,8 +107,20 @@ contact step, and a model with either is solved by it. Whether each lock is in a
 each sample is kept with the run (`latched`), for the `latched()` measure to come.
 A jam names them too: "`ram` against its stop".
 
-**Next in phase 3:** forces, then the new measures
-(`force`, `latched`, `final`, `first`), the Springs and locks fold, and the examples.
+Forces are found at every solved sample from the balance of the parts
+(`Loads` in `solver/quasistatic.ts`): what presses each contact together, what each
+spring carries, how hard each stop and lock is held, and what each driver puts on
+its body. The measures `force`, `torque`, `latched`, `final` and `first` read them
+(`packages/fit/src/measures.ts`, through core's registry), and mekafit's plots show
+forces in N and torques in N·mm (N·m in a model not drawn in millimetres).
+
+**Next in phase 3:** the Springs and locks fold, and the examples (ratchet, door
+latch, coupler, push latch).
+
+**Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
+springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and
+the force in a pin, are found and kept with the run but have no measure yet, since
+a joint's name could mean its pin's force or its stop's.
 
 **Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev
 server (the lever should lie against the bar's corner all the way down and back,

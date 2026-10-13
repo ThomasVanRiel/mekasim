@@ -12,7 +12,7 @@ import {
 import type * as z from "zod";
 import type { Contact } from "./schema.ts";
 import type { CompiledLock, CompiledStop } from "./solver/inequality.ts";
-import type { Jam } from "./solver/quasistatic.ts";
+import type { Jam, Loads } from "./solver/quasistatic.ts";
 import type { CompiledSpring } from "./solver/springs.ts";
 import type { CompiledMove } from "./solver/stages.ts";
 
@@ -65,6 +65,8 @@ export interface FitSimulation extends Simulation {
   free: { driver: string; time: number }[];
   /** Whether each lock is in at each sample: 1 or 0. */
   latched: Record<string, Float64Array>;
+  /** What the parts carry at each sample; absent where the contact step did not run. */
+  loads?: Loads;
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */

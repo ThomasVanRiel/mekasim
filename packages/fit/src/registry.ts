@@ -1,4 +1,5 @@
-import type { Dim, Registry, UnitDef } from "@mekasim/core";
+import type { Dim, Registry, UnitDef, Units } from "@mekasim/core";
+import { FIT_FUNCTIONS } from "./measures.ts";
 
 /** Force and the derived quantities used by springs and contact results. */
 export const FORCE: Dim = [1, -2, 1, 0];
@@ -20,5 +21,21 @@ export const FORCE_UNITS: Record<string, UnitDef> = {
   "N*mm/deg": { dim: TORSIONAL_STIFFNESS, factor: MM / DEG },
 };
 
-/** Units and, in later steps, measure functions added only while mekafit runs a model. */
-export const FIT_REGISTRY: Registry = { units: FORCE_UNITS };
+/** The units and the measure functions added only while mekafit runs a model. */
+export const FIT_REGISTRY: Registry = { units: FORCE_UNITS, functions: FIT_FUNCTIONS };
+
+function same(a: Dim, b: Dim): boolean {
+  return a.every((exponent, i) => exponent === b[i]);
+}
+
+/**
+ * The unit a force or a torque is shown in, with the SI value of one of it: newtons,
+ * and newton millimetres in a model drawn in millimetres, newton metres in any
+ * other. Nothing for a quantity that the document's own units show.
+ */
+export function shownUnit(dim: Dim, units: Units): { label: string; factor: number } | undefined {
+  if (same(dim, FORCE)) return { label: "N", factor: 1 };
+  if (same(dim, TORQUE))
+    return units.length === "mm" ? { label: "N·mm", factor: MM } : { label: "N·m", factor: 1 };
+  return undefined;
+}

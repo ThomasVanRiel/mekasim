@@ -130,6 +130,18 @@ describe("buildCharts", () => {
     ]);
   });
 
+  it("shows a kind of quantity in the unit an app gives for it, and the rest as before", () => {
+    // Lengths in centimetres, as an app might ask; angles are left to the document.
+    const inCm = buildCharts(simulate(model), (dim) =>
+      dim[0] === 1 && dim[1] === 0 && dim[2] === 0 && dim[3] === 0
+        ? { label: "cm", factor: 0.01 }
+        : undefined,
+    );
+    expect(inCm.map((c) => c.unit)).toEqual(charts.map((c) => (c.unit === "mm" ? "cm" : c.unit)));
+    const before = charts.find((c) => c.unit === "mm")?.lines[0]?.values[3] as number;
+    expect(inCm.find((c) => c.unit === "cm")?.lines[0]?.values[3]).toBeCloseTo(before / 10, 12);
+  });
+
   it("gives each series of a plot its own colour, kept across the split", () => {
     expect(charts[0]?.lines.map((l) => l.color)).toEqual([
       SERIES_COLORS[0],

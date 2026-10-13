@@ -1,5 +1,6 @@
 import {
   cycleAxis,
+  type Dim,
   docFactor,
   LENGTH,
   type PlotResult,
@@ -7,6 +8,7 @@ import {
   type Quantity,
   type Simulation,
   type SweepRun,
+  type Units,
   unitLabel,
 } from "@mekasim/core";
 import { label, refLabel } from "../names.ts";
@@ -55,12 +57,22 @@ function seriesLabel(source: string): string {
   return /^[A-Za-z_]\w*$/.test(source) ? label(source) : source;
 }
 
-/** A quantity as one value per sample in document units; a constant becomes a level line. */
-function samples(quantity: Quantity, simulation: Simulation, count: number): Float64Array {
-  const factor = docFactor(
-    quantity.dim,
-    (simulation.compiled as NonNullable<Simulation["compiled"]>).units,
-  );
+/**
+ * The unit a kind of quantity is shown in, where an app has one of its own for it:
+ * its label, and the SI value of one of it. Nothing for a quantity it leaves to the
+ * document's units.
+ */
+export type ShownUnit = (dim: Dim, units: Units) => { label: string; factor: number } | undefined;
+
+/** A quantity as one value per sample in the units it is shown in; a constant becomes a level line. */
+function samples(
+  quantity: Quantity,
+  simulation: Simulation,
+  count: number,
+  shown?: ShownUnit,
+): Float64Array {
+  const { units } = simulation.compiled as NonNullable<Simulation["compiled"]>;
+  const factor = shown?.(quantity.dim, units)?.factor ?? docFactor(quantity.dim, units);
   const { value } = quantity;
   if (typeof value === "number") return new Float64Array(count).fill(value / factor);
   return value.map((v) => v / factor);
@@ -110,7 +122,7 @@ export function plotsOf(simulation: Simulation): PlotResult[] {
  * The charts of a model. A plot whose series have different units becomes one chart
  * per unit, since two scales on one chart cannot be read against each other.
  */
-export function buildCharts(simulation: Simulation): ChartSpec[] {
+export function buildCharts(simulation: Simulation, shown?: ShownUnit): ChartSpec[] {
   const x = axisOf(simulation);
   const { compiled, cycle } = simulation;
   if (!x || !compiled || !cycle) return [];
@@ -121,12 +133,13 @@ export function buildCharts(simulation: Simulation): ChartSpec[] {
     const valid = plot.series.filter((series) => series.quantity);
     valid.slice(0, SERIES_COLORS.length).forEach((series, i) => {
       const quantity = series.quantity as Quantity;
-      const unit = unitLabel(quantity.dim, compiled.units);
+      const unit =
+        shown?.(quantity.dim, compiled.units)?.label ?? unitLabel(quantity.dim, compiled.units);
       const lines = byUnit.get(unit) ?? [];
       lines.push({
         label: seriesLabel(series.source),
         color: SERIES_COLORS[i] as string,
-        values: samples(quantity, simulation, cycle.count),
+        values: samples(quantity, simulation, cycle.count, shown),
       });
       byUnit.set(unit, lines);
     });

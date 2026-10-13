@@ -49,8 +49,8 @@ packages/fit/src
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
     quasistatic.ts the contact step and the stage-driven run
+  measures.ts     force, torque, latched, final, first (through core's registry)
   (to come)
-  measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   study/
     random.ts     seeded generator (splitmix32 seeding xoshiro128**)
@@ -272,7 +272,8 @@ nearest: a knuckle face against another can touch at both ends.
    same boundaries gives a smaller distance within `merge` (0.2 mm) along the
    boundary.
 3. Keep the four smallest. Each carries the distance, the two points and the unit
-   normal: the way B goes to get clear of A.
+   normal: the way B goes to get clear of A. A corner that touches a face is held
+   square to the face.
 
 Where the shapes are into each other the distance is less than nothing and the
 normal keeps its direction, so the contact step pushes them apart again: two
@@ -468,6 +469,17 @@ program, whose multipliers include the `eps` term). `force(contact)` is the sum 
 its points' `mu`; `force(push)` is the force the pose constraint of the `move`
 driver carries. Without springs or pulls every force is zero, and the app says that
 forces need springs or a pull to mean anything.
+
+As built: `mu` is found first, in the directions the joints leave free, where only
+the rows can answer, among the rows within a micrometre of touching; `lambda` then
+takes what is left. Where balance does not settle how several places share a force,
+as the two ends of a flat face, they get the least forces that hold, so the sum
+reported for such a contact is one of the values that balance allows. A spring's
+load is counted as its preload is. In a `pull` stage the driver's force is the pull
+itself. `torque(name)` gives a torsion spring's torque, a move's about its body's
+origin, and a motor's; asking `force` of something that turns, or `torque` of
+something that pushes, says which to use. A name that is two of a contact, a spring
+and a driver is refused, since they are named apart in the model.
 
 ### 5.9 Velocities
 

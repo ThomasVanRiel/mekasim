@@ -4,6 +4,7 @@ import {
   jacobian,
   lengthOf,
   loopArea,
+  type Mat,
   mat,
   nullSpace,
   pinvSolve,
@@ -24,7 +25,7 @@ import {
   stopInequalities,
 } from "./inequality.ts";
 import { solveQp } from "./qp.ts";
-import { springTerms } from "./springs.ts";
+import { springTerms, springValue } from "./springs.ts";
 import { moveConstraint, plannedStarts, stageAt, stageEnds } from "./stages.ts";
 
 /** Where a run stopped because the parts could not be put anywhere. */
@@ -36,6 +37,32 @@ export interface Jam {
   open: string[];
 }
 
+/**
+ * What the parts carry at each sample, found from their balance once a sample is
+ * solved. Forces in newtons, torques in newton metres, one value per sample.
+ */
+export interface Loads {
+  /** The force pressing the parts of each `contacts` entry together, all its places added up. */
+  contacts: Record<string, Float64Array>;
+  /**
+   * What each spring carries, counted as its preload is: the tension of a straight
+   * spring, and the torque with which a spring on a joint turns it the positive way.
+   */
+  springs: Record<string, Float64Array>;
+  /** How hard each joint with stops is held against one of them. */
+  stops: Record<string, Float64Array>;
+  /** How hard each lock is held against. */
+  locks: Record<string, Float64Array>;
+  /**
+   * What each driver puts on the body it moves: the force and the torque about the
+   * body's origin for a move, the torque for a motor.
+   */
+  drivers: Record<string, { x: Float64Array; y: Float64Array; torque: Float64Array }>;
+}
+
+/** A cycle with what the contact step found beside the motion. */
+export type FitCycle = Cycle & Partial<Omit<QuasistaticRun, "cycle">>;
+
 export interface QuasistaticRun {
   cycle: Cycle;
   jam?: Jam;
@@ -43,6 +70,7 @@ export interface QuasistaticRun {
   free: { driver: string; time: number }[];
   /** Whether each lock is in at each sample: 1 or 0. */
   latched: Record<string, Float64Array>;
+  loads: Loads;
 }
 
 /** Steps of the sequential program tried for one sample. */
@@ -61,6 +89,8 @@ const NEARLY = 1e-7;
 const TOUCHING = 1e-6;
 /** A pulled body that nothing holds goes this many times the model's size in its stage. */
 const FREE_TRAVEL = 10;
+/** A force below this fraction of the largest in a sample is none. */
+const NO_FORCE = 1e-9;
 /** How much softer than the softest spring the resistance to being moved is. */
 const RESISTANCE = 1e-6;
 
@@ -352,8 +382,125 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     }
   }
 
+  /** What one sample's parts carry, by the names of `Loads`. */
+  interface Carried {
+    contacts: Map<string, number>;
+    springs: Map<string, number>;
+    stops: Map<string, number>;
+    locks: Map<string, number>;
+    drivers: Map<string, [x: number, y: number, torque: number]>;
+  }
+
+  /**
+   * The forces at a solved sample, from the balance of every body: what the springs
+   * and pulls ask for is carried by the joints, the drivers and the rows that touch,
+   * and a row can only push. The resistance to being moved is no force and is left out.
+   */
+  function carried(t: number, q: Float64Array): Carried {
+    const now = modelAt(t);
+    const { gradient: asked } = springTerms(compiled.springs, q);
+    const drivers: Carried["drivers"] = new Map();
+    for (const move of moves) {
+      const stage = stageAt(move, t)?.stage;
+      if (stage?.kind !== "pull") continue;
+      asked[3 * move.body] -= stage.force[0];
+      asked[3 * move.body + 1] -= stage.force[1];
+      // In a pull the driver puts on the body just what the stage says.
+      drivers.set(move.id, [stage.force[0], stage.force[1], 0]);
+    }
+    const rows = [
+      ...contactInequalities(compiled, q),
+      ...stopInequalities(compiled.stops, q),
+      ...lockInequalities(compiled.locks, engaged, q),
+    ].filter((row) => row.value < TOUCHING);
+
+    // The rows' share is found in the directions the joints leave free, where they
+    // alone can answer. Where balance does not settle how the places of one face
+    // share its force, they get the least forces that hold.
+    const jac = jacobian(now, q);
+    const free = nullSpace(svd(jac));
+    const n = free.cols;
+    const m = rows.length;
+    const pushes = new Float64Array(m);
+    if (n > 0 && m > 0) {
+      const across = new Float64Array(n * m);
+      const wanted = new Float64Array(n);
+      for (let k = 0; k < n; k++) {
+        for (let i = 0; i < width; i++) {
+          const along = free.data[i * n + k];
+          if (along === 0) continue;
+          wanted[k] += along * asked[i];
+          rows.forEach((row, r) => {
+            across[k * m + r] += along * (row.gradient[i] as number);
+          });
+        }
+      }
+      const normal = mat(m, m);
+      const linear = new Float64Array(m);
+      let largest = 0;
+      for (let r = 0; r < m; r++) {
+        for (let c = 0; c < m; c++) {
+          let sum = 0;
+          for (let k = 0; k < n; k++) sum += across[k * m + r] * across[k * m + c];
+          normal.data[r * m + c] = sum;
+        }
+        for (let k = 0; k < n; k++) linear[r] -= across[k * m + r] * wanted[k];
+        largest = Math.max(largest, normal.data[r * m + r]);
+      }
+      const identity = mat(m, m);
+      for (let r = 0; r < m; r++) {
+        normal.data[r * m + r] += 1e-9 * largest + 1e-30;
+        identity.data[r * m + r] = 1;
+      }
+      const solved = solveQp(normal, linear, identity, new Float64Array(m));
+      if (solved) pushes.set(solved.x.map((value) => Math.max(0, value)));
+    }
+    const greatest = pushes.reduce((most, value) => Math.max(most, value), 0);
+
+    const found: Carried = {
+      contacts: new Map(),
+      springs: new Map(),
+      stops: new Map(),
+      locks: new Map(),
+      drivers,
+    };
+    rows.forEach((row, r) => {
+      const push = pushes[r] > NO_FORCE * greatest ? pushes[r] : 0;
+      const into =
+        row.kind === "contact" ? found.contacts : row.kind === "stop" ? found.stops : found.locks;
+      into.set(row.source, (into.get(row.source) ?? 0) + push);
+      for (let i = 0; i < width; i++) asked[i] -= push * (row.gradient[i] as number);
+    });
+    for (const spring of compiled.springs) {
+      const stretch = springValue(spring, q) - spring.rest;
+      found.springs.set(
+        spring.id,
+        spring.stiffness * (spring.kind === "torsion" ? -stretch : stretch),
+      );
+    }
+
+    // What is left is for the joints and the drivers that hold: J' lambda = the rest.
+    const turned: Mat = mat(width, jac.rows);
+    for (let r = 0; r < jac.rows; r++) {
+      for (let i = 0; i < width; i++) turned.data[i * jac.rows + r] = jac.data[r * width + i];
+    }
+    const held = jac.rows > 0 ? pinvSolve(svd(turned), asked) : new Float64Array(0);
+    let row = 0;
+    for (const constraint of now.constraints) {
+      if (constraint.driver) {
+        drivers.set(
+          constraint.source,
+          constraint.size === 3 ? [held[row], held[row + 1], held[row + 2]] : [0, 0, held[row]],
+        );
+      }
+      row += constraint.size;
+    }
+    return found;
+  }
+
   const times: number[] = [];
   const samples: Float64Array[] = [];
+  const carrying: Carried[] = [];
   /** The locks that are in at each sample. */
   const locked: ReadonlySet<string>[] = [];
 
@@ -366,6 +513,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     times.push(t);
     samples.push(q);
     locked.push(new Set(engaged));
+    carrying.push(carried(t, q));
     if (!last) return;
     for (const lock of compiled.locks) {
       if (engaged.has(lock.id)) continue;
@@ -431,6 +579,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       },
       free,
       latched: {},
+      loads: { contacts: {}, springs: {}, stops: {}, locks: {}, drivers: {} },
     };
   }
   const settled = attempt(start, start, 0, 0, MAX_SETTLING);
@@ -465,10 +614,43 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       Float64Array.from(locked, (inNow) => (inNow.has(lock.id) ? 1 : 0)),
     ]),
   );
+  const over = (ids: string[], of: (sample: Carried) => Map<string, number>) =>
+    Object.fromEntries(
+      ids.map((id) => [id, Float64Array.from(carrying, (sample) => of(sample).get(id) ?? 0)]),
+    );
+  const part = (id: string, k: 0 | 1 | 2) =>
+    Float64Array.from(carrying, (sample) => sample.drivers.get(id)?.[k] ?? 0);
+  const loads: Loads = {
+    contacts: over(
+      [...new Set(compiled.contacts.map(({ id }) => id))],
+      (sample) => sample.contacts,
+    ),
+    springs: over(
+      compiled.springs.map(({ id }) => id),
+      (sample) => sample.springs,
+    ),
+    stops: over(
+      compiled.stops.map(({ joint }) => joint),
+      (sample) => sample.stops,
+    ),
+    locks: over(
+      compiled.locks.map(({ id }) => id),
+      (sample) => sample.locks,
+    ),
+    drivers: Object.fromEntries(
+      model.constraints
+        .filter((constraint) => constraint.driver)
+        .map(({ source }) => [
+          source,
+          { x: part(source, 0), y: part(source, 1), torque: part(source, 2) },
+        ]),
+    ),
+  };
   return {
     cycle: cycleFromPositions(times, samples, Math.max(asked, samples.length)),
     jam,
     free,
     latched,
+    loads,
   };
 }

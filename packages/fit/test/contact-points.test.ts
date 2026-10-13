@@ -79,6 +79,25 @@ describe("contact points between two shapes", () => {
     expectPoint(found[0]?.b as [number, number], [0.01, 0.0099]);
   });
 
+  it("holds a corner that touches a face square to the face", () => {
+    // A square on its corner, the corner just on the top face of a box.
+    const found = contactPoints(box(0.02, 0.01), HOME, box(0.005, 0.005), {
+      x: 0.01,
+      y: 0.01,
+      angle: Math.PI / 3,
+    });
+    expect(found[0]?.distance).toBeCloseTo(0, 15);
+    expectPoint(found[0]?.normal as [number, number], [0, 1]);
+    // And the other way round: the normal still says which way the second gets clear.
+    const turned = contactPoints(
+      box(0.005, 0.005),
+      { x: 0.01, y: 0.01, angle: Math.PI / 3 },
+      box(0.02, 0.01),
+      HOME,
+    );
+    expectPoint(turned[0]?.normal as [number, number], [0, -1]);
+  });
+
   it("gives touching and crossing boundaries a finite unit normal", () => {
     const touching = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
       x: 0.01,

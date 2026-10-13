@@ -78,6 +78,12 @@ function parameter(segment: Segment, point: Point): number {
   return alongArc(segment, Math.atan2(point[1] - segment.cy, point[0] - segment.cx));
 }
 
+/** Whether a place on a segment is along it and not at one of its ends. */
+function within(segment: Segment, point: Point): boolean {
+  const along = parameter(segment, point);
+  return along > 1e-9 && along < 1 - 1e-9;
+}
+
 function boundaryPlace(found: BoundarySegment, point: Point): number {
   return (
     found.before +
@@ -136,6 +142,11 @@ function normalOf(
 
   const outA = outward(segmentA, pointA);
   const outB = outward(segmentB, pointB);
+  // A corner of one on a face of the other is held square to that face.
+  const withinA = within(segmentA, pointA);
+  const withinB = within(segmentB, pointB);
+  if (withinA && !withinB) return outA;
+  if (withinB && !withinA) return [-outB[0], -outB[1]];
   const aInsideB = penetration(segmentA, shapeB);
   const bInsideA = penetration(segmentB, shapeA);
   if (aInsideB > bInsideA + 1e-12) return [-outB[0], -outB[1]];

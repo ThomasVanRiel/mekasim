@@ -43,10 +43,14 @@ cycle: { steps: 80 }
 measures:
   lowest: min(angle(lever))
   highest: max(angle(lever))
+  hardest: max(force(rest))
 
 checks:
   pressed_flat: lowest < 0.01 deg
   never_through: min(gap(lever, bar)) > -0.001 mm
+  back_up: final(angle(lever)) > 6 deg
 
 plots:
   lever: angle(lever)
+  press: [force(rest), force(press)]
+  spring: torque(up)

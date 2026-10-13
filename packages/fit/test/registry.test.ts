@@ -1,6 +1,6 @@
 import { simulate as simulateModel } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
-import { simulate } from "../src/index.ts";
+import { shownUnit, simulate } from "../src/index.ts";
 
 const model = `mekafit: 1
 bodies:
@@ -33,5 +33,16 @@ describe("mekafit's force units", () => {
   it("does not add the units to mekasim", () => {
     const result = simulateModel(model.replace("mekafit: 1", "mekasim: 1"));
     expect(result.diagnostics.map(({ message }) => message)).toContain('Unknown unit "N" in "2 N"');
+  });
+
+  it("shows a force in newtons and a torque in the model's length", () => {
+    const mm = { length: "mm", angle: "deg" } as const;
+    expect(shownUnit([1, -2, 1, 0], mm)).toEqual({ label: "N", factor: 1 });
+    expect(shownUnit([2, -2, 1, 0], mm)).toEqual({ label: "N·mm", factor: 0.001 });
+    expect(shownUnit([2, -2, 1, 0], { length: "m", angle: "rad" })).toEqual({
+      label: "N·m",
+      factor: 1,
+    });
+    expect(shownUnit([1, 0, 0, 0], mm)).toBeUndefined();
   });
 });
