@@ -6,6 +6,7 @@ import { EXAMPLES } from "./examples.ts";
 import { useLayout } from "./layout.ts";
 import { Contacts } from "./panels/Contacts.tsx";
 import { Header } from "./panels/Header.tsx";
+import { Parameters } from "./panels/Parameters.tsx";
 import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
 import { SpringsLocks } from "./panels/SpringsLocks.tsx";
@@ -201,6 +202,7 @@ export function App() {
         label="Width of the side panel"
       />
       <aside className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-sheet">
+        <Parameters />
         <Contacts />
         <SpringsLocks />
       </aside>

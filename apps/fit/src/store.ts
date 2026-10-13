@@ -89,6 +89,8 @@ interface State extends Solved {
   showContact(contact?: ContactResult): void;
   setTool(tool: State["tool"]): void;
   pickContact(body: string): void;
+  /** Write a new value for a parameter into the source, keeping its bounds. */
+  setParam(name: string, value: number | string): void;
   /** Add selected contact pairs to the source. Returns how many were new. */
   addContactPairs(pairs: [string, string][]): number;
 }
@@ -180,6 +182,12 @@ export const useStore = create<State>((set, get) => {
         contactDraft: undefined,
         notice: added ? undefined : "Those parts are already listed.",
       });
+    },
+    setParam(name, value) {
+      const entry = get().simulation.doc?.params?.[name];
+      if (entry === undefined) return;
+      const path = typeof entry === "object" ? ["params", name, "value"] : ["params", name];
+      get().setText(editText(get().text, [{ op: "set", path, value }]));
     },
     addContactPairs(pairs) {
       const doc = get().simulation.doc;

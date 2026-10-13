@@ -9,6 +9,7 @@ export { download, fileStem } from "./io/download.ts";
 export { decodeModel, encodeModel, exampleFragment, exampleIn } from "./io/share.ts";
 export { noMiddlePaste } from "./middle.ts";
 export { label, refLabel, titled } from "./names.ts";
+export { type Limits, ParameterSlider, sliderValue } from "./ParameterSlider.tsx";
 export { Chart } from "./plot/Chart.tsx";
 export * from "./plot/charts.ts";
 export * from "./plot/geometry.ts";

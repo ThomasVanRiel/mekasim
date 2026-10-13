@@ -1,69 +1,10 @@
-import { type Path, paramValue, UNITS } from "@mekasim/core";
-import { label, MAX_SWEEP_RUNS } from "@mekasim/ui";
+import { paramValue, UNITS } from "@mekasim/core";
+import { type Limits, label, MAX_SWEEP_RUNS, ParameterSlider, sliderValue } from "@mekasim/ui";
 import { useState } from "react";
 import { LIVE, type Sweep, useStore } from "../store.ts";
 import { Field, toValue } from "./Field.tsx";
 
-/** A plain number with an optional unit, which a slider can vary. */
-const LITERAL = /^(-?(?:\d+\.?\d*|\.\d+))\s*([A-Za-z/]*)$/;
 const NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-/** The least and most a parameter may be, in the unit its value is written in. */
-interface Limits {
-  min?: number;
-  max?: number;
-}
-
-/**
- * How far a slider reaches: to the parameter's bounds where it has them, and
- * otherwise from nothing to twice the value, which leaves room either way.
- */
-function rangeFor(value: number, limits: Limits): [number, number] {
-  const [low, high] = value === 0 ? [-10, 10] : value > 0 ? [0, 2 * value] : [2 * value, 0];
-  return [limits.min ?? low, limits.max ?? high];
-}
-
-function Slider({
-  name,
-  path,
-  value,
-  unit,
-  limits,
-}: {
-  name: string;
-  /** Where the value is written in the model. */
-  path: Path;
-  value: number;
-  unit: string;
-  limits: Limits;
-}) {
-  // The range is fixed while the slider is held, so that it does not grow under the pointer.
-  const [held, setHeld] = useState<[number, number]>();
-  const [low, high] = held ?? rangeFor(value, limits);
-  const step = 10 ** Math.floor(Math.log10((high - low) / 200));
-  const decimals = Math.max(0, -Math.floor(Math.log10(step)));
-
-  return (
-    <input
-      type="range"
-      aria-label={`Vary ${label(name)}`}
-      className="w-full"
-      min={low}
-      max={high}
-      step={step}
-      value={value}
-      onPointerDown={() => setHeld(rangeFor(value, limits))}
-      onPointerUp={() => setHeld(undefined)}
-      onBlur={() => setHeld(undefined)}
-      onChange={(event) => {
-        const next = Number(Number(event.target.value).toFixed(decimals));
-        useStore
-          .getState()
-          .apply([{ op: "set", path, value: unit ? `${next} ${unit}` : next }], LIVE);
-      }}
-    />
-  );
-}
 
 function NumberBox({
   label,
@@ -228,8 +169,8 @@ export function Parameters() {
         const value = paramValue(entry);
         const bounded = typeof entry === "object";
         const path = bounded ? ["params", name, "value"] : ["params", name];
-        const literal = LITERAL.exec(String(value));
-        const unit = literal?.[2] ?? "";
+        const literal = sliderValue(value);
+        const unit = literal?.unit ?? "";
         // The bounds in the unit the value is written in, to set against the slider.
         const scale = unit in UNITS ? (UNITS[unit] as { factor: number }).factor : 1;
         const compiledLimits = bounds?.get(name);
@@ -264,12 +205,12 @@ export function Parameters() {
               </button>
             </div>
             {literal && (
-              <Slider
+              <ParameterSlider
                 name={name}
-                path={path}
-                value={Number(literal[1])}
+                value={literal.number}
                 unit={unit}
                 limits={limits}
+                onChange={(next) => apply([{ op: "set", path, value: next }], LIVE)}
               />
             )}
             <div className="flex items-baseline gap-2">
@@ -291,7 +232,7 @@ export function Parameters() {
               />
             </div>
             {literal && (
-              <SweepControls name={name} value={Number(literal[1])} unit={unit} limits={limits} />
+              <SweepControls name={name} value={literal.number} unit={unit} limits={limits} />
             )}
           </div>
         );

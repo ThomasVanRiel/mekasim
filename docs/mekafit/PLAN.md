@@ -35,7 +35,9 @@ What mekafit itself has: its first line `mekafit: 1`, its own sections of the
 format (`contacts:`, `springs:`, `latches:`, `stops` on a joint, the `move` driver),
 the contact step that solves them, and the app: the shared editor and Geometry tab,
 the SVG sheet drawing shapes with true arcs, the Select and Contact tools, the Run
-panel with playback and plots, the Contacts and the Springs and locks folds,
+panel with playback and plots, the Parameters fold with a slider for each plain
+value (the slider itself is mekasim's, in `packages/ui`), the Contacts and the
+Springs and locks folds,
 dividers, its own example picker, and "Open in mekasim".
 
 **Phase 2, clearance, is built and browser-checked.** In
