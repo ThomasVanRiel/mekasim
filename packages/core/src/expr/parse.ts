@@ -40,11 +40,15 @@ function isNameChar(ch: string | undefined): boolean {
  *
  * A unit may follow a number literal directly (`40 mm`, `300 rpm`). There is no
  * implicit multiplication, so a name after a number is always read as a unit.
+ * `extraUnits` are units beyond mekasim's own, from a registry.
  *
  * Comparisons bind more loosely than arithmetic, and `not`, `and` and `or` more
  * loosely still, in that order: `not a < b + 1 and c` is `(not (a < (b + 1))) and c`.
  */
-export function parseExpr(src: string): Node {
+export function parseExpr(src: string, extraUnits?: Record<string, unknown>): Node {
+  const unitNames = extraUnits
+    ? [...UNIT_NAMES, ...Object.keys(extraUnits)].sort((a, b) => b.length - a.length)
+    : UNIT_NAMES;
   let i = 0;
 
   function skip(): void {
@@ -163,7 +167,7 @@ export function parseExpr(src: string): Node {
   function unit(): string | undefined {
     const start = i;
     skip();
-    for (const name of UNIT_NAMES) {
+    for (const name of unitNames) {
       if (src.startsWith(name, i) && !isNameChar(src[i + name.length])) {
         i += name.length;
         return name;

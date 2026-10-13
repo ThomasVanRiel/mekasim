@@ -11,7 +11,7 @@ export const MASS: Dim = [0, 0, 1, 0];
 export const ANGLE: Dim = [0, 0, 0, 1];
 export const ANGULAR_SPEED: Dim = [0, -1, 0, 1];
 
-interface UnitDef {
+export interface UnitDef {
   dim: Dim;
   /** SI value of one unit. */
   factor: number;

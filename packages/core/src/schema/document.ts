@@ -100,14 +100,16 @@ const Cam = z.strictObject({
   roller: Expr.optional().describe("Radius of the follower's roller, for drawing; default 0"),
 });
 
-const Joint = z.discriminatedUnion(
-  "type",
-  [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam],
-  {
+const JOINTS = [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam] as const;
+
+function jointOf(kinds: typeof JOINTS) {
+  return z.discriminatedUnion("type", kinds, {
     error:
       "Unknown joint type; expected revolute, weld, slider, pin-slot, distance, gear, belt or cam",
-  },
-);
+  });
+}
+
+const Joint = jointOf(JOINTS);
 
 const Crank = z.strictObject({
   type: z.literal("crank"),
@@ -155,6 +157,14 @@ const Frame = z.strictObject({
   body: Id.optional().describe("The body it turns with"),
 });
 
+function bodiesOf(body: typeof Body) {
+  return z.record(Id, body).default({}).describe(`Rigid bodies. "${GROUND}" is the fixed one`);
+}
+
+function jointsOf(joint: typeof Joint) {
+  return z.record(Id, joint).optional();
+}
+
 export const Document = z.strictObject({
   mekasim: z.literal(FORMAT_VERSION).describe("Format version"),
   meta: z
@@ -174,12 +184,12 @@ export const Document = z.strictObject({
     .record(Id, Param)
     .optional()
     .describe("Named values usable in any expression, each optionally with bounds"),
-  bodies: z.record(Id, Body).default({}).describe(`Rigid bodies. "${GROUND}" is the fixed one`),
+  bodies: bodiesOf(Body),
   components: z
     .record(Id, Component)
     .optional()
     .describe("Common parts given by their dimensions; each stands for a body and its joints"),
-  joints: z.record(Id, Joint).optional(),
+  joints: jointsOf(Joint),
   drivers: z.record(Id, Driver).optional(),
   traces: z.array(PointRef).optional().describe("Points whose paths are recorded"),
   frames: z
@@ -234,6 +244,51 @@ export function paramValue(param: Param): Expr {
   return typeof param === "object" ? param.value : param;
 }
 
-export function jsonSchema(): unknown {
-  return z.toJSONSchema(Document);
+/**
+ * What another format built on this one adds to it. mekasim itself adds nothing, so
+ * none of this is valid in a mekasim model.
+ */
+export interface SchemaExtra {
+  /** The first line of the other format, such as `mekafit: 1`. A `mekasim: 1` file is still read. */
+  version?: { key: string; value: number };
+  /** Fields added to every body. */
+  body?: z.ZodRawShape;
+  /** Fields added to every joint. */
+  joint?: z.ZodRawShape;
+  /** Sections added beside `bodies`, `joints` and the rest. */
+  sections?: z.ZodRawShape;
+}
+
+/**
+ * The schema of a document: mekasim's own, or mekasim's with additions. What it reads
+ * is typed as a mekasim document; the format that adds to it knows what it added.
+ */
+export function documentSchema(extra?: SchemaExtra): typeof Document {
+  if (!extra) return Document;
+  const { version } = extra;
+  const body = extra.body ? Body.extend(extra.body) : Body;
+  const joint = extra.joint
+    ? jointOf(JOINTS.map((kind) => kind.extend(extra.joint ?? {})) as unknown as typeof JOINTS)
+    : Joint;
+  const extended = Document.extend({
+    ...(version && {
+      mekasim: Document.shape.mekasim.optional(),
+      [version.key]: z.literal(version.value).optional().describe("Format version"),
+    }),
+    bodies: bodiesOf(body as typeof Body),
+    joints: jointsOf(joint),
+    ...extra.sections,
+  });
+  if (!version) return extended as unknown as typeof Document;
+  return extended.refine(
+    (doc) =>
+      (doc.mekasim === undefined) !== ((doc as Record<string, unknown>)[version.key] === undefined),
+    {
+      error: `A model starts with "${version.key}: ${version.value}" or "mekasim: ${FORMAT_VERSION}"`,
+    },
+  ) as unknown as typeof Document;
+}
+
+export function jsonSchema(schema = Document): unknown {
+  return z.toJSONSchema(schema);
 }

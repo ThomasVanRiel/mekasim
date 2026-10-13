@@ -21,8 +21,11 @@ function locator(yaml: YamlDocument, lines: LineCounter): Loaded["locate"] {
   };
 }
 
-/** Parse and validate model text. YAML 1.2, so JSON is accepted as well. */
-export function load(text: string): Loaded {
+/**
+ * Parse and validate model text. YAML 1.2, so JSON is accepted as well. `schema` is
+ * mekasim's own unless a format built on it gives its own.
+ */
+export function load(text: string, schema = Document): Loaded {
   const lines = new LineCounter();
   const yaml = parseDocument(text, { lineCounter: lines });
   const locate = locator(yaml, lines);
@@ -40,7 +43,7 @@ export function load(text: string): Loaded {
     return { diagnostics, locate };
   }
 
-  const parsed = Document.safeParse(yaml.toJS());
+  const parsed = schema.safeParse(yaml.toJS());
   if (parsed.success) return { doc: parsed.data, diagnostics: [], locate };
 
   const diagnostics = parsed.error.issues.map((issue): Diagnostic => {

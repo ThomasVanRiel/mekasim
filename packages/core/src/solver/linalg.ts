@@ -162,6 +162,24 @@ export function rankOf(decomposition: Svd, tolerance = RANK_TOLERANCE): number {
 }
 
 /**
+ * The directions that `a x = 0` leaves free, from the decomposition of `a`: a matrix
+ * whose columns are an orthonormal basis of them. It has no columns when `a` fixes
+ * every direction.
+ */
+export function nullSpace(decomposition: Svd, tolerance = RANK_TOLERANCE): Mat {
+  const { s, v } = decomposition;
+  const n = v.rows;
+  const cutoff = maxAbs(s) * tolerance;
+  const free: number[] = [];
+  for (let j = 0; j < n; j++) if (s[j] <= cutoff) free.push(j);
+  const out = mat(n, free.length);
+  free.forEach((j, column) => {
+    for (let i = 0; i < n; i++) out.data[i * free.length + column] = v.data[i * n + j];
+  });
+  return out;
+}
+
+/**
  * Minimum-norm least-squares solution of `a x = b` from the decomposition of `a`.
  * Handles redundant rows and free columns alike.
  */

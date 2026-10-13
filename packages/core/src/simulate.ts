@@ -9,6 +9,7 @@ import {
 import { modelExtent, motionBounds, partSizes } from "./analysis/sizes.ts";
 import { type Compiled, compile } from "./compile/compile.ts";
 import { type Diagnostic, hasErrors } from "./diagnostics.ts";
+import type { Registry } from "./registry.ts";
 import type { Document } from "./schema/document.ts";
 import { load } from "./schema/load.ts";
 import { analyzeMobility, type Mobility } from "./solver/mobility.ts";
@@ -65,19 +66,41 @@ function mobilityDiagnostics(mobility: Mobility, compiled: Compiled): Diagnostic
   return diagnostics;
 }
 
+/**
+ * Where a format built on mekasim comes into the pipeline. mekasim gives none of
+ * them, and `simulate(text)` is then what it always was.
+ */
+export interface SimulateOptions {
+  /** The schema to read the text with, from `documentSchema`. */
+  schema?: Parameters<typeof load>[1];
+  /** Units and functions added to the expressions. */
+  registry?: Registry;
+  /**
+   * Adds to the compiled model before it is solved, from what the document holds
+   * beyond mekasim's. A problem it reports as an error stops the solve.
+   */
+  extend?(compiled: Compiled, doc: Document, report: (diagnostic: Diagnostic) => void): void;
+  /** Solves the motion in place of `solveCycle`. */
+  solve?(compiled: Compiled): Cycle;
+}
+
 /** Everything from model text to results: load, compile, solve a cycle, evaluate measures. */
-export function simulate(text: string): Simulation {
-  const loaded = load(text);
+export function simulate(text: string, options: SimulateOptions = {}): Simulation {
+  const loaded = load(text, options.schema);
   const diagnostics = [...loaded.diagnostics];
   const simulation: Simulation = { diagnostics, measures: [], checks: [], plots: [] };
   if (!loaded.doc) return simulation;
   simulation.doc = loaded.doc;
 
-  const { compiled, diagnostics: compileDiagnostics } = compile(loaded.doc);
+  const { compiled, diagnostics: compileDiagnostics } = compile(loaded.doc, options.registry);
   diagnostics.push(...compileDiagnostics);
   if (compiled && !hasErrors(diagnostics)) {
+    options.extend?.(compiled, loaded.doc, (diagnostic) => diagnostics.push(diagnostic));
+  }
+  if (compiled && !hasErrors(diagnostics)) {
     simulation.compiled = compiled;
-    const cycle = solveCycle(compiled.model, compiled.period, compiled.steps);
+    const cycle =
+      options.solve?.(compiled) ?? solveCycle(compiled.model, compiled.period, compiled.steps);
     simulation.cycle = cycle;
 
     if (cycle.count > 0) {
@@ -86,7 +109,7 @@ export function simulate(text: string): Simulation {
       assignLayers(compiled, cycle, sizes.half);
       simulation.mobility = analyzeMobility(compiled.model, cycle.q.subarray(0, cycle.width));
       diagnostics.push(...mobilityDiagnostics(simulation.mobility, compiled));
-      const results = evaluateMeasures(compiled, cycle);
+      const results = evaluateMeasures(compiled, cycle, options.registry);
       simulation.measures = results.measures;
       simulation.checks = results.checks;
       simulation.plots = results.plots;

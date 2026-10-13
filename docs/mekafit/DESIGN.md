@@ -122,9 +122,11 @@ nothing, so nothing new becomes valid in a mekasim model.
 
 1. **Schema.** `schema/document.ts` builds the document schema with a function,
    `documentSchema(extra?)`, where `extra` can add fields to bodies and to joints,
-   add sections, and change the version key. mekasim's `Document` is
+   add sections, and give the other format's first line. mekasim's `Document` is
    `documentSchema()`. mekafit's `schema.ts` calls it with shapes, stops, contacts,
-   springs, latches, studies, the `move` driver and `mekafit: 1`.
+   springs, latches, studies and `mekafit: 1`. The `move` driver is a new kind of
+   driver, not a field on mekasim's; `extra` gets a way to add it when phase 3
+   builds it.
 2. **Expressions.** `expr/` and `analysis/measures.ts` accept a registry of extra
    units and extra functions. A function gets its arguments and a context with the
    compiled model and the sample index, and returns a value or a signal. mekasim
@@ -133,14 +135,16 @@ nothing, so nothing new becomes valid in a mekasim model.
    Comparisons, `and`, `or` and `not` need no extension: mekasim has them, with
    its `checks:` section (`docs/FORMAT.md`). A study's `pass` is made of the same
    conditions, and the model's checks are what it tests by default (§6.1).
-3. **Compile and solve.** `simulate(text, options?)` takes optional hooks: one that
-   adds to the compiled model, and one that replaces the cycle solve and returns a
+3. **Compile and solve.** `simulate(text, options?)` takes the schema and the
+   registry, and optional hooks: `extend`, which adds to the compiled model and can
+   report problems, and `solve`, which replaces the cycle solve and returns a
    `Cycle`. Without them it is today's `simulate`. Compile already maps names to
    body indices; those maps are exported in its result.
 4. **Exports.** `index.ts` exports the pieces mekafit's solver builds on: the
    `Constraint` interface and its constructors, `residual`, `jacobian`,
-   `solvePosition`, the SVD and null space of `linalg.ts`, `place` of points, and a
-   function to build a `Cycle` from sampled positions.
+   `solvePosition`, the SVD and null space of `linalg.ts`, `place` of points, and
+   `cycleFromPositions`, which builds a `Cycle` from sampled positions with
+   velocities and accelerations as their differences (§5.9).
 
 `copy` needs no hook: it is expanded on the parsed document before compile.
 

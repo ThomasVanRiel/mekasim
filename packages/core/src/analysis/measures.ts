@@ -2,6 +2,7 @@ import type { Compiled, CompiledBody, CompiledFrame } from "../compile/compile.t
 import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
 import { ANGLE, type Dim, describeDim, isPure, LENGTH, TIME } from "../expr/units.ts";
+import type { Registry } from "../registry.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
 import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
 
@@ -207,10 +208,14 @@ const OF_POINT = new Set([
 /** Kinematic functions take bodies and points, not values, as arguments. */
 const KINEMATIC = new Set([...OF_POINT, "dist", "angle", "omega", "alpha"]);
 
-/** Evaluate the measures, checks and plots of a model over a solved cycle. */
+/**
+ * Evaluate the measures, checks and plots of a model over a solved cycle. `registry`
+ * adds functions and units to the expressions; mekasim passes none.
+ */
 export function evaluateMeasures(
   compiled: Compiled,
   cycle: Cycle,
+  registry?: Registry,
 ): { measures: MeasureResult[]; checks: CheckResult[]; plots: PlotResult[] } {
   const n = cycle.count;
   /** Measures and checks evaluated so far; what comes after them can use them by name. */
@@ -377,7 +382,16 @@ export function evaluateMeasures(
   }
 
   function special(name: string, args: Node[], fn: Node): Quantity | undefined {
-    if (!KINEMATIC.has(name)) return undefined;
+    if (!KINEMATIC.has(name)) {
+      const added = registry?.functions?.[name];
+      return added?.({
+        args,
+        node: fn,
+        evaluate: (arg) => evaluate(arg, context),
+        compiled,
+        cycle,
+      });
+    }
     const call = fn as Node & { kind: "call" };
     const one = (): void => {
       if (args.length !== 1) throw wrongArity(call, "1 argument");
@@ -485,6 +499,7 @@ export function evaluateMeasures(
 
   const context: EvalContext = {
     units: compiled.units,
+    extraUnits: registry?.units,
     resolve(name, node) {
       if (name === "t") return { value: Float64Array.from(cycle.t), dim: TIME };
       const param = compiled.params.get(name);

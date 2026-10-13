@@ -84,6 +84,52 @@ export function solveCycle(model: SolverModel, period: number, steps: number): C
 }
 
 /**
+ * A cycle from positions that were found some other way than by `solveCycle`: `rows`
+ * holds the coordinates at each of the times `t`, which need not be evenly spaced.
+ * Velocities and accelerations are differences of the positions, since nothing else
+ * says what they are. `steps` is how many samples were asked for, when the motion
+ * stopped before the last of them.
+ */
+export function cycleFromPositions(
+  t: ArrayLike<number>,
+  rows: ArrayLike<number>[],
+  steps = rows.length,
+): Cycle {
+  const count = rows.length;
+  const width = rows[0]?.length ?? 0;
+  const q = new Float64Array(count * width);
+  rows.forEach((row, k) => {
+    q.set(row, k * width);
+  });
+
+  /** The rate of change of samples at uneven times: the slope of the parabola through three. */
+  function rates(of: Float64Array): Float64Array {
+    const out = new Float64Array(count * width);
+    if (count < 2) return out;
+    for (let k = 0; k < count; k++) {
+      // At an end the parabola is the one through the three samples nearest to it.
+      const mid = Math.min(Math.max(k, 1), count - 2);
+      const a = count === 2 ? 0 : mid - 1;
+      const c = count === 2 ? 1 : mid + 1;
+      const [ta, tb, tc, tk] = [t[a], t[mid], t[c], t[k]] as [number, number, number, number];
+      for (let i = 0; i < width; i++) {
+        const [fa, fb, fc] = [of[a * width + i], of[mid * width + i], of[c * width + i]];
+        out[k * width + i] =
+          count === 2
+            ? (fc - fa) / (tc - ta)
+            : (fa * (2 * tk - tb - tc)) / ((ta - tb) * (ta - tc)) +
+              (fb * (2 * tk - ta - tc)) / ((tb - ta) * (tb - tc)) +
+              (fc * (2 * tk - ta - tb)) / ((tc - ta) * (tc - tb));
+      }
+    }
+    return out;
+  }
+
+  const qd = rates(q);
+  return { steps, count, width, t: Float64Array.from(t), q, qd, qdd: rates(qd) };
+}
+
+/**
  * Jerks over a solved cycle, `count` rows of `width`. They are worked out apart from
  * the cycle, when something asks for them, since most models never do.
  */

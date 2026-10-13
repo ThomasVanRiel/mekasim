@@ -1,5 +1,11 @@
 export { toCsv } from "./analysis/csv.ts";
-export { type Cycle, type CycleFailure, cycleJerk, solveCycle } from "./analysis/cycle.ts";
+export {
+  type Cycle,
+  type CycleFailure,
+  cycleFromPositions,
+  cycleJerk,
+  solveCycle,
+} from "./analysis/cycle.ts";
 export { assignLayers, hullDistance } from "./analysis/layers.ts";
 export {
   type CheckResult,
@@ -68,14 +74,17 @@ export {
   toggleTrace,
 } from "./edit/operations.ts";
 export { type Edit, EditError, type Path, type Value } from "./edit/patch.ts";
-export type { Quantity } from "./expr/evaluate.ts";
+export { type EvalContext, evaluate, type Quantity, toSI } from "./expr/evaluate.ts";
+export { ExprError, type Node, parseExpr } from "./expr/parse.ts";
 export {
   ANGLE,
   type Dim,
   docFactor,
   formatQuantity,
   LENGTH,
+  NONE,
   UNITS,
+  type UnitDef,
   type Units,
   unitLabel,
 } from "./expr/units.ts";
@@ -91,25 +100,56 @@ export {
   slotOutline,
 } from "./fabricate/parts.ts";
 export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
+export type { FunctionCall, Registry } from "./registry.ts";
 export {
   Document,
+  documentSchema,
   FORMAT_VERSION,
   type Frame,
   GROUND,
   jsonSchema,
   type Param,
   paramValue,
+  type SchemaExtra,
 } from "./schema/document.ts";
 export { type Loaded, load } from "./schema/load.ts";
-export { type Simulation, simulate } from "./simulate.ts";
-export type { BodyPoint } from "./solver/constraints.ts";
+export { type SimulateOptions, type Simulation, simulate } from "./simulate.ts";
+// What a solver built on this one works with: the constraints and the linear algebra.
+export {
+  angleCoupling,
+  type BodyPoint,
+  type Constraint,
+  coincident,
+  distance,
+  GROUND_INDEX,
+  type Placed,
+  place,
+  pointOnLine,
+  relativeAngle,
+} from "./solver/constraints.ts";
 export { dragTo } from "./solver/drag.ts";
+export {
+  type Mat,
+  mat,
+  matFrom,
+  nullSpace,
+  pinvSolve,
+  RANK_TOLERANCE,
+  rankOf,
+  type Svd,
+  solveLinear,
+  svd,
+} from "./solver/linalg.ts";
 export { analyzeMobility, type Mobility } from "./solver/mobility.ts";
 export {
+  jacobian,
   type PositionResult,
+  residual,
+  rowCount,
   type SolverModel,
   solveAcceleration,
   solveJerk,
   solvePosition,
   solveVelocity,
+  TOLERANCE,
 } from "./solver/solve.ts";

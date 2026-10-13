@@ -13,6 +13,7 @@ import {
   type Units,
 } from "../expr/units.ts";
 import type { Fabrication } from "../fabricate/parts.ts";
+import type { Registry } from "../registry.ts";
 import { type Document, type Expr, GROUND, type Joint, paramValue } from "../schema/document.ts";
 import { camOutlines, camProfile } from "../solver/cam.ts";
 import {
@@ -133,9 +134,10 @@ const RESERVED = new Set(["pi", "g", "t", ...KEYWORDS]);
 /** Raised for a problem that is already recorded as a diagnostic. */
 class Reported extends Error {}
 
-export function compile(source: Document): CompileResult {
+/** `registry` adds units to the expressions; mekasim passes none. */
+export function compile(source: Document, registry?: Registry): CompileResult {
   const { doc, autoPoses, origins, diagnostics } = expandComponents(source);
-  const result = compileExpanded(doc, autoPoses, diagnostics);
+  const result = compileExpanded(doc, autoPoses, diagnostics, registry?.units);
   // A problem inside what a component stands for is reported on the component.
   for (const diagnostic of result.diagnostics) {
     const { path } = diagnostic;
@@ -149,6 +151,7 @@ function compileExpanded(
   doc: Document,
   autoPoses: AutoPose[],
   diagnostics: Diagnostic[],
+  extraUnits?: Registry["units"],
 ): CompileResult {
   const units: Units = { ...DEFAULT_UNITS, ...doc.meta?.units };
 
@@ -197,13 +200,13 @@ function compileExpanded(
     }
   }
 
-  const context: EvalContext = { units, resolve: param };
+  const context: EvalContext = { units, extraUnits, resolve: param };
   /** The bounds of the parameters that have them, in SI. */
   const bounds = new Map<string, { min?: number; max?: number }>();
 
   function parse(source: string, path: Path): Node {
     try {
-      return parseExpr(source);
+      return parseExpr(source, extraUnits);
     } catch (error) {
       if (error instanceof ExprError) throw fail(`${error.message} in "${source}"`, path);
       throw error;

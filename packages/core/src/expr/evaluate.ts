@@ -11,6 +11,7 @@ import {
   isPure,
   NONE,
   UNITS,
+  type UnitDef,
   type Units,
 } from "./units.ts";
 
@@ -25,6 +26,8 @@ export interface Quantity {
 
 export interface EvalContext {
   units: Units;
+  /** Units beyond mekasim's own, as the expression was parsed with. */
+  extraUnits?: Record<string, UnitDef>;
   /** Value of a name such as a parameter. Throws `ExprError` when unknown. */
   resolve(name: string, node: Node): Quantity;
   /** Functions that need their arguments unevaluated, e.g. `x(body.point)`. */
@@ -218,7 +221,7 @@ export function evaluate(node: Node, ctx: EvalContext): Quantity {
   switch (node.kind) {
     case "num": {
       if (!node.unit) return { value: node.value, dim: NONE };
-      const unit = UNITS[node.unit] as (typeof UNITS)[string];
+      const unit = (ctx.extraUnits?.[node.unit] ?? UNITS[node.unit]) as UnitDef;
       return { value: node.value * unit.factor, dim: unit.dim };
     }
     case "ref":

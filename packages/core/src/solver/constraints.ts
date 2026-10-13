@@ -29,7 +29,7 @@ export interface Constraint {
   accelerationRhs(q: Float64Array, qd: Float64Array, out: Float64Array, row: number): void;
 }
 
-interface Placed {
+export interface Placed {
   /** World position. */
   x: number;
   y: number;
@@ -38,7 +38,8 @@ interface Placed {
   by: number;
 }
 
-function place(q: Float64Array, p: BodyPoint): Placed {
+/** Where a point of a body is in the world when the bodies are at `q`. */
+export function place(q: Float64Array, p: BodyPoint): Placed {
   if (p.body < 0) return { x: p.u, y: p.v, bx: p.u, by: p.v };
   const i = 3 * p.body;
   const c = Math.cos(q[i + 2]);
