@@ -1,4 +1,12 @@
-import { type CompiledBody, type Mat, mat, type Point, type Pose } from "@mekasim/core";
+import {
+  type BodyPoint,
+  type CompiledBody,
+  type Mat,
+  mat,
+  type Point,
+  type Pose,
+  place,
+} from "@mekasim/core";
 import type { CompiledContact, FitCompiled } from "../contacts.ts";
 import { CONTACT_MARGIN, type ContactPoint, contactPoints } from "../geometry/contacts.ts";
 
@@ -12,8 +20,117 @@ export interface Inequality {
   value: number;
   /** Derivative of value with respect to all moving-body coordinates. */
   gradient: Float64Array;
-  /** The bodies involved in a contact, for a useful jam message later. */
+  /** The two bodies of the contact, or of the joint a stop or a lock is on, for a jam's message. */
   between?: [string, string];
+}
+
+/**
+ * What a stop or a lock limits: the angle of a revolute joint, its second body's less
+ * its first's, or how far a pin has gone along a slider or slot from the first point
+ * of its axis.
+ */
+export type JointValue =
+  | { kind: "angle"; a: number; b: number }
+  | { kind: "travel"; from: BodyPoint; to: BodyPoint; pin: BodyPoint };
+
+/** The limits of one joint; either end may be left open. */
+export interface CompiledStop {
+  joint: string;
+  value: JointValue;
+  low?: number;
+  high?: number;
+  bodies: [string, string];
+}
+
+/** A lock that drops in behind a joint once its value has passed `at`, and holds it there. */
+export interface CompiledLock {
+  id: string;
+  joint: string;
+  value: JointValue;
+  at: number;
+  /** `down`: in once the value falls below `at`, then holding it below. `up`: the other way round. */
+  drops: "down" | "up";
+  /** Whether it is in at the start. */
+  engaged: boolean;
+  bodies: [string, string];
+}
+
+/** A joint's angle in rad or travel in metres at `q`, and its derivative when `gradient` is given to fill. */
+export function jointValue(value: JointValue, q: Float64Array, gradient?: Float64Array): number {
+  if (value.kind === "angle") {
+    if (gradient) {
+      if (value.a >= 0) gradient[3 * value.a + 2] -= 1;
+      if (value.b >= 0) gradient[3 * value.b + 2] += 1;
+    }
+    return (
+      (value.b < 0 ? 0 : (q[3 * value.b + 2] as number)) -
+      (value.a < 0 ? 0 : (q[3 * value.a + 2] as number))
+    );
+  }
+  const from = place(q, value.from);
+  const to = place(q, value.to);
+  const pin = place(q, value.pin);
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  const ux = (to.x - from.x) / length;
+  const uy = (to.y - from.y) / length;
+  const dx = pin.x - from.x;
+  const dy = pin.y - from.y;
+  if (gradient) {
+    const axis = value.from.body;
+    if (axis >= 0) {
+      gradient[3 * axis] -= ux;
+      gradient[3 * axis + 1] -= uy;
+      // The first axis point moves as its body turns, and the axis turns with it.
+      gradient[3 * axis + 2] += ux * from.by - uy * from.bx - dx * uy + dy * ux;
+    }
+    const sliding = value.pin.body;
+    if (sliding >= 0) {
+      gradient[3 * sliding] += ux;
+      gradient[3 * sliding + 1] += uy;
+      gradient[3 * sliding + 2] += -ux * pin.by + uy * pin.bx;
+    }
+  }
+  return dx * ux + dy * uy;
+}
+
+/** A row that keeps a joint's value on one side of a limit: above it, or below. */
+function limitRow(
+  source: string,
+  kind: "stop" | "lock",
+  on: { value: JointValue; bodies: [string, string] },
+  limit: number,
+  above: boolean,
+  q: Float64Array,
+): Inequality {
+  const gradient = new Float64Array(q.length);
+  const value = jointValue(on.value, q, gradient);
+  if (!above) for (let i = 0; i < gradient.length; i++) gradient[i] = -(gradient[i] as number);
+  return {
+    source,
+    kind,
+    value: above ? value - limit : limit - value,
+    gradient,
+    between: on.bodies,
+  };
+}
+
+/** A row for each end of each joint's stops. */
+export function stopInequalities(stops: CompiledStop[], q: Float64Array): Inequality[] {
+  return stops.flatMap((stop) => [
+    ...(stop.low === undefined ? [] : [limitRow(stop.joint, "stop", stop, stop.low, true, q)]),
+    ...(stop.high === undefined ? [] : [limitRow(stop.joint, "stop", stop, stop.high, false, q)]),
+  ]);
+}
+
+/** A row for each lock that is in, which holds its joint on the side it dropped in on. */
+export function lockInequalities(
+  locks: CompiledLock[],
+  engaged: ReadonlySet<string>,
+  q: Float64Array,
+): Inequality[] {
+  return locks
+    .filter((lock) => engaged.has(lock.id))
+    .map((lock) => limitRow(lock.id, "lock", lock, lock.at, lock.drops === "up", q));
 }
 
 export interface LinearizedInequalities {

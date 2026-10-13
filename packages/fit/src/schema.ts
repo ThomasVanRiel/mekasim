@@ -79,6 +79,23 @@ export const Move = z.strictObject({
   stages: z.array(MoveStage).min(1),
 });
 
+/** The two ends a joint may go between; either may be `null`. */
+const Stops = z
+  .tuple([Expr.nullable(), Expr.nullable()])
+  .describe("The least and the most of the joint's angle or travel; null leaves an end open");
+
+/** A lock that drops in behind a joint and then holds it. */
+export const Latch = z.strictObject({
+  joint: Id.describe("A revolute joint, pin-slot or slider"),
+  at: Expr.describe("The angle or travel at which it drops in"),
+  drops: z
+    .enum(["down", "up"])
+    .describe(
+      "down: in once the value falls below `at`, holding it below; up: the other way round",
+    ),
+  engaged: z.boolean().optional().describe("Whether it is in at the start; default false"),
+});
+
 /** mekasim's own driver, which turns a joint. */
 const Motor = Document.shape.drivers.unwrap().valueType;
 
@@ -88,8 +105,10 @@ const Motor = Document.shape.drivers.unwrap().valueType;
  */
 export const FitDocument = documentSchema({
   version: { key: FORMAT, value: FORMAT_VERSION },
+  joint: { stops: Stops.optional() },
   sections: {
     contacts: z.record(Id, Contact).optional(),
+    latches: z.record(Id, Latch).optional(),
     springs: z.record(Id, Spring).optional(),
     // The move driver is mekafit's alone, so the whole section is given again with it in.
     drivers: z

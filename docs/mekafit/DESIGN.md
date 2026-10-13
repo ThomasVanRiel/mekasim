@@ -40,11 +40,11 @@ packages/fit/src
   registry.ts     force, torque and stiffness units added to mekafit's expressions
   contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   edit.ts         additions to `contacts:` made by the tool and finder
-  compile.ts      core's `prepare` and `extend` hooks: contacts, springs, move drivers; locks and stops to come
+  compile.ts      core's `prepare` and `extend` hooks: contacts, springs, move drivers, stops and locks
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
-    inequality.ts one-sided constraints: contact rows built; stop and lock rows to come
+    inequality.ts one-sided constraints: contact, stop and lock rows
     qp.ts         small dense quadratic program (dual active set)
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
@@ -361,8 +361,9 @@ does not move where a sprung body settles by more than 1e-6 of its travel.
 
 ### 5.2 Sequential steps
 
-Starting from the previous sample's `q` (extrapolated as core's `solveCycle`
-does), repeat up to 30 times:
+Starting from the previous sample's `q`, repeat up to 30 times (not from where the
+bodies seemed to be going, as core's `solveCycle` does: a part that has just been
+let go would be carried past where it comes to rest, onto another branch):
 
 1. Evaluate `Phi` and its Jacobian `J` (core), the spring gradient and Gauss-Newton
    Hessian, and the one-sided rows: for each contact pair, the points of §3.3 with
@@ -401,11 +402,15 @@ spring's over the square of its body's reach), or 1 where there are no springs.
 
 ### 5.4 Stops and locks
 
-- A stop is a one-sided row while its joint is within `margin` of it.
+- A stop is a one-sided row on its joint's value: the angle of a revolute joint,
+  its second body's less its first's, or the travel of the pin along a slider or
+  slot from the first point of its axis. Each end is always a row; there are few
+  of them, and one that is far from its limit costs nothing.
 - A lock is checked after each accepted sample: if the joint value has passed `at`
   in the `drops` direction since the previous sample, the lock is in from the next
   sample on, as a stop at `at`. Its state is part of the sample's output, so
-  `latched()` reads it and replay reproduces it.
+  `latched()` reads it and replay reproduces it. A lock that is `engaged` is in from
+  the start. Nothing lets a lock out again.
 
 ### 5.5 Springs
 

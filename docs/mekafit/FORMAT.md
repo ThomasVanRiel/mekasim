@@ -26,8 +26,8 @@ deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 The force, torque and spring-stiffness units listed under Springs are built for
 expressions. `springs:` and the `move` driver with all its stages are built:
 a model with either is solved by the contact step, in which listed contacts push
-and springs settle. Joint stops, locks and the measures of force are
-still to come.
+and springs settle. Joint `stops` and `latches:` are built too. The measures of
+force, `latched`, `final` and `first` are still to come.
 
 ## A whole example
 
@@ -234,7 +234,7 @@ the user checks; pairs already in `contacts:` are shown checked.
 | `between` / `among` | The bodies, as above |
 | `friction` | Phase 5. Coefficient of friction; default 0 |
 
-## Joint stops (phase 3)
+## Joint stops (phase 3, built)
 
 ```yaml
 joints:
@@ -243,7 +243,9 @@ joints:
 ```
 
 `stops` limits a revolute joint's relative angle, or the travel along a pin-slot or
-slider measured from the first axis point. Either end may be `null`.
+slider measured from the first axis point. Either end may be `null`. The angle is
+that of the second body the joint connects less that of the first, as for a driver
+and a spring. A joint that starts beyond a stop is brought back to it at the start.
 
 ## Springs (phase 3, built)
 
@@ -267,7 +269,7 @@ A spring has either its rest value or a `preload`, not both. `stiffness` and
 `preload` of `0`. A joint's angle is that of the second body it connects less that
 of the first, as for a driver.
 
-## Locks (phase 3)
+## Locks (phase 3, built)
 
 ```yaml
 latches:

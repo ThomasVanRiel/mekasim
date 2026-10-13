@@ -17,12 +17,15 @@ import {
 import type * as z from "zod";
 import { compileContacts, type FitCompiled } from "./contacts.ts";
 import { FORCE, FORCE_UNITS, LINEAR_STIFFNESS, TORQUE, TORSIONAL_STIFFNESS } from "./registry.ts";
-import type { Move, Spring } from "./schema.ts";
+import type { Latch, Move, Spring } from "./schema.ts";
+import type { CompiledLock, CompiledStop, JointValue } from "./solver/inequality.ts";
 import { type CompiledSpring, springValue } from "./solver/springs.ts";
 import { type CompiledMove, moveConstraint, moveDuration, type Stage } from "./solver/stages.ts";
 
 type SpringEntry = z.infer<typeof Spring>;
 type MoveEntry = z.infer<typeof Move>;
+type LatchEntry = z.infer<typeof Latch>;
+type Stops = [number | string | null, number | string | null];
 type DriverEntry = NonNullable<Document["drivers"]>[string] | MoveEntry;
 type Report = (diagnostic: Diagnostic) => void;
 type Path = (string | number)[];
@@ -35,6 +38,7 @@ class Reported extends Error {}
 type Prepared = Document & {
   springs?: Record<string, SpringEntry>;
   moves?: Record<string, MoveEntry>;
+  latches?: Record<string, LatchEntry>;
 };
 
 /** Seconds; core keeps the dimension to itself. */
@@ -61,6 +65,7 @@ export function compileFit(compiled: Compiled, source: Document, report: Report)
   // The moves first: a spring's preload is taken where the joints and the moves put the bodies.
   compileMoves(compiled, source, report);
   compileSprings(compiled, source, report);
+  compileStops(compiled, source, report);
 }
 
 /** What reading a section needs: expressions with mekafit's units, and problems told at their place. */
@@ -187,6 +192,76 @@ export function compileMoves(compiled: Compiled, source: Document, report: Repor
   for (const move of moves) compiled.model.constraints.push(moveConstraint(move));
   if (moves.length > 0) compiled.period = Math.max(...moves.map(moveDuration));
   (compiled as FitCompiled).moves = moves;
+}
+
+/** Read and check the stops on joints and the locks behind them. */
+export function compileStops(compiled: Compiled, source: Document, report: Report): void {
+  const doc = source as Prepared;
+  const { fail, scalar, attempt } = reader(compiled, report);
+  const stops: CompiledStop[] = [];
+  const locks: CompiledLock[] = [];
+
+  /** What a stop or a lock on this joint limits, the unit it is given in, and the joint's two bodies. */
+  function limited(id: string, path: Path, what: string) {
+    const joint = compiled.joints.find((candidate) => candidate.id === id);
+    if (!joint) throw fail(`Unknown joint "${id}"`, path);
+    const at = (ref: string): BodyPoint => {
+      const [bodyId, name] = ref.split(".") as [string, string];
+      const body = compiled.bodies.get(bodyId) as NonNullable<
+        ReturnType<typeof compiled.bodies.get>
+      >;
+      const local = body.points.get(name) as { u: number; v: number };
+      return { body: body.index, u: local.u, v: local.v };
+    };
+    const bodyOf = (ref: string): string => ref.split(".")[0] as string;
+    const [first, second, third] = joint.points as [string, string, string];
+    if (joint.type === "revolute") {
+      const value: JointValue = { kind: "angle", a: at(first).body, b: at(second).body };
+      return { value, dim: ANGLE, bodies: [bodyOf(first), bodyOf(second)] as [string, string] };
+    }
+    if (joint.type === "slider" || joint.type === "pin-slot") {
+      const value: JointValue = { kind: "travel", from: at(first), to: at(second), pin: at(third) };
+      return { value, dim: LENGTH, bodies: [bodyOf(first), bodyOf(third)] as [string, string] };
+    }
+    throw fail(
+      `Joint "${id}" is a ${joint.type}; only a revolute joint, a slider or a pin-slot can have ${what}`,
+      path,
+    );
+  }
+
+  for (const [id, joint] of Object.entries(doc.joints ?? {})) {
+    const written = (joint as { stops?: Stops }).stops;
+    if (!written) continue;
+    const path = ["joints", id, "stops"];
+    attempt(() => {
+      const { value, dim, bodies } = limited(id, path, "stops");
+      const [low, high] = written.map((end, i) =>
+        end === null ? undefined : scalar(end, dim, [...path, i]),
+      );
+      if (low !== undefined && high !== undefined && low > high)
+        throw fail("The first stop is beyond the second; give the lesser one first", path);
+      stops.push({ joint: id, value, low, high, bodies });
+    });
+  }
+
+  for (const [id, latch] of Object.entries(doc.latches ?? {})) {
+    const path = ["latches", id];
+    attempt(() => {
+      const { value, dim, bodies } = limited(latch.joint, [...path, "joint"], "a lock");
+      locks.push({
+        id,
+        joint: latch.joint,
+        value,
+        at: scalar(latch.at, dim, [...path, "at"]),
+        drops: latch.drops,
+        engaged: latch.engaged ?? false,
+        bodies,
+      });
+    });
+  }
+
+  (compiled as FitCompiled).stops = stops;
+  (compiled as FitCompiled).locks = locks;
 }
 
 /** Read and check the springs, with every value in SI and each preload turned into a rest value. */

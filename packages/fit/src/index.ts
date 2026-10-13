@@ -32,12 +32,18 @@ export {
 export { FitDocument, FORMAT, FORMAT_VERSION } from "./schema.ts";
 export { keepOutlines, simulate, sweep } from "./simulate.ts";
 export {
+  type CompiledLock,
+  type CompiledStop,
   contactInequalities,
   contactInequality,
   type Inequality,
   type InequalityKind,
+  type JointValue,
+  jointValue,
   type LinearizedInequalities,
   linearizeInequalities,
+  lockInequalities,
+  stopInequalities,
 } from "./solver/inequality.ts";
 export { type QpSolution, solveQp } from "./solver/qp.ts";
 export { type Jam, type QuasistaticRun, solveQuasistatic } from "./solver/quasistatic.ts";

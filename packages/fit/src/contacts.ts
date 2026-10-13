@@ -11,6 +11,7 @@ import {
 } from "@mekasim/core";
 import type * as z from "zod";
 import type { Contact } from "./schema.ts";
+import type { CompiledLock, CompiledStop } from "./solver/inequality.ts";
 import type { Jam } from "./solver/quasistatic.ts";
 import type { CompiledSpring } from "./solver/springs.ts";
 import type { CompiledMove } from "./solver/stages.ts";
@@ -33,6 +34,8 @@ export interface FitCompiled extends Compiled {
   contacts: CompiledContact[];
   springs: CompiledSpring[];
   moves: CompiledMove[];
+  stops: CompiledStop[];
+  locks: CompiledLock[];
 }
 
 /** What a listed pair did over one run, including where it came closest. */
@@ -60,6 +63,8 @@ export interface FitSimulation extends Simulation {
   jam?: Jam;
   /** The pulls that nothing held: the driver, and when its pull ended. */
   free: { driver: string; time: number }[];
+  /** Whether each lock is in at each sample: 1 or 0. */
+  latched: Record<string, Float64Array>;
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */

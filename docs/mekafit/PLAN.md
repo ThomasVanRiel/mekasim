@@ -100,7 +100,14 @@ the distance is negative and the normal keeps its direction, and two flat faces
 along each other give their two ends. `examples/fit/sprung-lever.mekafit.yaml` is
 the first example solved by contact.
 
-**Next in phase 3:** stops and locks, then forces, the new measures
+Joint `stops` and `latches:` are built: a stop holds a revolute joint's angle or a
+slider's or pin-slot's travel between its two ends, and a lock drops in once its
+joint has passed its place and then holds it there. Both are one-sided rows of the
+contact step, and a model with either is solved by it. Whether each lock is in at
+each sample is kept with the run (`latched`), for the `latched()` measure to come.
+A jam names them too: "`ram` against its stop".
+
+**Next in phase 3:** forces, then the new measures
 (`force`, `latched`, `final`, `first`), the Springs and locks fold, and the examples.
 
 **Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev

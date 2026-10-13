@@ -15,7 +15,14 @@ import {
   TOLERANCE,
 } from "@mekasim/core";
 import type { FitCompiled } from "../contacts.ts";
-import { contactInequalities, type Inequality, linearizeInequalities } from "./inequality.ts";
+import {
+  contactInequalities,
+  type Inequality,
+  jointValue,
+  linearizeInequalities,
+  lockInequalities,
+  stopInequalities,
+} from "./inequality.ts";
 import { solveQp } from "./qp.ts";
 import { springTerms } from "./springs.ts";
 import { moveConstraint, plannedStarts, stageAt, stageEnds } from "./stages.ts";
@@ -34,6 +41,8 @@ export interface QuasistaticRun {
   jam?: Jam;
   /** The pulls that nothing held: the driver, and when its pull ended. A result, not a fault. */
   free: { driver: string; time: number }[];
+  /** Whether each lock is in at each sample: 1 or 0. */
+  latched: Record<string, Float64Array>;
 }
 
 /** Steps of the sequential program tried for one sample. */
@@ -152,6 +161,9 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     return [...worst].sort((x, y) => y[1] - x[1]).map(([source]) => source);
   }
 
+  /** The locks that are in, as the run goes. */
+  const engaged = new Set(compiled.locks.filter((lock) => lock.engaged).map((lock) => lock.id));
+
   // How far the whole model reaches, for how far a pulled body goes when nothing holds it.
   let span = size;
   for (const body of compiled.bodies.values()) {
@@ -199,7 +211,12 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     let stepped = Number.POSITIVE_INFINITY;
     for (let iteration = 0; ; iteration++) {
       const phi = residual(now, q, t);
-      const rows = [...contactInequalities(compiled, q), ...pulls.map(limit)];
+      const rows = [
+        ...contactInequalities(compiled, q),
+        ...stopInequalities(compiled.stops, q),
+        ...lockInequalities(compiled.locks, engaged, q),
+        ...pulls.map(limit),
+      ];
       const closed = phi.every((value) => Math.abs(value) < TOLERANCE);
       if (closed && stepped < SETTLED * size && rows.every((row) => row.value > -PENETRATION))
         return { ok: true, q, limited };
@@ -337,6 +354,27 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
 
   const times: number[] = [];
   const samples: Float64Array[] = [];
+  /** The locks that are in at each sample. */
+  const locked: ReadonlySet<string>[] = [];
+
+  /**
+   * Keep a solved sample. A lock whose joint has passed its place since the sample
+   * before, going the way it drops, is in from the next sample on.
+   */
+  function keep(t: number, q: Float64Array): void {
+    const last = samples[samples.length - 1];
+    times.push(t);
+    samples.push(q);
+    locked.push(new Set(engaged));
+    if (!last) return;
+    for (const lock of compiled.locks) {
+      if (engaged.has(lock.id)) continue;
+      const was = jointValue(lock.value, last);
+      const is = jointValue(lock.value, q);
+      if (lock.drops === "down" ? was >= lock.at && is < lock.at : was <= lock.at && is > lock.at)
+        engaged.add(lock.id);
+    }
+  }
   const free: QuasistaticRun["free"] = [];
   /** The pulls that something held in at least one sample, each as its move and stage. */
   const held = new Set<string>();
@@ -345,24 +383,13 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
   /** The sample at `t`, from the last one; split in two where that fails or moves too far. */
   function advance(t: number, splits: number): boolean {
     const last = samples[samples.length - 1] as Float64Array;
-    const before = samples[samples.length - 2];
     const from = times[times.length - 1] as number;
-    let result: Attempt | undefined;
-    if (before) {
-      // Carry on as the bodies were going; where that leads nowhere, start from where they are.
-      const ratio = (t - from) / (from - (times[times.length - 2] as number));
-      result = attempt(
-        last,
-        last.map((value, i) => value + ratio * (value - before[i])),
-        t,
-        from,
-      );
-    }
-    if (!result?.ok) result = attempt(last, last, t, from);
+    // Each sample starts from the one before, not from where the bodies seemed to be
+    // going: a part that has just been let go would be carried past where it comes to rest.
+    const result = attempt(last, last, t, from);
     const reached = result.ok ? result.q : last;
     if (result.ok && (splits >= MAX_SPLITS || travel((i) => reached[i] - last[i]) <= 1)) {
-      times.push(t);
-      samples.push(result.q);
+      keep(t, result.q);
       for (const [m, move] of moves.entries()) {
         const now = stageAt(move, t);
         if (now?.stage.kind === "pull" && !result.limited.includes(move.id))
@@ -403,11 +430,11 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         failure: { step: 0, time: 0, open: assembled.open },
       },
       free,
+      latched: {},
     };
   }
   const settled = attempt(start, start, 0, 0, MAX_SETTLING);
-  times.push(0);
-  samples.push(settled.ok ? settled.q : start);
+  keep(0, settled.ok ? settled.q : start);
   if (!settled.ok) jam = { time: 0, rows: settled.rows, open: settled.open };
 
   let begun = 0;
@@ -432,5 +459,16 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     }
     begun = end;
   }
-  return { cycle: cycleFromPositions(times, samples, Math.max(asked, samples.length)), jam, free };
+  const latched = Object.fromEntries(
+    compiled.locks.map((lock) => [
+      lock.id,
+      Float64Array.from(locked, (inNow) => (inNow.has(lock.id) ? 1 : 0)),
+    ]),
+  );
+  return {
+    cycle: cycleFromPositions(times, samples, Math.max(asked, samples.length)),
+    jam,
+    free,
+    latched,
+  };
 }
