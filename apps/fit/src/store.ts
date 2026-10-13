@@ -2,6 +2,7 @@ import { type Files, type FitSimulation, simulate } from "@mekasim/fit";
 import { buildScene, type Scene } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
+import { withDrawings } from "./files.ts";
 import { comfortableRate } from "./playback.ts";
 
 const STORAGE_KEY = "mekafit.text";
@@ -56,8 +57,13 @@ interface State extends Solved {
   rate: number;
   /** Open another model, with its drawings: it replaces this one and plays from its start. */
   load(text: string, files?: Files): void;
-  /** Add drawings to this model, or put newer ones in place of those of the same name. */
-  attach(files: Files): void;
+  /**
+   * Add drawings to this model, or put newer ones in place of those it has. A drawing
+   * the model does not name yet is written into its `geometry:` section.
+   */
+  attach(picked: Files): void;
+  /** Put a newer file in place of a drawing, under the name the model knows it by. */
+  replace(file: string, text: string): void;
   /** Change the text of this model, keeping the place in the run. */
   setText(text: string): void;
   setStep(step: number): void;
@@ -100,8 +106,15 @@ export const useStore = create<State>((set, get) => {
         rate: comfortableRate(solved.shown?.compiled?.period ?? 0),
       });
     },
-    attach(added) {
-      const files = new Map([...get().files, ...added]);
+    attach(picked) {
+      const { simulation } = get();
+      const added = withDrawings(get().text, simulation.sources, simulation.missing, picked);
+      const files = new Map([...get().files, ...added.files]);
+      keep(added.text, files);
+      set({ ...solve(added.text, files, get()), text: added.text, files });
+    },
+    replace(file, text) {
+      const files = new Map([...get().files, [file, text]]);
       keep(get().text, files);
       set({ ...solve(get().text, files, get()), files });
     },

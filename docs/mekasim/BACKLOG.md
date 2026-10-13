@@ -62,6 +62,22 @@ each with a pin. That solves correctly, but it is not what an eccentric is.
   disc with an off-centre shaft hole, and a rod with a large eye and clearance);
   and how the shaft and its bearing appear.
 
+### Shapes from a drawing
+
+mekafit takes a body's outline from a DXF kept beside the model (`geometry:` with
+`shape: { from, layer, at, place }`; see `docs/mekafit/FORMAT.md`). mekasim reads a
+shape only where it is written out as path text. It would suit mekasim too, for
+showing a mechanism with its real parts to someone else.
+
+- **What works today:** a model made in mekafit opens in mekasim with its shapes,
+  through "Open in mekasim" or a copied link, because both write the shapes out as
+  path text. What mekasim cannot do is read the drawing itself.
+- **What it would take:** the reading of drawings moves from `packages/fit` to the
+  core, as the outline geometry did; `geometry:` becomes part of mekasim's format;
+  and mekasim learns to keep files beside a model, which it has never had to: a way
+  to attach and replace them, the Geometry tab (shared, in `packages/ui`), and
+  saving a model with its drawings.
+
 ### A viewer to embed in other pages
 
 A small React component that shows one mechanism moving, to use on a page of

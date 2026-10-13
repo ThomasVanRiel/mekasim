@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachAs, sortFiles } from "./files.ts";
+import { attachAs, sortFiles, withDrawings } from "./files.ts";
 
 describe("files picked to open", () => {
   it("are a model and the drawings that go with it", () => {
@@ -45,5 +45,36 @@ describe("drawings attached to a model", () => {
     expect([
       ...attachAs(new Map([["four-bar-links.dxf", "A"]]), ["four-bar-links.dxf"]).keys(),
     ]).toEqual(["four-bar-links.dxf"]);
+  });
+});
+
+describe("drawings added to a model", () => {
+  const model = "mekafit: 1\nbodies: {}\n";
+
+  it("are written into geometry under a name from the file", () => {
+    const { text, files } = withDrawings(model, {}, [], new Map([["Coupler head.dxf", "A"]]));
+    expect(text).toContain("geometry:\n  coupler_head:");
+    expect(text).toContain("file: Coupler head.dxf");
+    expect([...files.keys()]).toEqual(["Coupler head.dxf"]);
+  });
+
+  it("are only kept when the model names them already", () => {
+    const sources = { links: { file: "links.dxf" } };
+    const named = withDrawings(model, sources, ["links.dxf"], new Map([["links.dxf", "A"]]));
+    expect(named.text).toBe(model);
+    // A file of another name takes the place of the one that is missing.
+    const renamed = withDrawings(model, sources, ["links.dxf"], new Map([["new export.dxf", "B"]]));
+    expect(renamed.text).toBe(model);
+    expect([...renamed.files]).toEqual([["links.dxf", "B"]]);
+  });
+
+  it("get names that are free", () => {
+    const { text } = withDrawings(
+      model,
+      { links: { file: "old.dxf" } },
+      [],
+      new Map([["links.dxf", "A"]]),
+    );
+    expect(text).toContain("links_2:");
   });
 });

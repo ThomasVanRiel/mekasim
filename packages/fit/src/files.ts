@@ -71,6 +71,29 @@ export function readDrawing(file: string, text: string, unit?: GeometrySource["u
   return drawing;
 }
 
+/** A body that takes its shape from a drawing, and how it says which outline. */
+export interface ShapeUse {
+  body: string;
+  /** The name of the drawing under `geometry`. */
+  from: string;
+  layer?: string;
+  /** Whether it picks its outline by a point inside it. */
+  byPoint: boolean;
+}
+
+export interface Resolved {
+  /** The document with every shape from a drawing written out, and `geometry` gone. */
+  doc: Document;
+  /** The drawings that are attached and could be read, by their name under `geometry`. */
+  drawings: Map<string, Drawing>;
+  /** The files named under `geometry` that are not attached. */
+  missing: string[];
+  /** What `geometry` says, by name. */
+  sources: Record<string, GeometrySource>;
+  /** The bodies that take their shape from a drawing. */
+  uses: ShapeUse[];
+}
+
 type Report = (diagnostic: Diagnostic) => void;
 type Path = (string | number)[];
 
@@ -86,11 +109,7 @@ class Reported extends Error {}
  * reported, and that body goes without its shape, so that the motion stays to be
  * seen while a drawing is being attached or put right.
  */
-export function resolveShapes(
-  doc: Document,
-  files: Files,
-  report: Report,
-): { doc: Document; drawings: Map<string, Drawing>; missing: string[] } {
+export function resolveShapes(doc: Document, files: Files, report: Report): Resolved {
   const sources = (doc as { geometry?: Record<string, GeometrySource> }).geometry ?? {};
   const units: Units = { length: "mm", angle: "deg", ...doc.meta?.units };
   const unit = docFactor(LENGTH, units);
@@ -162,6 +181,7 @@ export function resolveShapes(
     }
   }
 
+  const uses: ShapeUse[] = [];
   const bodies: Record<string, unknown> = {};
   for (const [id, body] of Object.entries(doc.bodies)) {
     const shape = body.shape as ShapeFromDrawing | { path: string } | undefined;
@@ -170,6 +190,7 @@ export function resolveShapes(
       continue;
     }
     const at: Path = ["bodies", id, "shape"];
+    uses.push({ body: id, from: shape.from, layer: shape.layer, byPoint: shape.at !== undefined });
     const { shape: _, ...rest } = body;
     bodies[id] = rest;
     try {
@@ -279,7 +300,23 @@ export function resolveShapes(
   }
 
   const { geometry: __, ...withoutGeometry } = doc as Document & { geometry?: unknown };
-  return { doc: { ...withoutGeometry, bodies } as Document, drawings, missing };
+  return { doc: { ...withoutGeometry, bodies } as Document, drawings, missing, sources, uses };
+}
+
+/**
+ * A name for a drawing under `geometry`, from its file's name: `parts/Coupler head.dxf`
+ * gives `coupler_head`, or the next free name like it.
+ */
+export function drawingName(file: string, taken: Iterable<string>): string {
+  const stem = (file.split(/[\\/]/).pop() ?? file).replace(/\.[^.]*$/, "");
+  const word = stem
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const base = /^[a-z_]/.test(word) ? word : `drawing${word === "" ? "" : `_${word}`}`;
+  const used = new Set(taken);
+  if (!used.has(base)) return base;
+  for (let n = 2; ; n++) if (!used.has(`${base}_${n}`)) return `${base}_${n}`;
 }
 
 /** The box round an outline of a drawing, in the drawing's unit, for showing it on its own. */

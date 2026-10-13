@@ -7,30 +7,24 @@ import {
   simulate as simulateModel,
   sweep as sweepModel,
 } from "@mekasim/core";
-import { type Drawing, type Files, resolveShapes } from "./files.ts";
+import { type Files, type Resolved, resolveShapes } from "./files.ts";
 import { load } from "./load.ts";
 import { FitDocument } from "./schema.ts";
 
 const NO_FILES: Files = new Map();
 
-/** A solved mekafit model: mekasim's results, and the drawings it took outlines from. */
-export interface FitSimulation extends Simulation {
-  /** The drawings named under `geometry` that were attached, by that name. */
-  drawings: Map<string, Drawing>;
-  /** The files named under `geometry` that are not attached. */
-  missing: string[];
-}
+/** A solved mekafit model: mekasim's results, and what its drawings came to. */
+export interface FitSimulation extends Simulation, Omit<Resolved, "doc"> {}
+
+const NOTHING: Omit<Resolved, "doc"> = { drawings: new Map(), missing: [], sources: {}, uses: [] };
 
 /** How mekafit runs mekasim's pipeline: its own schema, and its shapes put in mekasim's words. */
-function options(
-  files: Files,
-  found?: (drawings: Map<string, Drawing>, missing: string[]) => void,
-): SimulateOptions {
+function options(files: Files, found?: (resolved: Resolved) => void): SimulateOptions {
   return {
     schema: FitDocument,
     prepare(doc, report) {
       const resolved = resolveShapes(doc, files, report);
-      found?.(resolved.drawings, resolved.missing);
+      found?.(resolved);
       return resolved.doc;
     },
   };
@@ -42,16 +36,14 @@ function options(
  * mekasim's numbers.
  */
 export function simulate(text: string, files: Files = NO_FILES): FitSimulation {
-  let drawings = new Map<string, Drawing>();
-  let missing: string[] = [];
+  let extra = NOTHING;
   const simulation = simulateModel(
     text,
-    options(files, (found, absent) => {
-      drawings = found;
-      missing = absent;
+    options(files, ({ doc: _, ...rest }) => {
+      extra = rest;
     }),
   );
-  return { ...simulation, drawings, missing };
+  return { ...simulation, ...extra };
 }
 
 /** Solve the model once for each value of a parameter, as mekasim's `sweep` does. */

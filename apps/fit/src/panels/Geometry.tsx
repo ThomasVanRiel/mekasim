@@ -1,0 +1,200 @@
+import type { Drawing, ShapeUse } from "@mekasim/fit";
+import { label } from "@mekasim/ui";
+import { useRef } from "react";
+import { useStore } from "../store.ts";
+
+const small =
+  "shrink-0 rounded-sm border border-rule bg-sheet px-1.5 py-0.5 text-[12px] hover:border-ink-soft active:bg-paper";
+
+/** Metres to a unit, as the name of the unit. */
+function unitName(metres: number): string {
+  const names: [number, string][] = [
+    [0.001, "mm"],
+    [0.01, "cm"],
+    [1, "m"],
+    [0.0254, "in"],
+  ];
+  return names.find(([size]) => Math.abs(size - metres) < 1e-12)?.[1] ?? `${metres} m`;
+}
+
+const plural = (count: number, one: string, many = `${one}s`): string =>
+  `${count} ${count === 1 ? one : many}`;
+
+const place = ([x, y]: [number, number]): string =>
+  `(${Number(x.toPrecision(6))}, ${Number(y.toPrecision(6))})`;
+
+/** A button that picks one DXF file and hands over its text. */
+function PickDrawing({ children, onPick }: { children: string; onPick(text: string): void }) {
+  const input = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <button type="button" className={small} onClick={() => input.current?.click()}>
+        {children}
+      </button>
+      <input
+        ref={input}
+        type="file"
+        accept=".dxf"
+        className="hidden"
+        onChange={async (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) onPick(await file.text());
+        }}
+      />
+    </>
+  );
+}
+
+/** What one drawing holds: its layers with their outlines, who uses them, and what was left out. */
+function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
+  const skipped = [...drawing.skipped];
+  return (
+    <>
+      <p className="text-ink-soft text-sm">
+        {drawing.unit === undefined
+          ? "The file does not say its unit."
+          : `Drawn in ${unitName(drawing.unit)}${drawing.unitGiven ? ", as the model says" : ", as the file says"}.`}
+      </p>
+      {drawing.layers.size === 0 ? (
+        <p className="text-sm">No closed outline was found in it.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <caption className="sr-only">Layers of {drawing.file}</caption>
+          <thead>
+            <tr className="text-left text-[12px] text-ink-soft">
+              <th className="py-0.5 pr-2 font-normal">Layer</th>
+              <th className="py-0.5 pr-2 font-normal">Outlines</th>
+              <th className="py-0.5 font-normal">Used by</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...drawing.layers].map(([layer, outlines]) => {
+              const holes = outlines.reduce((sum, outline) => sum + outline.holes.length, 0);
+              const users = uses.filter((use) => use.layer === layer).map((use) => label(use.body));
+              return (
+                <tr key={layer} className="border-rule border-t align-baseline">
+                  <th
+                    scope="row"
+                    className="py-0.5 pr-2 text-left font-mono font-normal text-[12px]"
+                  >
+                    {layer}
+                  </th>
+                  <td className="py-0.5 pr-2 tabular-nums">
+                    {outlines.length}
+                    {holes > 0 && <span className="text-ink-soft">, {plural(holes, "hole")}</span>}
+                  </td>
+                  <td className={`py-0.5 ${users.length === 0 ? "text-ink-soft" : ""}`}>
+                    {users.join(", ") || "Nothing yet"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+      {drawing.open.length > 0 && (
+        <div className="border border-red px-2 py-1 text-sm">
+          <p>
+            {plural(drawing.open.length, "outline does", "outlines do")} not close, and cannot be a
+            shape:
+          </p>
+          <ul className="mt-0.5 text-ink-soft">
+            {drawing.open.slice(0, 6).map(({ layer, chain }) => (
+              <li key={`${layer} ${chain.from} ${chain.to}`}>
+                on <span className="font-mono text-[12px]">{layer}</span>, open between{" "}
+                {place(chain.from)} and {place(chain.to)}
+              </li>
+            ))}
+            {drawing.open.length > 6 && <li>and {drawing.open.length - 6} more</li>}
+          </ul>
+        </div>
+      )}
+      {skipped.length > 0 && (
+        <p className="text-ink-soft text-sm">
+          Left out: {skipped.map(([kind, count]) => `${count} ${kind}`).join(", ")}.
+        </p>
+      )}
+      {drawing.dropped > 0 && (
+        <p className="text-ink-soft text-sm">
+          {plural(drawing.dropped, "segment")} drawn twice or of no length{" "}
+          {drawing.dropped === 1 ? "was" : "were"} dropped.
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * The drawings of the model: which are attached, what each holds, and which body
+ * takes its outline from where. Drawings are added and exchanged for newer ones here.
+ */
+export function Geometry() {
+  const sources = useStore((s) => s.simulation.sources);
+  const drawings = useStore((s) => s.simulation.drawings);
+  const uses = useStore((s) => s.simulation.uses);
+  const files = useStore((s) => s.files);
+  const input = useRef<HTMLInputElement>(null);
+  const names = Object.keys(sources);
+
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto">
+      <div className="flex items-baseline gap-2 border-rule border-b px-3 py-2">
+        <p className="min-w-0 flex-1 text-ink-soft text-sm">
+          {names.length === 0
+            ? "No drawings yet. Add one to take the outlines of parts from it."
+            : "The drawings this model takes outlines from."}
+        </p>
+        <button type="button" className={small} onClick={() => input.current?.click()}>
+          Add drawing (DXF)
+        </button>
+        <input
+          ref={input}
+          type="file"
+          accept=".dxf"
+          multiple
+          className="hidden"
+          onChange={async (event) => {
+            const picked = [...(event.target.files ?? [])];
+            event.target.value = "";
+            const read = await Promise.all(
+              picked.map(async (file) => [file.name, await file.text()] as const),
+            );
+            useStore.getState().attach(new Map(read));
+          }}
+        />
+      </div>
+      {names.map((name) => {
+        const source = sources[name] as (typeof sources)[string];
+        const drawing = drawings.get(name);
+        const attached = files.has(source.file);
+        return (
+          <section
+            key={name}
+            aria-label={`Drawing ${name}`}
+            className="flex flex-col gap-1.5 border-rule border-b px-3 py-2"
+          >
+            <h3 className="flex items-baseline gap-2">
+              <span className="font-semibold">{label(name)}</span>
+              <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-ink-soft">
+                {source.file}
+              </span>
+              <PickDrawing onPick={(text) => useStore.getState().replace(source.file, text)}>
+                {attached ? "Replace" : "Attach"}
+              </PickDrawing>
+            </h3>
+            {!attached ? (
+              <p className="border border-brass px-2 py-1 text-sm">
+                Not attached. The bodies that take their shape from it are drawn without one.
+              </p>
+            ) : drawing ? (
+              <Report drawing={drawing} uses={uses.filter((use) => use.from === name)} />
+            ) : (
+              <p className="text-sm">It could not be read; see the messages below.</p>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}

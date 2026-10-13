@@ -1,7 +1,7 @@
 import { asMekasim, flatten } from "@mekasim/fit";
 import { download, encodeModel, fileStem, useTheme } from "@mekasim/ui";
 import { useMemo, useRef, useState } from "react";
-import { attachAs, sortFiles } from "../files.ts";
+import { sortFiles } from "../files.ts";
 import { useStore } from "../store.ts";
 
 const button =
@@ -80,8 +80,7 @@ export function Header() {
           const read = await Promise.all(
             picked.map(async (file) => [file.name, await file.text()] as const),
           );
-          const state = useStore.getState();
-          state.attach(attachAs(new Map(read), state.simulation.missing));
+          useStore.getState().attach(new Map(read));
         }}
       />
       <button
@@ -123,7 +122,7 @@ export function Header() {
           const state = useStore.getState();
           // A model opens with the drawings picked along with it; drawings alone join this model.
           if (model !== undefined) state.load(model, drawings);
-          else if (drawings.size > 0) state.attach(attachAs(drawings, state.simulation.missing));
+          else if (drawings.size > 0) state.attach(drawings);
         }}
       />
     </header>

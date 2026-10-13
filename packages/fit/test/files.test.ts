@@ -7,7 +7,14 @@ import {
   simulate as simulateModel,
 } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
-import { asMekasim, flatten, readDrawing, shapesToDxf, simulate } from "../src/index.ts";
+import {
+  asMekasim,
+  drawingName,
+  flatten,
+  readDrawing,
+  shapesToDxf,
+  simulate,
+} from "../src/index.ts";
 
 const read = (path: string): string =>
   readFileSync(new URL(`../../../examples/${path}`, import.meta.url), "utf8");
@@ -213,5 +220,27 @@ describe("shapes written as a drawing", () => {
       expect(outline?.holes).toHaveLength(1);
       expect(drawing.open).toEqual([]);
     }
+  });
+});
+
+describe("what a model says of its drawings", () => {
+  it("is kept for showing: what is named, and which body uses which layer", () => {
+    const simulation = simulate(model, files);
+    expect(simulation.sources).toEqual({ links: { file: "four-bar-links.dxf" } });
+    expect(simulation.uses).toEqual([
+      { body: "crank", from: "links", layer: "CRANK", byPoint: false },
+      { body: "coupler", from: "links", layer: "COUPLER", byPoint: false },
+      { body: "rocker", from: "links", layer: "ROCKER", byPoint: false },
+    ]);
+    // Also when the drawing is not there.
+    expect(simulate(model).uses).toHaveLength(3);
+  });
+
+  it("names a drawing after its file", () => {
+    expect(drawingName("four-bar-links.dxf", [])).toBe("four_bar_links");
+    expect(drawingName("parts/Coupler head.DXF", [])).toBe("coupler_head");
+    expect(drawingName("links.dxf", ["links", "links_2"])).toBe("links_3");
+    expect(drawingName("2024 plate.dxf", [])).toBe("drawing_2024_plate");
+    expect(drawingName(".dxf", [])).toBe("drawing");
   });
 });

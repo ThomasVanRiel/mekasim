@@ -170,7 +170,9 @@ mekasim draws, until shapes exist), plays and scrubs. A mekasim model opens as i
 The skeleton has the header, the source in the editor mekasim has (moved to
 `packages/ui/src/editor` and given its text, messages and callbacks as properties)
 with the messages under it, the sheet, and the Run panel with playback and the
-model's plots. Still to come as their phases need them: the side panel, dividers between the panels, the Geometry tab and the tools.
+model's plots. Still to come as their phases need them: the side panel and the tools. Dividers between the panels and a first Geometry tab
+(drawings with their layers, who uses them, the import report, attach and replace)
+are there; picking outlines on the sheet is not.
 "Open in mekasim" needs `VITE_MEKASIM_URL` set for the site's build; in the dev
 server it points at mekasim's dev server.
 
