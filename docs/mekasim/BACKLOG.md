@@ -66,8 +66,6 @@ each with a pin. That solves correctly, but it is not what an eccentric is.
 
 A body can take its outline from a DXF drawing (`geometry:`). Left to do:
 
-- **Splines and ellipses** in a drawing are left out and counted; they are to be
-  replaced by arcs within a tolerance.
 - **SVG drawings.**
 - **Saving the drawings themselves.** A saved model keeps the outlines it took from
   its drawings, so it is complete, but the DXF files are not saved with it: they are

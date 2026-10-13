@@ -204,6 +204,7 @@ old one and the model follows.
 |---|---|
 | `file` | The name of a DXF file. In the app it is attached to the model; on the command line it is looked for in the model's folder |
 | `unit` | Length unit of the drawing, when the file does not say: `mm cm m in` |
+| `fit` | How closely curves that are not arcs are replaced by arcs, as a length; default `0.002 mm` |
 
 A body's `shape` then says which outline it is:
 
@@ -220,8 +221,10 @@ A body's `shape` then says which outline it is:
 not expressions over parameters.
 
 Of a drawing, lines, arcs, circles and polylines are read, and blocks are put in
-where they are inserted. Text, dimensions and hatches are left out, and so, for
-now, are splines and ellipses. Lines that meet end to end within a hair's breadth
+where they are inserted. Splines and ellipses are replaced by arcs that stay within
+`fit` of them and meet without corners, since an outline is made of lines and arcs
+only; a larger `fit` gives fewer arcs. Text, dimensions and hatches are left out.
+Lines that meet end to end within a hair's breadth
 are joined into outlines; an outline that does not close cannot be a shape, and is
 reported with the two ends it is open between. The app shows what each drawing
 holds, layer by layer, in the Geometry tab beside the source.

@@ -40,7 +40,7 @@ export {
 } from "./compile/compile.ts";
 export { type Diagnostic, hasErrors, type Position, type Severity } from "./diagnostics.ts";
 export { type Chained, chain, type Nested, nest, type OpenChain } from "./drawing/loops.ts";
-export { type RawDrawing, readDxf } from "./drawing/read.ts";
+export { DEFAULT_FIT, type RawDrawing, type ReadOptions, readDxf } from "./drawing/read.ts";
 export {
   type Drawing,
   drawingFiles,
@@ -117,6 +117,7 @@ export {
   type Slot,
   slotOutline,
 } from "./fabricate/parts.ts";
+export { type Curve, ellipseCurve, fitArcs, splineCurve } from "./geometry/fit.ts";
 export { intersections } from "./geometry/intersect.ts";
 export { convexHull, type Point, plateOutline } from "./geometry/outline.ts";
 export { arcBetween, OutlineError, parsePath, writePath } from "./geometry/path.ts";
@@ -135,6 +136,7 @@ export {
   loopBounds,
   type Placement,
   placeLoop,
+  placePoint,
   placeShape,
   pointAt,
   reach,

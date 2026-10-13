@@ -82,6 +82,9 @@ const Geometry = z.strictObject({
     .enum(LENGTH_UNITS)
     .optional()
     .describe("Length unit of the drawing, when the file does not say"),
+  fit: Expr.optional().describe(
+    "How closely curves that are not arcs, such as splines and ellipses, are replaced by arcs; default 0.002 mm",
+  ),
 });
 
 const Body = z.strictObject({

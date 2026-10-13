@@ -9,7 +9,7 @@ import { insideLoop, type Loop, loopBounds, placeLoop, startOf } from "../geomet
 import type { Document } from "../schema/document.ts";
 import { load } from "../schema/load.ts";
 import { chain, type Nested, nest, type OpenChain } from "./loops.ts";
-import { readDxf } from "./read.ts";
+import { DEFAULT_FIT, readDxf } from "./read.ts";
 
 /** What a model says of one drawing under `geometry`. */
 export type GeometrySource = NonNullable<Document["geometry"]>[string];
@@ -41,15 +41,31 @@ export interface Drawing {
   skipped: Map<string, number>;
   /** Segments drawn twice or of no length, which were dropped. */
   dropped: number;
+  /** How closely curves that are not arcs were replaced by arcs, in metres. */
+  fit: number;
+  /**
+   * Where curves that are not arcs, such as splines and ellipses, were replaced: on
+   * which layer, how many curves, and how many lines and arcs stand for them.
+   */
+  fitted: { layer: string; curves: number; segments: number }[];
 }
 
-/** Read a drawing into outlines. `unit` is the model's word on the unit, when it has one. */
-export function readDrawing(file: string, text: string, unit?: GeometrySource["unit"]): Drawing {
+/**
+ * Read a drawing into outlines. `unit` is the model's word on the unit, when it has
+ * one; `fit` how closely curves that are not arcs are replaced by arcs, in metres.
+ */
+export function readDrawing(
+  file: string,
+  text: string,
+  unit?: GeometrySource["unit"],
+  fit = DEFAULT_FIT,
+): Drawing {
   if (!/\.dxf$/i.test(file)) {
     throw new Error(`"${file}" is not a DXF file. Other drawings, such as SVG, are not read yet`);
   }
-  const raw = readDxf(text);
-  const metres = unit ? (UNITS[unit] as { factor: number }).factor : raw.unit;
+  const given = unit ? (UNITS[unit] as { factor: number }).factor : undefined;
+  const raw = readDxf(text, { unit: given, fit });
+  const metres = given ?? raw.unit;
   // Joined as finely as a nanometre, or a millionth of a unit when the unit is not known.
   const tolerance = metres ? JOIN / metres : 1e-6;
   const drawing: Drawing = {
@@ -60,6 +76,8 @@ export function readDrawing(file: string, text: string, unit?: GeometrySource["u
     open: [],
     skipped: raw.skipped,
     dropped: 0,
+    fit,
+    fitted: [...raw.fitted].map(([layer, count]) => ({ layer, ...count })),
   };
   for (const [layer, segments] of raw.layers) {
     const { closed, open, dropped } = chain(segments, tolerance);
@@ -143,9 +161,34 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
         if (!missing.includes(source.file)) missing.push(source.file);
         continue;
       }
+      let fit: number | undefined;
+      if (source.fit !== undefined) {
+        try {
+          const quantity = evaluate(parseExpr(String(source.fit)), {
+            units,
+            resolve(used, node) {
+              throw new ExprError(
+                `"${used}" cannot be used here: fit is written as a length`,
+                node.pos,
+              );
+            },
+          });
+          fit = toSI(quantity, LENGTH, units) as number;
+        } catch (error) {
+          if (!(error instanceof ExprError)) throw error;
+          throw fail("error", `${error.message} in "${source.fit}"`, ["geometry", name, "fit"]);
+        }
+        if (!(fit > 0)) {
+          throw fail(
+            "error",
+            `fit is how far the arcs may lie from a curve, and has to be more than zero. Found "${source.fit}"`,
+            ["geometry", name, "fit"],
+          );
+        }
+      }
       let drawing: Drawing;
       try {
-        drawing = readDrawing(source.file, text, source.unit);
+        drawing = readDrawing(source.file, text, source.unit, fit);
       } catch (error) {
         throw fail("error", (error as Error).message, path);
       }

@@ -135,6 +135,46 @@ describe("a drawing that is not there, or not as the model says", () => {
     expect((shapeOfBody(inches, "rocker") as Shape).bounds.maxX).toBeCloseTo(0.119 * 25.4, 9);
   });
 
+  it("takes how closely curves are replaced by arcs from the model", () => {
+    const withFit = (fit: string) =>
+      model.replace("{ file: four-bar-links.dxf }", `{ file: four-bar-links.dxf, fit: ${fit} }`);
+    expect(simulate(model, files).drawings.get("links")?.fit).toBe(2e-6);
+    const coarse = simulate(withFit("0.05 mm"), files);
+    expect(coarse.diagnostics).toEqual([]);
+    expect(coarse.drawings.get("links")?.fit).toBeCloseTo(5e-5, 15);
+    // Without a unit of its own it is in the model's unit of length.
+    expect(simulate(withFit("0.01"), files).drawings.get("links")?.fit).toBeCloseTo(1e-5, 15);
+    expect(said(withFit("0"))[0]).toEqual([
+      "error",
+      'fit is how far the arcs may lie from a curve, and has to be more than zero. Found "0"',
+      "geometry.links.fit",
+    ]);
+    expect(said(withFit("r / 100"))[0]?.[1]).toBe(
+      '"r" cannot be used here: fit is written as a length in "r / 100"',
+    );
+  });
+
+  it("says where curves were replaced by arcs", () => {
+    const oval = [
+      "0\nSECTION\n2\nENTITIES",
+      "0\nELLIPSE\n8\nOVAL\n10\n0\n20\n0\n11\n30\n21\n0\n40\n0.5",
+      "0\nENDSEC\n0\nEOF\n",
+    ].join("\n");
+    const drawing = readDrawing("oval.dxf", oval, "mm");
+    expect(drawing.open).toEqual([]);
+    expect(drawing.layers.get("OVAL")).toHaveLength(1);
+    expect(drawing.fitted).toEqual([
+      {
+        layer: "OVAL",
+        curves: 1,
+        segments: drawing.layers.get("OVAL")?.[0]?.outer.segments.length,
+      },
+    ]);
+    expect(readDrawing("oval.dxf", oval, "mm", 1e-4).fitted[0]?.segments).toBeLessThan(
+      drawing.fitted[0]?.segments as number,
+    );
+  });
+
   it("says where an outline is open", () => {
     // Without its first line the crank's outline no longer closes.
     const cut = dxf.replace(

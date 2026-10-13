@@ -1,11 +1,16 @@
+import { type Curve, ellipseCurve, fitArcs, splineCurve } from "../geometry/fit.ts";
 import { arcBetween } from "../geometry/path.ts";
 import {
   type Loop,
   type Placement,
   type Point,
   placeLoop,
+  placePoint,
   type Segment,
 } from "../geometry/shape.ts";
+
+/** How closely a curve that is not an arc is replaced by arcs, in metres, unless the model says. */
+export const DEFAULT_FIT = 2e-6;
 
 /** Metres to one drawing unit, by the code a DXF file gives for its unit. */
 const INSUNITS: Record<number, number> = {
@@ -27,8 +32,21 @@ export interface RawDrawing {
   unit?: number;
   /** The segments on each layer, in the order of the file. */
   layers: Map<string, Segment[]>;
-  /** What was left out, by kind: text, dimensions, hatches, curves not read yet. */
+  /** What was left out, by kind: text, dimensions, hatches, curves that make no sense. */
   skipped: Map<string, number>;
+  /**
+   * The curves on each layer that are not arcs, such as splines and ellipses: how
+   * many there are, and how many lines and arcs stand for them.
+   */
+  fitted: Map<string, { curves: number; segments: number }>;
+}
+
+/** What `readDxf` needs to know to replace curves by arcs. */
+export interface ReadOptions {
+  /** Metres to one unit of the drawing, when the model says. */
+  unit?: number;
+  /** How closely curves that are not arcs are replaced by arcs, in metres. */
+  fit?: number;
 }
 
 interface Pair {
@@ -62,11 +80,12 @@ const DEG = Math.PI / 180;
 
 /**
  * Read an ASCII DXF file: lines, arcs, circles and polylines, with blocks put in
- * where they are inserted. Text, dimensions and hatches are counted and left out.
+ * where they are inserted, and splines and ellipses replaced by arcs. Text,
+ * dimensions and hatches are counted and left out.
  */
-export function readDxf(text: string): RawDrawing {
+export function readDxf(text: string, options: ReadOptions = {}): RawDrawing {
   const pairs = pairsOf(text);
-  const drawing: RawDrawing = { layers: new Map(), skipped: new Map() };
+  const drawing: RawDrawing = { layers: new Map(), skipped: new Map(), fitted: new Map() };
   const blocks = new Map<string, { base: Point; entities: Entity[] }>();
   const top: Entity[] = [];
 
@@ -133,6 +152,9 @@ export function readDxf(text: string): RawDrawing {
     drawing.skipped.set(kind, (drawing.skipped.get(kind) ?? 0) + 1);
   };
 
+  // A file that does not say its unit is most often drawn in millimetres.
+  const tolerance = (options.fit ?? DEFAULT_FIT) / (options.unit ?? drawing.unit ?? 0.001);
+
   function emit(
     entities: Entity[],
     placements: Placement[],
@@ -150,6 +172,62 @@ export function readDxf(text: string): RawDrawing {
       // Drawn on the back of the sheet: seen from the front, mirrored left to right.
       const flipped = number(230, 1) < 0;
       const segments: Segment[] = [];
+      const all = (code: number): number[] =>
+        fields.filter((pair) => pair.code === code).map((pair) => Number(pair.value));
+
+      if (type === "SPLINE" || type === "ELLIPSE") {
+        // These are written where they lie on the sheet, whichever side they were drawn
+        // on, and are put in place as curves, so that the arcs are as near as asked there.
+        const placed = (point: Point): Point =>
+          placements.reduce((at, placement) => placePoint(at, placement), point);
+        const origin = placed([0, 0]);
+        const turned = (vector: Point): Point => {
+          const [x, y] = placed(vector);
+          return [x - origin[0], y - origin[1]];
+        };
+        let curve: Curve | undefined;
+        if (type === "SPLINE") {
+          const xs = all(10);
+          const ys = all(20);
+          const points = xs.map((x, k): Point => placed([x, ys[k] ?? 0]));
+          const weights = all(41);
+          curve = splineCurve(
+            number(71, 3),
+            all(40),
+            points,
+            weights.length === points.length ? weights : undefined,
+          );
+        } else {
+          const a: Point = [number(11), number(21)];
+          const ratio = number(40, 1) * (flipped ? -1 : 1);
+          const start = number(41);
+          let sweep = (number(42, 2 * Math.PI) - start) % (2 * Math.PI);
+          if (sweep <= 0) sweep += 2 * Math.PI;
+          if (Math.hypot(a[0], a[1]) > 0 && ratio !== 0) {
+            curve = ellipseCurve(
+              placed([number(10), number(20)]),
+              turned(a),
+              turned([-a[1] * ratio, a[0] * ratio]),
+              start,
+              sweep,
+            );
+          }
+        }
+        const fitted = curve ? fitArcs(curve, tolerance) : [];
+        if (fitted.length === 0) {
+          skip("curves that could not be read");
+          continue;
+        }
+        const count = drawing.fitted.get(layer) ?? { curves: 0, segments: 0 };
+        drawing.fitted.set(layer, {
+          curves: count.curves + 1,
+          segments: count.segments + fitted.length,
+        });
+        const onLayer = drawing.layers.get(layer) ?? [];
+        onLayer.push(...fitted);
+        drawing.layers.set(layer, onLayer);
+        continue;
+      }
 
       if (type === "LINE") {
         const from: Point = [number(10), number(20)];

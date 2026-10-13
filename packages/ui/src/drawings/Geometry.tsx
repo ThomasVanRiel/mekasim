@@ -86,6 +86,8 @@ function Picture({ drawing, layer }: { drawing: Drawing; layer: string }) {
 /** What one drawing holds: its layers with their outlines, who uses them, and what was left out. */
 function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
   const skipped = [...drawing.skipped];
+  const curves = drawing.fitted.reduce((sum, fitted) => sum + fitted.curves, 0);
+  const pieces = drawing.fitted.reduce((sum, fitted) => sum + fitted.segments, 0);
   return (
     <>
       <p className="text-ink-soft text-sm">
@@ -152,6 +154,20 @@ function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
             {drawing.open.length > 6 && <li>and {drawing.open.length - 6} more</li>}
           </ul>
         </div>
+      )}
+      {curves > 0 && (
+        <p className="text-ink-soft text-sm">
+          {plural(curves, "curve that is not an arc was", "curves that are not arcs were")} replaced
+          by {plural(pieces, "arc")}, within {Number((drawing.fit * 1000).toPrecision(3))} mm of{" "}
+          {curves === 1 ? "it" : "them"}, on{" "}
+          {drawing.fitted.map(({ layer }, i) => (
+            <span key={layer}>
+              {i > 0 && ", "}
+              <span className="font-mono text-[12px]">{layer}</span>
+            </span>
+          ))}
+          .
+        </p>
       )}
       {skipped.length > 0 && (
         <p className="text-ink-soft text-sm">

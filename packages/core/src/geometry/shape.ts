@@ -158,16 +158,20 @@ export interface Placement {
   mirror?: boolean;
 }
 
-export function placeLoop(loop: Loop, placement: Placement): Loop {
+/** A place laid down somewhere else. */
+export function placePoint([px, py]: Point, placement: Placement): Point {
   const { x = 0, y = 0, angle = 0, scale = 1, mirror = false } = placement;
   const cos = Math.cos(angle);
   const sin = Math.sin(angle);
+  const sx = (mirror ? -1 : 1) * px * scale;
+  const sy = py * scale;
+  return [x + sx * cos - sy * sin, y + sx * sin + sy * cos];
+}
+
+export function placeLoop(loop: Loop, placement: Placement): Loop {
+  const { angle = 0, scale = 1, mirror = false } = placement;
   const flip = mirror ? -1 : 1;
-  const point = (px: number, py: number): Point => {
-    const sx = flip * px * scale;
-    const sy = py * scale;
-    return [x + sx * cos - sy * sin, y + sx * sin + sy * cos];
-  };
+  const point = (px: number, py: number): Point => placePoint([px, py], placement);
   return {
     segments: loop.segments.map((segment): Segment => {
       if (segment.kind === "line") {

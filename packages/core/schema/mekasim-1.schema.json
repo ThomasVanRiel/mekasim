@@ -114,6 +114,13 @@
               "m",
               "in"
             ]
+          },
+          "fit": {
+            "description": "How closely curves that are not arcs, such as splines and ellipses, are replaced by arcs; default 0.002 mm",
+            "type": [
+              "number",
+              "string"
+            ]
           }
         },
         "required": [

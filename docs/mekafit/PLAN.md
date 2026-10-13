@@ -21,7 +21,8 @@ their code is in the shared packages:
 - Outlines of lines and true arcs, path text, and the checks on them
   (`packages/core/src/geometry`).
 - `shape: { path, holes }` on a body, drawn by both apps and exported as the part.
-- DXF reading (lines, arcs, circles, polylines, blocks), joining into outlines,
+- DXF reading (lines, arcs, circles, polylines, blocks; splines and ellipses
+  replaced by arcs within `fit`, `packages/core/src/geometry/fit.ts`), joining into outlines,
   `geometry:` with `shape: { from, layer, at, place }` (`packages/core/src/drawing`).
 - A saved model keeps the outline each body takes from a drawing, as `path` beside
   `from`, so the YAML alone is complete; the drawing wins while it is attached.
@@ -37,8 +38,6 @@ is only the schema with that first line and the calls into core.
 
 **Not built yet in phase 1:**
 
-- Splines and ellipses in a DXF (now left out and counted), replaced by arcs within
-  a tolerance, with `fit` per drawing.
 - SVG drawings.
 - `plate: true` as a shape, and the `copy` component.
 - Picking an outline on the sheet to give it to a body, and pins from holes.
@@ -48,7 +47,7 @@ is only the schema with that first line and the calls into core.
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
 **Next:** finish what phase 1 needs for Thomas's own coupler drawing to come in
-(splines and ellipses first, then whatever its import report shows), then phase 2:
+(splines and ellipses are read now; next is whatever its import report shows), then phase 2:
 exact distance between shapes and `gap()`. Phase 2 is the first that is mekafit's
 alone, unless Thomas asks for it in mekasim as well.
 

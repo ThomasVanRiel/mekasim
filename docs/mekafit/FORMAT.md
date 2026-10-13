@@ -19,8 +19,8 @@ Built so far: the first line `mekafit: 1`. Shapes are mekasim's own by now, writ
 out as `path` or taken from a DXF drawing with `geometry:`, `from`, `layer`, `at`
 and `place` ([../mekasim/FORMAT.md](../mekasim/FORMAT.md), "Shapes" and "Shapes
 from a drawing"), and so are `checks:` and conditions. The sections on shapes below
-are kept for what mekasim does not have yet: `fit`, SVG drawings, `plate` and
-`copy`. Everything from contacts on is still to come.
+are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
+(`fit` is mekasim's too by now). Everything from contacts on is still to come.
 
 ## A whole example
 

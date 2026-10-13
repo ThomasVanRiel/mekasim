@@ -437,10 +437,80 @@ describe("reading DXF", () => {
     expect(Object.fromEntries(drawing.skipped)).toEqual({
       TEXT: 2,
       DIMENSION: 1,
-      SPLINE: 1,
+      "curves that could not be read": 1,
       "blocks that could not be found": 1,
     });
     expect(drawing.layers.get("0")).toHaveLength(1);
+  });
+
+  it("replaces splines and ellipses by arcs, as closely as asked", () => {
+    // A lens: a line along the x axis, closed by a spline that bows over it.
+    const spline = [0, "SPLINE", 8, "LENS", 70, 8, 71, 3, 72, 8, 73, 4];
+    for (const knot of [0, 0, 0, 0, 1, 1, 1, 1]) spline.push(40, knot);
+    for (const [x, y] of [
+      [40, 0],
+      [30, 20],
+      [10, 20],
+      [0, 0],
+    ] as const)
+      spline.push(10, x, 20, y, 30, 0);
+    const text = entities(
+      ...lineEntity("LENS", 0, 0, 40, 0),
+      ...spline,
+      ...[0, "ELLIPSE", 8, "EYE", 10, 20, 20, 8, 11, 6, 21, 0, 40, 0.5, 41, 0, 42, 2 * Math.PI],
+    );
+    const drawing = readDxf(text);
+    const lens = chain(drawing.layers.get("LENS") ?? [], 1e-6);
+    expect([lens.closed.length, lens.open.length]).toEqual([1, 0]);
+    // The area under the curve of these control points, worked out by hand.
+    expect(Math.abs(loopArea(lens.closed[0] as Loop))).toBeCloseTo(420, 1);
+    const eye = chain(drawing.layers.get("EYE") ?? [], 1e-6);
+    expect([eye.closed.length, eye.open.length]).toEqual([1, 0]);
+    expect(Math.abs(loopArea(eye.closed[0] as Loop))).toBeCloseTo(Math.PI * 6 * 3, 1);
+    expect(loopArea(eye.closed[0] as Loop)).toBeGreaterThan(0);
+
+    const fine = drawing.fitted.get("LENS");
+    expect(fine?.curves).toBe(1);
+    expect(drawing.fitted.get("EYE")?.curves).toBe(1);
+    expect(drawing.skipped.size).toBe(0);
+    // Asked for less closely, or drawn in a larger unit, fewer arcs will do.
+    const coarse = readDxf(text, { fit: 1e-4 }).fitted.get("LENS");
+    expect(coarse?.segments).toBeLessThan(fine?.segments as number);
+    expect(readDxf(text, { unit: 1e-6 }).fitted.get("LENS")?.segments).toBeLessThan(
+      fine?.segments as number,
+    );
+  });
+
+  it("puts an ellipse of a block where the block is, mirrored with it", () => {
+    const drawing = readDxf(
+      dxf(
+        0,
+        "SECTION",
+        2,
+        "BLOCKS",
+        0,
+        "BLOCK",
+        2,
+        "CAM",
+        10,
+        0,
+        20,
+        0,
+        ...[0, "ELLIPSE", 8, "0", 10, 10, 20, 0, 11, 4, 21, 0, 40, 0.5, 41, 0, 42, Math.PI / 2],
+        0,
+        "ENDBLK",
+        0,
+        "ENDSEC",
+      ) + entities(0, "INSERT", 8, "PART", 2, "CAM", 10, 100, 20, 50, 41, -2, 42, 2),
+    );
+    const segments = drawing.layers.get("PART") ?? [];
+    // From the end of the long axis to the end of the short one, mirrored and twice the size.
+    expect(startOf(segments[0] as Segment)[0]).toBeCloseTo(100 - 28, 9);
+    expect(startOf(segments[0] as Segment)[1]).toBeCloseTo(50, 9);
+    expect(endOf(segments.at(-1) as Segment)[0]).toBeCloseTo(100 - 20, 9);
+    expect(endOf(segments.at(-1) as Segment)[1]).toBeCloseTo(50 + 4, 9);
+    // Mirrored, it goes round clockwise.
+    expect(segments.every((segment) => segment.kind === "arc" && segment.sweep < 0)).toBe(true);
   });
 
   it("reads lines ending in CR LF, and says when a file is not a text DXF", () => {

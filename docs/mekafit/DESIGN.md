@@ -562,7 +562,10 @@ fit:study`; each replay gives its stored outcome.
 **Examples.** mekafit's examples go in `examples/fit/` and are solved by a test like
 `examples.test.ts`: `knuckle-coupler.mekafit.yaml` (simplified, drawn for the
 purpose, not Thomas's design), `ratchet.mekafit.yaml`, `door-latch.mekafit.yaml`,
-`clearance-check.mekafit.yaml` (motor-driven, gaps only).
+`clearance-check.mekafit.yaml` (motor-driven, gaps only),
+`push-latch.mekafit.yaml` (Thomas's idea: a push-to-open catch as in a drawer, a
+pin riding in a heart-shaped slot, which rests in one of two places and goes from
+one to the other with each push).
 
 ## 9. Order of work
 
@@ -578,8 +581,8 @@ skeletons, the SVG sheet.
 `shape` with `path` → shapes on the sheet (and in mekasim's 3D view) → DXF reading
 and loops → `geometry:` and `shape.from` → outlines kept in the model for saving
 and links → Geometry tab (attach, replace, layers with pictures, report) →
-`shapesToDxf`. Still to do, in this order unless Thomas says otherwise: splines and
-ellipses as arcs (biarc fitting within `fit`) → SVG drawings → picking outlines on
+`shapesToDxf` → splines and ellipses as arcs (biarc fitting within `fit`). Still to
+do, in this order unless Thomas says otherwise: SVG drawings → picking outlines on
 the sheet into bodies, pins from holes → saving the drawings with the model (folder
 or `.zip`), follow file → `plate: true` → `copy` → true arcs in the parts' DXF →
 help text.
