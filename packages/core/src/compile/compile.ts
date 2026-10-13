@@ -48,6 +48,8 @@ export interface CompiledBody {
   layerGiven: boolean;
   /** The real outline, where the model gives one, in metres. */
   shape?: Shape;
+  /** Whether the model leaves the body out of the drawing and of what is made. */
+  hidden: boolean;
 }
 
 /** How near two places on an outline count as one, in metres. */
@@ -344,6 +346,7 @@ function compileExpanded(
       shape,
       layer: body.layer ?? 0,
       layerGiven: body.layer !== undefined,
+      hidden: body.hidden ?? false,
     });
   }
   if (!bodies.has(GROUND)) {

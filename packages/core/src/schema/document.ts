@@ -93,6 +93,12 @@ const Body = z.strictObject({
     .describe("Named points in the body's own frame, as [x, y]"),
   layer: z.int().optional().describe("Depth order for the 3D view; higher is nearer the viewer"),
   shape: Shape.optional(),
+  hidden: z
+    .boolean()
+    .optional()
+    .describe(
+      "Leaves the body out of the drawing and of what is made; it moves and holds its joints as before",
+    ),
 });
 
 const Revolute = z.strictObject({

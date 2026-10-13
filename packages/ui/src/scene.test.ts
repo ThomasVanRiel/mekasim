@@ -128,6 +128,24 @@ describe("gears, belts and cams", () => {
     expect(Math.max(...radii)).toBeCloseTo(0.034, 6);
   });
 
+  it("leaves a hidden body out, with its names, and keeps the pins that join it to the rest", () => {
+    const url = new URL("../../../examples/four-bar.mekasim.yaml", import.meta.url);
+    const text = readFileSync(url, "utf8");
+    const shown = buildScene(simulate(text)) as Scene;
+    const hidden = buildScene(
+      simulate(text.replace("  coupler:\n", "  coupler:\n    hidden: true\n")),
+    ) as Scene;
+    expect(shown.bodies.map((b) => b.id)).toEqual(["crank", "coupler", "rocker"]);
+    expect(hidden.bodies.map((b) => b.id)).toEqual(["crank", "rocker"]);
+    expect(hidden.pins.map((p) => p.id)).toEqual(shown.pins.map((p) => p.id));
+    const names = (scene: Scene) => scene.labels.map((l) => l.text);
+    expect(names(shown)).toContain("Coupler");
+    expect(names(hidden)).not.toContain("Coupler");
+    expect(names(hidden)).not.toContain("P");
+    // The motion is the same: nothing but the drawing changes.
+    expect(hidden.cycle.q).toEqual(shown.cycle.q);
+  });
+
   it("draws a model made of components like any other", () => {
     const scene = example("shaker-components");
     expect(scene.bodies).toHaveLength(7);

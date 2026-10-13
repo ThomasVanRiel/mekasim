@@ -298,6 +298,10 @@
               }
             ],
             "description": "The real outline of the body: one outline, with the outlines inside it cut out"
+          },
+          "hidden": {
+            "description": "Leaves the body out of the drawing and of what is made; it moves and holds its joints as before",
+            "type": "boolean"
           }
         },
         "required": [

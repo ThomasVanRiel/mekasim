@@ -250,7 +250,8 @@ export function buildScene(simulation: Simulation): Scene | undefined {
 
   const bodies: DrawBody[] = [];
   for (const body of compiled.bodies.values()) {
-    if (body.index < 0) continue;
+    // A hidden body is left out, with its names; what joins it to a body that shows stays.
+    if (body.index < 0 || body.hidden) continue;
     const points = [...body.points].map(([name, { u, v }]) => ({ name, u, v }));
     const z = backOf(body.layer);
     depth = Math.max(depth, z + sizes.thickness);
@@ -275,7 +276,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     const body = compiled.bodies.get(bodyId);
     const local = body?.points.get(name);
     if (!body || !local) throw new Error(`Unknown point "${ref}"`);
-    return { index: body.index, z: backOf(body.layer), ...local };
+    return { index: body.index, z: backOf(body.layer), hidden: body.hidden, ...local };
   };
 
   const driven = new Set(compiled.drivers.map((driver) => driver.joint));
@@ -307,6 +308,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     if (joint.type === "revolute" || joint.type === "weld") {
       const a = locate(joint.points[0] as string);
       const b = locate(joint.points[1] as string);
+      if (a.hidden && b.hidden) continue;
       // Draw the pin on a moving body so that it follows the motion.
       const carrier = a.index >= 0 ? a : b;
       if (a.index < 0 || b.index < 0) {
@@ -397,18 +399,21 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     const from = locate(joint.points[0] as string);
     const to = locate(joint.points[1] as string);
     const pin = locate(joint.points[2] as string);
-    pins.push({
-      id: joint.id,
-      kind: joint.type,
-      refs: joint.points,
-      body: pin.index,
-      u: pin.u,
-      v: pin.v,
-      zBack: Math.min(from.z, pin.z) - margin,
-      zFront: Math.max(from.z, pin.z) + sizes.thickness + margin,
-      radius: radiusOf(joint.id),
-      driven: false,
-    });
+    // The line of travel belongs to the body it lies on, the pin to the one that slides.
+    if (from.hidden && pin.hidden) continue;
+    if (!pin.hidden)
+      pins.push({
+        id: joint.id,
+        kind: joint.type,
+        refs: joint.points,
+        body: pin.index,
+        u: pin.u,
+        v: pin.v,
+        zBack: Math.min(from.z, pin.z) - margin,
+        zFront: Math.max(from.z, pin.z) + sizes.thickness + margin,
+        radius: radiusOf(joint.id),
+        driven: false,
+      });
 
     // Draw the axis as far as the pin travels along it.
     const length = Math.hypot(to.u - from.u, to.v - from.v);
@@ -436,6 +441,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     }
     low -= 3 * half;
     high += 3 * half;
+    if (from.hidden) continue;
     axes.push({
       id: joint.id,
       body: from.index,
@@ -478,6 +484,7 @@ export function buildScene(simulation: Simulation): Scene | undefined {
   }
   const labels: DrawLabel[] = [];
   for (const body of compiled.bodies.values()) {
+    if (body.hidden) continue;
     const front = backOf(body.layer) + (body.index < 0 ? 0 : sizes.thickness);
     let cu = 0;
     let cv = 0;
@@ -513,8 +520,11 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     bounds,
     depth,
     gridStep: nice((extent / unit / 14) * 1) * unit,
-    ground: groundBody ? [...groundBody.points].map(([name, { u, v }]) => ({ name, u, v })) : [],
-    groundShape: groundBody?.shape,
+    ground:
+      groundBody && !groundBody.hidden
+        ? [...groundBody.points].map(([name, { u, v }]) => ({ name, u, v }))
+        : [],
+    groundShape: groundBody?.hidden ? undefined : groundBody?.shape,
     supports,
     groundZ,
     bodies,

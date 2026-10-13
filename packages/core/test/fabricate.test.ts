@@ -38,6 +38,15 @@ describe("buildParts", () => {
     expect(parts.map((p) => p.id)).toEqual(["ground", "crank", "coupler", "rocker"]);
   });
 
+  it("makes no part of a hidden body", () => {
+    const hidden = example("four-bar").replace("  coupler:\n", "  coupler:\n    hidden: true\n");
+    expect(buildParts(simulate(hidden), SIZES).map((p) => p.id)).toEqual([
+      "ground",
+      "crank",
+      "rocker",
+    ]);
+  });
+
   it("drills one hole where two points of a body lie on the same place", () => {
     // Each frame pivot of the strandbeest carries two joints, on two points of the ground.
     const ground = part(buildParts(simulate(example("strandbeest")), SIZES), "ground");

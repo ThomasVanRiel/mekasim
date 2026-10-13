@@ -139,6 +139,12 @@ run into each other: bodies that share a joint are kept apart, and so are bodies
 whose plates overlap at any instant of the cycle. Each takes the lowest layer that
 leaves free.
 
+`hidden: true` leaves a body out of the drawing and of what is made: its plate or
+shape, the names of its points, and the line of a slider that lies on it. It moves
+and holds its joints as before. It is for a body that is there only to carry
+another, such as a carriage that a part slides on. A pin or slider is still drawn
+where it joins a hidden body to one that shows.
+
 A point is referred to elsewhere as `body.point`, for example `coupler.P`.
 
 ### Shapes

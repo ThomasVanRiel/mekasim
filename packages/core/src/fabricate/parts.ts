@@ -134,6 +134,7 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
 
   const parts: Part[] = [];
   for (const body of compiled.bodies.values()) {
+    if (body.hidden) continue;
     if (body.shape) {
       parts.push({
         id: body.id,
