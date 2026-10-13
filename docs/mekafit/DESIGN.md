@@ -36,6 +36,7 @@ packages/fit/src
   geometry/
     distance.ts   exact nearest points between segments and between shapes; `gap`
     tree.ts       bounding-box tree over a shape's segments
+  measures.ts     `gap(a, b)`, through core's registry; force, torque, latched to come
   (to come)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
   compile.ts      contacts, springs, locks, stops, move drivers, in core's `extend` hook
@@ -46,7 +47,6 @@ packages/fit/src
     qp.ts         small dense quadratic program (dual active set)
     quasistatic.ts the contact step and the stage-driven run
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
-  measures.ts     gap, force, torque, latched, final, first (through core's registry)
   study/
     random.ts     seeded generator (splitmix32 seeding xoshiro128**)
     sample.ts     random, spread (Latin hypercube), grid

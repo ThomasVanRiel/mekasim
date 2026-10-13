@@ -36,6 +36,14 @@ shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
 Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
 is only the schema with that first line and the calls into core.
 
+**Phase 2, clearance, is begun.** In `packages/fit`: the exact distance between two
+lines or arcs and between two shapes, with the two places it is between and a
+negative value where shapes overlap (`geometry/distance.ts`, `geometry/tree.ts`),
+and `gap(a, b)` as a function in measures, checks and plots (`measures.ts`). Still
+to do: `contacts:` and the message when parts run into each other, the gap drawn on
+the sheet, the Contacts fold, the Contact tool and "Find contacts", and the
+`clearance-check` example.
+
 **Not built yet in phase 1:**
 
 - SVG drawings.
@@ -46,10 +54,10 @@ is only the schema with that first line and the calls into core.
   example drawing; "Make" still writes polygons).
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
-**Next:** finish what phase 1 needs for Thomas's own coupler drawing to come in
-(splines and ellipses are read now; next is whatever its import report shows), then phase 2:
-exact distance between shapes and `gap()`. Phase 2 is the first that is mekafit's
-alone, unless Thomas asks for it in mekasim as well.
+**Next:** the rest of phase 2, in the order above. Thomas's own coupler drawing
+(`ref/coupler.dxf`, kept out of the repository) comes in as it is: one outline with
+two holes on layer `VISIBLE`, once its unit is picked. Phase 2 is the first that is
+mekafit's alone, unless Thomas asks for it in mekasim as well.
 
 **Changed from the plan below:** the plan was written when mekasim was to stay
 untouched. Where it says that shapes, path text, geometry files or conditions are

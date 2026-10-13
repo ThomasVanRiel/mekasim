@@ -15,7 +15,7 @@ drivers, pose, traces, measures, plots, frames.
 This page is written ahead of the build. The phase that adds each part is given in
 its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
 
-Built so far: the first line `mekafit: 1`. Shapes are mekasim's own by now, written
+Built so far: the first line `mekafit: 1`, and `gap(a, b)` in measures, checks and plots. Shapes are mekasim's own by now, written
 out as `path` or taken from a DXF drawing with `geometry:`, `from`, `layer`, `at`
 and `place` ([../mekasim/FORMAT.md](../mekasim/FORMAT.md), "Shapes" and "Shapes
 from a drawing"), and so are `checks:` and conditions. The sections on shapes below
