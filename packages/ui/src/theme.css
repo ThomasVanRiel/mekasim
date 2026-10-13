@@ -1,4 +1,4 @@
-/* The look shared by the apps: fonts and colour tokens. Import it after Tailwind. */
+/* The look shared by the apps: fonts, colour tokens and the page itself. Import it after Tailwind. */
 @import "@fontsource/barlow/400.css";
 @import "@fontsource/barlow/500.css";
 @import "@fontsource/barlow/600.css";
@@ -75,4 +75,62 @@
   --sweep-3: #5598e7;
   --sweep-4: #86b6ef;
   --sweep-5: #b7d3f6;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-sheet);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-dye);
+  outline-offset: 1px;
+}
+
+/* Timeline scrubber, drawn as a ruled line with a brass marker. */
+input[type="range"] {
+  appearance: none;
+  height: 20px;
+  background: transparent;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 2px;
+  background: var(--color-ink-soft);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 2px;
+  background: var(--color-ink-soft);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 10px;
+  height: 20px;
+  margin-top: -9px;
+  border: 1px solid var(--color-ink);
+  border-radius: 2px;
+  background: var(--marker);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 20px;
+  border: 1px solid var(--color-ink);
+  border-radius: 2px;
+  background: var(--marker);
+}
+
+input[type="range"]:disabled {
+  opacity: 0.4;
 }

@@ -8,7 +8,9 @@
   },
   "scripts": {
     "dev": "pnpm --filter @mekasim/web dev",
-    "build": "pnpm --filter @mekasim/web build",
+    "dev:fit": "pnpm --filter @mekasim/fit-web dev",
+    "build": "pnpm --filter @mekasim/web build && pnpm --filter @mekasim/fit-web build",
+    "build:fit": "pnpm --filter @mekasim/fit-web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "biome check .",

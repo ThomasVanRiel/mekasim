@@ -74,6 +74,8 @@ export function Sheet({
   const [view, setView] = useState<View>();
   const [space, setSpace] = useState(false);
   const drag = useRef<{ x: number; y: number }>(undefined);
+  /** Whether the sheet was moved while Space was held: that Space was not a tap. */
+  const moved = useRef(false);
   const latest = useRef(bounds);
   latest.current = bounds;
 
@@ -141,7 +143,7 @@ export function Sheet({
       ref={frame}
       // biome-ignore lint/a11y/noNoninteractiveTabindex: it takes the keys that move the view
       tabIndex={0}
-      className={`absolute inset-0 touch-none select-none overflow-hidden outline-none ${
+      className={`absolute inset-0 touch-none select-none overflow-hidden ${
         drag.current ? "cursor-grabbing" : space ? "cursor-grab" : ""
       }`}
       style={{ background: colors.paper }}
@@ -154,7 +156,11 @@ export function Sheet({
         }
       }}
       onKeyUp={(event) => {
-        if (event.key === " ") setSpace(false);
+        if (event.key !== " ") return;
+        setSpace(false);
+        // A Space that was held to move the sheet is used up; a tap goes on to the app.
+        if (moved.current) event.stopPropagation();
+        moved.current = false;
       }}
       onBlur={() => setSpace(false)}
       onPointerDown={(event) => {
@@ -170,6 +176,7 @@ export function Sheet({
         const dx = event.clientX - from.x;
         const dy = event.clientY - from.y;
         drag.current = { x: event.clientX, y: event.clientY };
+        if (space) moved.current = true;
         setView((now) => now && panned(now, dx, dy));
       }}
       onPointerUp={() => {

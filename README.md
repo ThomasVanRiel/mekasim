@@ -115,6 +115,10 @@ packages/ui/src
   plot/       chart geometry and drawing
   io/         share links, downloads
   *.tsx       parts of the interface that hold no model: folds, dividers, choices
+  scene.ts    what is drawn of a model: outlines, pins, traces, the pose at a step
+  sheet/      a flat SVG drawing sheet: pan, zoom, grid, names, dimensions
+packages/fit/src   mekafit's side of the pipeline (see docs/mekafit)
+apps/fit/src       mekafit, a second app for parts that touch (see docs/mekafit)
 apps/web/src
   store.ts    model text, solved result, playback state
   editor/     YAML source editor, renaming by editing

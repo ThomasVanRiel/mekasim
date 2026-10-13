@@ -1,0 +1,5 @@
+@import "tailwindcss";
+@import "@mekasim/ui/theme.css";
+
+/* Classes used in the shared interface parts are found there. */
+@source "../../../packages/ui/src";

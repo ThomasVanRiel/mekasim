@@ -1,0 +1,14 @@
+# mekafit's own site, built from the same repository as mekasim's. In Netlify the
+# site's base directory is the repository root and its config file is this one.
+[build]
+  command = "pnpm --filter @mekasim/fit-web build"
+  publish = "apps/fit/dist"
+
+[build.environment]
+  NODE_VERSION = "26"
+
+# The site is unlisted: keep it out of search engines.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"

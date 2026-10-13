@@ -1,6 +1,9 @@
 # mekafit — plan
 
-Status (2026-10-13): planned, nothing built. "mekafit" is a working name.
+Status (2026-10-13): phase 0 built but for its second Netlify site, which is
+described in `apps/fit/netlify.toml` and still has to be made in Netlify. mekasim
+gained `checks:` and comparisons on the way, which studies build on. "mekafit" is a
+working name.
 
 mekafit is a second app in the mekasim repository. mekasim stays as it is: its app,
 its format and its behaviour do not change. mekafit shares mekasim's solver,

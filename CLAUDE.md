@@ -24,8 +24,8 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 
 ## Commands
 
-- `pnpm dev` — web app dev server
-- `pnpm build` — production build of the web app
+- `pnpm dev` — mekasim's dev server; `pnpm dev:fit` — mekafit's, on port 5174
+- `pnpm build` — production build of both apps (`pnpm build:fit` for mekafit alone)
 - `pnpm test`, `pnpm typecheck`, `pnpm lint` (`pnpm format` applies fixes)
 - `pnpm solve <model.mekasim.yaml>` — run the solver from the command line
 - `pnpm schema` — regenerate the JSON Schema after changing the format
@@ -34,8 +34,9 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 
 ## Conventions
 
-- pnpm workspaces: `packages/core` (pure TypeScript, no DOM), `packages/ui` (React
-  parts and the look shared by the apps; no model, no app store) and `apps/web` (React).
+- pnpm workspaces: `packages/core` and `packages/fit` (pure TypeScript, no DOM),
+  `packages/ui` (React parts and the look shared by the apps; no model, no app
+  store), `apps/web` (mekasim) and `apps/fit` (mekafit).
 - Core runs as TypeScript directly in Node, so no `enum` or parameter properties,
   and relative imports carry the `.ts` extension.
 - Logic that does not need a browser belongs in plain modules with unit tests

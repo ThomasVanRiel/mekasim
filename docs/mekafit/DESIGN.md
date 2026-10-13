@@ -83,6 +83,13 @@ so does a `panels/Splitter.tsx` of a few lines that takes `panel` as before, rea
 and writes `useLayout`, and renders the shared one; mekasim's use of it does not
 change. mekafit has a layout store of its own, with its own panels and key.
 
+Also moved, beyond what was first listed: `viewport/scene.ts`, the description of
+the drawing (outlines, pins, slots, wheels, cams, traces, the pose at a step), which
+needs only the core, so that mekafit's sheet draws a mekasim model from the same
+description as mekasim's Three.js view; and the rules for the page itself (body,
+focus ring, the scrubber) into `theme.css`, so that `apps/web`'s `index.css` only
+imports.
+
 `packages/ui` depends on `@mekasim/core` (the charts are built from its results) and
 on `zustand` (`theme.ts` keeps the chosen theme in a small store of its own). It
 holds no model and no session state.
@@ -97,7 +104,8 @@ props instead of reading the store: `panels/Field.tsx`, `panels/Messages.tsx`,
 `editor/linked.ts`. Each move is its own change, checked in mekasim before going on.
 
 New in `packages/ui/src/sheet/`: an SVG sheet with pan (middle button or Space and
-drag), zoom to the cursor (wheel), fit (F), a grid that follows the zoom, labels
+drag; a Space that moved the sheet does not also start or stop playback), zoom to
+the cursor (wheel), fit (F), a grid that follows the zoom, labels
 that keep their size, and dimension lines with values. The geometry (view
 transform, grid spacing, label placement) is in plain modules with tests. The
 embeddable viewer in mekasim's backlog can use the same sheet later.
@@ -154,6 +162,13 @@ Vite and React as in `apps/web`, with the same Biome, TypeScript and Tailwind
 settings. Opens a model (file, share link or the last one kept in the browser),
 solves it with `@mekasim/fit`, draws bodies on the SVG sheet (the plate outlines
 mekasim draws, until shapes exist), plays and scrubs. A mekasim model opens as it is.
+
+The skeleton has the header, the source as a plain text field with the messages
+under it, the sheet, and the Run panel with playback and the model's plots. Still
+to come as their phases need them: mekasim's editor in place of the text field, the
+side panel, dividers between the panels, the Geometry tab and the tools.
+"Open in mekasim" needs `VITE_MEKASIM_URL` set for the site's build; in the dev
+server it points at mekasim's dev server.
 
 Second Netlify site from the same repository: `apps/fit/netlify.toml` with its own
 build command (`pnpm build:fit`) and publish folder; the site is set to read that
