@@ -38,6 +38,12 @@ describe("buildParts", () => {
     expect(parts.map((p) => p.id)).toEqual(["ground", "crank", "coupler", "rocker"]);
   });
 
+  it("drills one hole where two points of a body lie on the same place", () => {
+    // Each frame pivot of the strandbeest carries two joints, on two points of the ground.
+    const ground = part(buildParts(simulate(example("strandbeest")), SIZES), "ground");
+    expect(ground.holes).toHaveLength(3);
+  });
+
   it("makes a link as long as its points are apart and as wide as asked", () => {
     // The crank is 40 mm between pins: a 40 x 20 mm rectangle with a 20 mm round at each end.
     const crank = part(parts, "crank");

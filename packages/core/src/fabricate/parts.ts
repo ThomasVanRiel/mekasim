@@ -41,6 +41,9 @@ export interface Part {
   cutouts: Point[][];
 }
 
+/** How near two holes count as one, in metres. */
+const SAME_HOLE = 1e-9;
+
 /** Corners per full turn of the rounded outlines. */
 const SMOOTH = 96;
 
@@ -141,7 +144,7 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
       });
       continue;
     }
-    const bodyHoles = [...(holes.get(body.id)?.values() ?? [])];
+    const bodyHoles = sameHoles([...(holes.get(body.id)?.values() ?? [])]);
     const bodySlots = slots.get(body.id) ?? [];
     const reach: Point[] = bodySlots.flatMap((slot) => [slot.from, slot.to]);
     let points: Point[];
@@ -165,6 +168,20 @@ export function buildParts(simulation: Simulation, fabrication: Fabrication): Pa
   // The base plate first, then the links in the order of the model, then the cams.
   parts.sort((a, b) => Number(b.id === GROUND) - Number(a.id === GROUND));
   return [...parts, ...cams];
+}
+
+/**
+ * Holes on one place as one hole, of the smallest pin among them: two points of a body
+ * may lie on the same place, each with a joint of its own.
+ */
+function sameHoles(holes: Hole[]): Hole[] {
+  const kept: Hole[] = [];
+  for (const hole of holes) {
+    const there = kept.find((other) => Math.hypot(other.x - hole.x, other.y - hole.y) < SAME_HOLE);
+    if (there) there.diameter = Math.min(there.diameter, hole.diameter);
+    else kept.push({ ...hole });
+  }
+  return kept;
 }
 
 /** The outline of a slot, as a closed polygon. */

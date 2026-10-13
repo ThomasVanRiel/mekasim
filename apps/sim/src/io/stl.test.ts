@@ -58,6 +58,21 @@ describe("toStl", () => {
     expect(Math.max(...heights)).toBeCloseTo(5, 6);
   });
 
+  it("cuts each hole once where several joints share its place", () => {
+    const ground = parts("strandbeest").filter((p) => p.id === "ground");
+    expect(ground[0]?.holes).toHaveLength(3);
+    const solid = volume(
+      triangles(
+        toStl(
+          ground.map((p) => ({ ...p, holes: [] })),
+          SIZES.thickness,
+        ),
+      ),
+    );
+    const drilled = volume(triangles(toStl(ground, SIZES.thickness)));
+    expect((solid - drilled) / (3 * Math.PI * 3 ** 2 * 5)).toBeCloseTo(1, 2);
+  });
+
   it("cuts slots through", () => {
     const ground = parts("slider-crank").filter((p) => p.id === "ground");
     const withSlot = volume(triangles(toStl(ground, SIZES.thickness)));
