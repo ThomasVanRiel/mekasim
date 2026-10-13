@@ -13,5 +13,13 @@ export {
 } from "./contacts.ts";
 export { addContacts, asFitText, hasContact } from "./edit.ts";
 export { asMekasim, load } from "./load.ts";
+export {
+  FIT_REGISTRY,
+  FORCE,
+  FORCE_UNITS,
+  LINEAR_STIFFNESS,
+  TORQUE,
+  TORSIONAL_STIFFNESS,
+} from "./registry.ts";
 export { FitDocument, FORMAT, FORMAT_VERSION } from "./schema.ts";
 export { keepOutlines, simulate, sweep } from "./simulate.ts";

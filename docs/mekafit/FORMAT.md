@@ -23,7 +23,8 @@ are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
 (`fit` is mekasim's too by now, and so is `gap(a, b)`). The `contacts:` forms below
 are built and compile to checked, distinct pairs; a run reports the first overlap
 deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
-Everything after contacts is still to come.
+The force, torque and spring-stiffness units listed under Springs are built for
+expressions. Joint stops, springs and everything after them are still to come.
 
 ## A whole example
 

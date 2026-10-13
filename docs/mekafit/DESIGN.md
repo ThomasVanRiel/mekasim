@@ -37,6 +37,7 @@ packages/fit/src
   schema.ts       mekafit document: mekasim's schema with `mekafit: 1` and `contacts:`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
   simulate.ts     core's pipeline with mekafit's schema and extension hook
+  registry.ts     force, torque and stiffness units added to mekafit's expressions
   contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   edit.ts         additions to `contacts:` made by the tool and finder
   (to come)

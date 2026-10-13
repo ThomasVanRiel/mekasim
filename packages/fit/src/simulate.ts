@@ -13,11 +13,12 @@ import {
   contactResults,
   type FitSimulation,
 } from "./contacts.ts";
+import { FIT_REGISTRY } from "./registry.ts";
 import { FitDocument } from "./schema.ts";
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
 function options(files?: Files): SimulateOptions {
-  return { schema: FitDocument, files, extend: compileContacts };
+  return { schema: FitDocument, files, registry: FIT_REGISTRY, extend: compileContacts };
 }
 
 /**

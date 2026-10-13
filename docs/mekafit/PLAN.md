@@ -72,6 +72,10 @@ correctly stay at 0, while crank and rocker come closest at 97 mm at step 217.
 
 **Waiting for Thomas:** nothing in phase 2.
 
+**Phase 3, contact, has started.** Its force, torque and spring-stiffness units are
+built through mekafit's expression registry, without adding them to mekasim. Next
+is the small dense quadratic program in `packages/fit/src/solver/qp.ts`.
+
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
 
@@ -96,7 +100,8 @@ correctly stay at 0, while crank and rocker come closest at 97 mm at step 217.
    own example picker (Thomas asked that its examples be separate from mekasim's).
 
 Then phase 3, the contact step (DESIGN.md §5), which starts with
-`contactPoints` (§3.3) on top of `geometry/distance.ts`.
+`contactPoints` (§3.3) on top of `geometry/distance.ts`. Its force units were built
+first, following DESIGN.md §9; the quadratic program is next.
 
 **Settled with Thomas on 2026-10-13**, beyond what the sections below say:
 
