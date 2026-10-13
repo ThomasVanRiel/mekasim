@@ -196,7 +196,7 @@ export function resolveShapes(doc: Document, files: Files, report: Report): Reso
       if (drawing.unit === undefined) {
         fail(
           "error",
-          `"${source.file}" does not say what unit it is drawn in. Add it here, as in unit: mm`,
+          `"${source.file}" does not say what unit it is drawn in. Pick it under Geometry, or add it here, as in unit: mm`,
           ["geometry", name],
         );
       }

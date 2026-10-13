@@ -11,7 +11,7 @@ import {
   simulate,
   sweep as solveSweep,
 } from "@mekasim/core";
-import { buildScene, LIVE, type Scene, withDrawings } from "@mekasim/ui";
+import { buildScene, LIVE, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import { type Coordinates, SHEET } from "./coordinates.ts";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
@@ -180,6 +180,8 @@ interface State {
   attach(picked: Files): void;
   /** Put a newer file in place of a drawing, under the name the model knows it by. */
   replace(file: string, text: string): void;
+  /** Say what unit a drawing is in, for one whose file does not. */
+  setUnit(name: string, unit: "mm" | "cm" | "m" | "in"): void;
   /** Take new text for the same model. `event` says how the editor should record it. */
   edit(text: string, event?: string): void;
   /** Change the model from the drawing or a panel. Returns false when nothing could be done. */
@@ -269,6 +271,9 @@ export const useStore = create<State>((set, get) => {
       const files = new Map([...get().files, [file, text]]);
       set({ files });
       get().edit(keepOutlines(get().text, files));
+    },
+    setUnit(name, unit) {
+      get().edit(keepOutlines(withUnit(get().text, name, unit), get().files));
     },
     edit(text, event = "input.canvas") {
       const next = solve(text, get().files, get());

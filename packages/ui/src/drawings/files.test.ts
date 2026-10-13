@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attachAs, sortFiles, withDrawings } from "./files.ts";
+import { attachAs, sortFiles, withDrawings, withUnit } from "./files.ts";
 
 describe("files picked to open", () => {
   it("are a model and the drawings that go with it", () => {
@@ -76,5 +76,19 @@ describe("drawings added to a model", () => {
       new Map([["links.dxf", "A"]]),
     );
     expect(text).toContain("links_2:");
+  });
+});
+
+describe("the unit of a drawing that does not say it", () => {
+  const text = "mekasim: 1\ngeometry:\n  links: { file: links.dxf }\nbodies: {}\n";
+
+  it("is written beside its file, and changed when picked again", () => {
+    const inMm = withUnit(text, "links", "mm");
+    expect(inMm).toContain("links: { file: links.dxf, unit: mm }");
+    expect(withUnit(inMm, "links", "in")).toContain("links: { file: links.dxf, unit: in }");
+  });
+
+  it("leaves a text that does not read as it is", () => {
+    expect(withUnit("geometry: [", "links", "mm")).toBe("geometry: [");
   });
 });

@@ -59,6 +59,7 @@ export function Source() {
           files={files}
           onAdd={(picked) => useStore.getState().attach(picked)}
           onReplace={(file, text) => useStore.getState().replace(file, text)}
+          onUnit={(name, unit) => useStore.getState().setUnit(name, unit)}
         />
       )}
       <Splitter

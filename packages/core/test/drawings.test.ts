@@ -123,7 +123,7 @@ describe("a drawing that is not there, or not as the model says", () => {
       ["four-bar-links.dxf", dxf.replace("$INSUNITS\n70\n4\n", "$INSUNITS\n70\n0\n")],
     ]);
     expect(said(model, silent)[0]?.[1]).toBe(
-      '"four-bar-links.dxf" does not say what unit it is drawn in. Add it here, as in unit: mm',
+      '"four-bar-links.dxf" does not say what unit it is drawn in. Pick it under Geometry, or add it here, as in unit: mm',
     );
     const told = model.replace(
       "{ file: four-bar-links.dxf }",

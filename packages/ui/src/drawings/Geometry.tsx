@@ -17,6 +17,9 @@ function unitName(metres: number): string {
   return names.find(([size]) => Math.abs(size - metres) < 1e-12)?.[1] ?? `${metres} m`;
 }
 
+type Unit = NonNullable<GeometrySource["unit"]>;
+const UNITS: Unit[] = ["mm", "cm", "m", "in"];
+
 const plural = (count: number, one: string, many = `${one}s`): string =>
   `${count} ${count === 1 ? one : many}`;
 
@@ -84,17 +87,50 @@ function Picture({ drawing, layer }: { drawing: Drawing; layer: string }) {
 }
 
 /** What one drawing holds: its layers with their outlines, who uses them, and what was left out. */
-function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
+function Report({
+  drawing,
+  uses,
+  onUnit,
+}: {
+  drawing: Drawing;
+  uses: ShapeUse[];
+  onUnit(unit: Unit): void;
+}) {
   const skipped = [...drawing.skipped];
   const curves = drawing.fitted.reduce((sum, fitted) => sum + fitted.curves, 0);
   const pieces = drawing.fitted.reduce((sum, fitted) => sum + fitted.segments, 0);
   return (
     <>
-      <p className="text-ink-soft text-sm">
-        {drawing.unit === undefined
-          ? "The file does not say its unit."
-          : `Drawn in ${unitName(drawing.unit)}${drawing.unitGiven ? ", as the model says" : ", as the file says"}.`}
-      </p>
+      {drawing.unit === undefined ? (
+        <p className="flex flex-wrap items-baseline gap-1.5 border border-brass px-2 py-1 text-sm">
+          <span>The file does not say what unit it is drawn in. It is in</span>
+          {UNITS.map((unit) => (
+            <button key={unit} type="button" className={small} onClick={() => onUnit(unit)}>
+              {unit}
+            </button>
+          ))}
+        </p>
+      ) : drawing.unitGiven ? (
+        <p className="text-ink-soft text-sm">
+          <label>
+            Drawn in{" "}
+            <select
+              className="rounded-sm border border-rule bg-sheet text-ink"
+              value={unitName(drawing.unit)}
+              onChange={(event) => onUnit(event.target.value as Unit)}
+            >
+              {UNITS.map((unit) => (
+                <option key={unit}>{unit}</option>
+              ))}
+            </select>
+          </label>
+          , as the model says.
+        </p>
+      ) : (
+        <p className="text-ink-soft text-sm">
+          Drawn in {unitName(drawing.unit)}, as the file says.
+        </p>
+      )}
       {drawing.layers.size === 0 ? (
         <p className="text-sm">No closed outline was found in it.</p>
       ) : (
@@ -215,6 +251,7 @@ export function Geometry({
   files,
   onAdd,
   onReplace,
+  onUnit,
 }: {
   /** What the model says under `geometry`, by name. */
   sources: Record<string, GeometrySource>;
@@ -228,6 +265,8 @@ export function Geometry({
   onAdd(picked: Map<string, string>): void;
   /** A file was picked to stand for a drawing the model names. */
   onReplace(file: string, text: string): void;
+  /** The unit a drawing is in was picked, by the drawing's name under `geometry`. */
+  onUnit(name: string, unit: Unit): void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const names = Object.keys(sources);
@@ -281,7 +320,11 @@ export function Geometry({
             {!attached ? (
               <Detached uses={uses.filter((use) => use.from === name)} />
             ) : drawing ? (
-              <Report drawing={drawing} uses={uses.filter((use) => use.from === name)} />
+              <Report
+                drawing={drawing}
+                uses={uses.filter((use) => use.from === name)}
+                onUnit={(unit) => onUnit(name, unit)}
+              />
             ) : (
               <p className="text-sm">It could not be read; see the messages below.</p>
             )}

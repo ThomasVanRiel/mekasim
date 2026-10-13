@@ -1,6 +1,6 @@
 import type { Files, Simulation } from "@mekasim/core";
 import { keepOutlines, simulate } from "@mekasim/fit";
-import { buildScene, type Scene, withDrawings } from "@mekasim/ui";
+import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
 import { comfortableRate } from "./playback.ts";
@@ -64,6 +64,8 @@ interface State extends Solved {
   attach(picked: Files): void;
   /** Put a newer file in place of a drawing, under the name the model knows it by. */
   replace(file: string, text: string): void;
+  /** Say what unit a drawing is in, for one whose file does not. */
+  setUnit(name: string, unit: "mm" | "cm" | "m" | "in"): void;
   /** Change the text of this model, keeping the place in the run. */
   setText(text: string): void;
   setStep(step: number): void;
@@ -122,6 +124,9 @@ export const useStore = create<State>((set, get) => {
       const text = keepOutlines(get().text, files);
       keep(text, files);
       set({ ...solve(text, files, get()), text, files });
+    },
+    setUnit(name, unit) {
+      get().setText(keepOutlines(withUnit(get().text, name, unit), get().files));
     },
     setText(next) {
       keep(next, get().files);

@@ -33,6 +33,22 @@ export function attachAs(
 }
 
 /**
+ * The model's text with the unit a drawing is in written beside its file, for a
+ * drawing that does not say it. A text that does not read is given back as it is.
+ */
+export function withUnit(
+  text: string,
+  name: string,
+  unit: NonNullable<GeometrySource["unit"]>,
+): string {
+  try {
+    return editText(text, [{ op: "set", path: ["geometry", name, "unit"], value: unit }]);
+  } catch {
+    return text;
+  }
+}
+
+/**
  * Drawings added to a model: kept as files, and those the model does not name yet
  * written into its `geometry:` section, each under a name made from its file's.
  * A text that does not read is left as it is; the files are kept all the same.

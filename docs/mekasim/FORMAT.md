@@ -203,7 +203,7 @@ old one and the model follows.
 | Field | Meaning |
 |---|---|
 | `file` | The name of a DXF file. In the app it is attached to the model; on the command line it is looked for in the model's folder |
-| `unit` | Length unit of the drawing, when the file does not say: `mm cm m in` |
+| `unit` | Length unit of the drawing, when the file does not say: `mm cm m in`. The Geometry tab asks for it and writes it here |
 | `fit` | How closely curves that are not arcs are replaced by arcs, as a length; default `0.002 mm` |
 
 A body's `shape` then says which outline it is:

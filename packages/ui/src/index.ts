@@ -1,5 +1,5 @@
 export { Choice } from "./Choice.tsx";
-export { attachAs, sortFiles, withDrawings } from "./drawings/files.ts";
+export { attachAs, sortFiles, withDrawings, withUnit } from "./drawings/files.ts";
 export { Geometry } from "./drawings/Geometry.tsx";
 export { type Thumb, thumbOf } from "./drawings/thumb.ts";
 export { LIVE } from "./editor/history.ts";
