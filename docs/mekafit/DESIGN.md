@@ -77,7 +77,8 @@ apps/fit/src
   sheet/Drawing.tsx   the mechanism on the sheet, shapes with true arcs
   panels/         Header, Source (tabs Source and Geometry, messages), Run, Contacts and finder
   sheet/          SVG mechanism drawing and the Select and Contact tools
-  (to come)       Inspector, SpringsLocks, Studies, Parameters, StudyResults,
+  panels/SpringsLocks, springs.ts   the Springs and locks fold and its wording
+  (to come)       Inspector, Studies, Parameters, StudyResults,
                   io/project.ts (folder or `.zip`), study/ (worker, runner, scatter)
 ```
 

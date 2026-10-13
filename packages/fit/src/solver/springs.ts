@@ -4,6 +4,8 @@ import { type BodyPoint, type Mat, mat, type Placed, place } from "@mekasim/core
 export interface TorsionSpring {
   id: string;
   kind: "torsion";
+  /** The revolute joint it is on. */
+  joint: string;
   /** The joint's two bodies as solver indices; its angle is that of `b` less that of `a`. */
   a: number;
   b: number;

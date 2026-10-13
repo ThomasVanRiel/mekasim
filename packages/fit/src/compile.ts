@@ -332,6 +332,7 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
         const spring: CompiledSpring = {
           id,
           kind: "torsion",
+          joint: entry.joint,
           a: a.body,
           b: b.body,
           stiffness: stiffness(

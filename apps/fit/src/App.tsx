@@ -8,9 +8,11 @@ import { Contacts } from "./panels/Contacts.tsx";
 import { Header } from "./panels/Header.tsx";
 import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
+import { SpringsLocks } from "./panels/SpringsLocks.tsx";
 import { advance, stepped } from "./playback.ts";
 import { Drawing, Names } from "./sheet/Drawing.tsx";
 import { Tools } from "./sheet/Tools.tsx";
+import { locksAt } from "./springs.ts";
 import { useStore } from "./store.ts";
 
 /** Moves the position in the run on with the clock while it plays. */
@@ -107,6 +109,7 @@ function useLinkedModel(): void {
 
 export function App() {
   const scene = useStore((s) => s.scene);
+  const shown = useStore((s) => s.shown);
   const units = useStore((s) => s.shown?.compiled?.units);
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const step = useStore((s) => s.step);
@@ -169,6 +172,7 @@ export function App() {
                 step={step}
                 tool={tool}
                 contactDraft={contactDraft}
+                locks={locksAt(shown, step)}
                 onBody={(body) => useStore.getState().pickContact(body)}
               />
             </Sheet>
@@ -198,6 +202,7 @@ export function App() {
       />
       <aside className="min-h-0 overflow-y-auto bg-sheet">
         <Contacts />
+        <SpringsLocks />
       </aside>
     </div>
   );

@@ -59,12 +59,15 @@ export function Drawing({
   step,
   tool = "select",
   contactDraft,
+  locks = [],
   onBody,
 }: {
   scene: Scene;
   step: number;
   tool?: "select" | "contact";
   contactDraft?: string;
+  /** The locks at this step, each on its joint: drawn as a small marker, filled when in. */
+  locks?: { id: string; joint: string; in: boolean }[];
   onBody?(body: string): void;
 }) {
   const colors: Palette = useColors();
@@ -224,6 +227,24 @@ export function Drawing({
           />
         </On>
       ))}
+      {locks.map((lock) => {
+        const pin = scene.pins.find(({ id }) => id === lock.joint);
+        if (!pin) return null;
+        // A small square on its corner, on the joint the lock drops in behind.
+        const half = pin.radius * 0.6;
+        return (
+          <On key={lock.id} poses={poses} body={pin.body}>
+            <path
+              d={`M${pin.u - half} ${pin.v}L${pin.u} ${pin.v - half}L${pin.u + half} ${pin.v}L${pin.u} ${pin.v + half}Z`}
+              fill={lock.in ? colors.brass : colors.paper}
+              stroke={colors.brass}
+              {...LINE}
+            >
+              <title>{`${lock.id}: ${lock.in ? "in" : "out"}`}</title>
+            </path>
+          </On>
+        );
+      })}
     </>
   );
 }

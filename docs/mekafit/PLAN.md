@@ -114,8 +114,14 @@ its body. The measures `force`, `torque`, `latched`, `final` and `first` read th
 (`packages/fit/src/measures.ts`, through core's registry), and mekafit's plots show
 forces in N and torques in N·mm (N·m in a model not drawn in millimetres).
 
-**Next in phase 3:** the Springs and locks fold, and the examples (ratchet, door
-latch, coupler, push latch).
+The Springs and locks fold is built (`apps/fit/src/panels/SpringsLocks.tsx`, its
+wording in `apps/fit/src/springs.ts`): each spring, each joint with stops and each
+lock, with what it is and how it stands at the step being shown ("Pulling with
+40 N", "Against its stop with 60 N", "In, holding 20 N"). A lock is drawn on the
+sheet as a small brass square on its joint, filled when it is in. Not yet checked
+in the browser.
+
+**Next in phase 3:** the examples (ratchet, door latch, coupler, push latch).
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
 springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and
@@ -124,7 +130,8 @@ a joint's name could mean its pin's force or its stop's.
 
 **Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev
 server (the lever should lie against the bar's corner all the way down and back,
-and its angle plot should be a smooth dip to 0); and the two mekasim fixes of the
+and its angle plot should be a smooth dip to 0; its force plots in N and N·mm; the
+Springs and locks fold beside it); and the two mekasim fixes of the
 same day, the middle click that pasted and the ground plate's doubled holes.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and

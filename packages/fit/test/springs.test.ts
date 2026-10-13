@@ -59,6 +59,7 @@ function slope(springs: CompiledSpring[], q: Float64Array, h = 1e-7): number[] {
 const torsion: CompiledSpring = {
   id: "opener",
   kind: "torsion",
+  joint: "pin",
   a: 0,
   b: 1,
   stiffness: 2,
