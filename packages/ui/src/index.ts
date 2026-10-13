@@ -7,6 +7,7 @@ export { type EditorHandle, SourceEditor } from "./editor/SourceEditor.tsx";
 export { BESIDE_FOLD, FOLD_BUTTON, Fold } from "./Fold.tsx";
 export { download, fileStem } from "./io/download.ts";
 export { decodeModel, encodeModel, exampleFragment, exampleIn } from "./io/share.ts";
+export { noMiddlePaste } from "./middle.ts";
 export { label, refLabel, titled } from "./names.ts";
 export { Chart } from "./plot/Chart.tsx";
 export * from "./plot/charts.ts";

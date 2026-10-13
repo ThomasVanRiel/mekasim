@@ -1,4 +1,4 @@
-import { useColors } from "@mekasim/ui";
+import { noMiddlePaste, useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
@@ -199,11 +199,13 @@ export function Interaction() {
       press = undefined;
     }
 
+    const allowPaste = noMiddlePaste(host);
     host.addEventListener("pointerdown", onDown, true);
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
     return () => {
+      allowPaste();
       host.removeEventListener("pointerdown", onDown, true);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);

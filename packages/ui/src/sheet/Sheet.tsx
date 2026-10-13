@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { noMiddlePaste } from "../middle.ts";
 import { useColors } from "../theme.ts";
 import { dimensionGeometry } from "./dimension.ts";
 import { gridLines, gridStep } from "./grid.ts";
@@ -78,6 +79,9 @@ export function Sheet({
   const moved = useRef(false);
   const latest = useRef(bounds);
   latest.current = bounds;
+
+  // The middle button moves the sheet here, so letting it go must not paste.
+  useEffect(() => (frame.current ? noMiddlePaste(frame.current) : undefined), []);
 
   useEffect(() => {
     const element = frame.current;
