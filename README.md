@@ -13,7 +13,7 @@ Requires Node 26 and pnpm 11.
 
 ```
 pnpm install
-pnpm dev         # the app, at http://localhost:5173
+pnpm dev         # both apps: mekasim at http://localhost:5173, mekafit at :5174
 ```
 
 Edit the YAML on the left and the drawing, measures and messages follow. Or work
@@ -87,7 +87,7 @@ dimensions instead of point positions.
 ## Develop
 
 ```
-pnpm build       # production build of the app, into apps/web/dist
+pnpm build       # production build of both apps, into apps/web/dist and apps/fit/dist
 pnpm test        # unit tests
 pnpm typecheck
 pnpm lint        # Biome; `pnpm format` applies fixes
