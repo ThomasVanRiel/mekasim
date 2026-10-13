@@ -10,9 +10,9 @@ The technical design is in [DESIGN.md](DESIGN.md); the file format in
 
 ## Where it stands (2026-10-13)
 
-**Phase 0, the split, is built**, except that the second Netlify site still has to
-be made in Netlify (package directory `apps/fit`, which has its own `netlify.toml`;
-set `VITE_MEKASIM_URL` there for "Open in mekasim").
+**Phase 0, the split, is built.** mekafit's own Netlify site is up at
+<https://mekafit.netlify.app/>, built from `apps/fit` with its own `netlify.toml`.
+`VITE_MEKASIM_URL` still has to be set there for "Open in mekasim".
 
 **Phase 1, shapes, is partly built, and most of it ended up in mekasim.** Thomas
 wanted shapes and drawings in mekasim too, so they are part of mekasim's format and
