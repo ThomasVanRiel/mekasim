@@ -5,6 +5,7 @@ import { download, fileStem } from "../io/download.ts";
 import { encodeModel, exampleFragment } from "../io/share.ts";
 import { useStore } from "../store.ts";
 import { useTheme } from "../theme.ts";
+import { Make } from "./Build.tsx";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2.5 py-1 text-sm hover:border-ink-soft active:bg-paper";
@@ -39,7 +40,7 @@ export function Header() {
   }
 
   return (
-    <header className="flex flex-wrap items-center gap-x-4 gap-y-2 border-rule border-b px-4 py-2">
+    <header className="relative flex flex-wrap items-center gap-x-4 gap-y-2 border-rule border-b px-4 py-2">
       <span className="font-semibold text-lg tracking-tight">mekasim</span>
       <span className="min-w-0 flex-1 truncate text-ink-soft">{name ?? "Untitled model"}</span>
       <button type="button" className={editing} onClick={() => load(NEW_MODEL)}>
@@ -75,6 +76,7 @@ export function Header() {
       <button type="button" className={editing} onClick={copyLink}>
         {shared === "copied" ? "Link copied" : shared === "failed" ? "Could not copy" : "Copy link"}
       </button>
+      <Make className={button} />
       <button type="button" className={button} onClick={toggleTheme}>
         {theme === "dark" ? "Light theme" : "Dark theme"}
       </button>

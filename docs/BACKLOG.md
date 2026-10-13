@@ -102,8 +102,8 @@ app gives nothing away.
 
 Done so far:
 
-- **Export links for 3D printing and laser cutting.** "Parts to make" in the side
-  panel; real dimensions in the model's `fabrication:` section.
+- **Export links for 3D printing and laser cutting.** "Make" in the header; real
+  dimensions in the model's `fabrication:` section.
 
 ## Open points on the export
 

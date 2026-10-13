@@ -54,7 +54,7 @@ mechanism, and paste the YAML it answers with into the source. The text is
 [skill/SKILL.md](skill/SKILL.md) with the format reference and a few examples
 added.
 
-"Parts to make" in the side panel takes the real width, thickness and pin size of
+"Make" in the header takes the real width, thickness and pin size of
 the links, and downloads them as flat pieces: a DXF to laser cut, an STL to print.
 "Download DXF of the points" there saves the joints at the start of the cycle as
 points, with the links as lines between them, to build on in a CAD program.

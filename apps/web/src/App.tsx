@@ -4,7 +4,6 @@ import { EXAMPLES } from "./examples.ts";
 import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Checks } from "./panels/Checks.tsx";
-import { Build } from "./panels/Build.tsx";
 import { BESIDE_FOLD } from "./panels/Fold.tsx";
 import { Header } from "./panels/Header.tsx";
 import { HELP_ID, Help } from "./panels/Help.tsx";
@@ -284,7 +283,6 @@ export function App() {
         <Parameters />
         <Measures />
         <Checks />
-        <Build />
       </div>
 
       <Help />
