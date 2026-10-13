@@ -111,7 +111,8 @@ function Finder({ onClose }: { onClose(): void }) {
 
 /** Listed contact pairs and the closest they came over the run. */
 export function Contacts() {
-  const contacts = useStore((state) => state.shown?.contacts ?? []);
+  // The empty list is made here and not in the selector, which must give the same thing each time.
+  const contacts = useStore((state) => state.shown?.contacts) ?? [];
   const units = useStore((state) => state.shown?.compiled?.units);
   const show = useStore((state) => state.showContact);
   const [finding, setFinding] = useState(false);
