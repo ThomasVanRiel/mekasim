@@ -3,3 +3,13 @@
 
 /* Classes used in the shared interface parts are found there. */
 @source "../../../packages/ui/src";
+
+/* The app fills the window and its panels scroll by themselves. The page behind them
+   never does, whatever a panel lets through at the end of its own scrolling and
+   whatever is brought into view inside one. */
+html,
+body,
+#root {
+  overflow: clip;
+  overscroll-behavior: none;
+}

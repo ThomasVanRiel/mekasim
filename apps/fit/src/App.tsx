@@ -150,7 +150,7 @@ export function App() {
         max={(width) => width * 0.6}
         label="Width of the source"
       />
-      <main className="flex min-h-0 flex-col">
+      <main className="flex min-h-0 min-w-0 flex-col">
         <div className="relative min-h-0 flex-1 overflow-hidden bg-paper">
           {scene && units ? (
             <Sheet
@@ -200,7 +200,7 @@ export function App() {
         max={(width) => width * 0.45}
         label="Width of the side panel"
       />
-      <aside className="min-h-0 overflow-y-auto bg-sheet">
+      <aside className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-sheet">
         <Contacts />
         <SpringsLocks />
       </aside>
