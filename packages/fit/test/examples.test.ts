@@ -28,6 +28,19 @@ describe("mekafit's examples", () => {
     expect(result.cycle?.count).toBe(81);
   });
 
+  it("has a door latch whose bolt is pushed back by the strike and then holds the door", () => {
+    const result = simulate(read("door-latch.mekafit.yaml"));
+    const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
+    // The strike's corner rides the 45 degree slant of the nose for its 8 mm of height.
+    expect(value("furthest_in")).toBeCloseTo(-0.008, 8);
+    // Pulled with 20 N, the door is held by the bolt's back on the strike with the same.
+    expect(value("holding")).toBeCloseTo(20, 5);
+    expect(result.free).toEqual([]);
+    const { cycle, compiled } = result;
+    const door = 3 * (compiled?.bodies.get("door")?.index as number);
+    expect(cycle?.q[((cycle?.count ?? 1) - 1) * cycle.width + door]).toBeCloseTo(0.07, 8);
+  });
+
   it("has a motor-driven clearance check with its hand-worked closest gap", () => {
     const result = simulate(read("clearance-check.mekafit.yaml"));
     const tightest = result.measures.find(({ id }) => id === "tightest")?.quantity?.value;

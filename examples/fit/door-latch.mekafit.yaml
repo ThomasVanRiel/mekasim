@@ -1,0 +1,62 @@
+# A sliding door with a sprung bolt. As the door closes, the strike on the frame
+# meets the slant of the bolt's nose and pushes the bolt back into the door; past
+# the strike the spring throws it out again. The door is then pulled with 20 N and
+# the bolt's square back holds it against the strike.
+mekafit: 1
+meta:
+  name: Door latch
+  units: { length: mm, angle: deg }
+
+bodies:
+  ground:
+    points: { A: [0, 0], B: [100, 0] }
+    # The frame above the door, with the strike hanging down from it.
+    shape:
+      path: "M 60 12 H 70 V 30 H 110 V 36 H -40 V 30 H 60 Z"
+  door:
+    points: { O: [0, 0], up: [0, 10], seat: [6, -30] }
+    shape:
+      path: "M -40 -40 H 20 V -2 H -40 Z"
+  bolt:
+    points: { P: [0, 0], foot: [6, 0] }
+    layer: 1
+    # Square at the back, slanted at the front of its nose.
+    shape:
+      path: "M 0 -14 H 12 V 10 L 2 20 H 0 Z"
+
+joints:
+  runner: { type: slider, axis: [ground.A, ground.B], point: door.O }
+  # The bolt slides in the door, out as far as its stop and 12 mm back in.
+  bore: { type: slider, axis: [door.O, door.up], point: bolt.P, stops: [-12, 0] }
+
+springs:
+  # Pressed 10 mm short with the bolt out, so it sits on its stop with 5 N.
+  out: { connect: [door.seat, bolt.foot], stiffness: 0.5 N/mm, length: 40 }
+
+drivers:
+  hand:
+    move: door
+    stages:
+      - { to: [75, 0, 0], time: 2 s }
+      - { pull: [-20 N, 0], time: 1 s }
+
+contacts:
+  strike: { between: [bolt, ground] }
+
+cycle: { steps: 150 }
+
+measures:
+  bolt: y(bolt.P)
+  furthest_in: min(y(bolt.P))
+  hardest_on_strike: max(force(strike))
+  holding: final(force(strike))
+
+checks:
+  pushed_back: furthest_in < -7.9 mm
+  out_again: final(y(bolt.P)) > -0.01 mm
+  held: final(x(door.O)) > 69.9 mm and final(x(door.O)) < 70.1 mm
+
+plots:
+  bolt: y(bolt.P)
+  door: x(door.O)
+  forces: [force(strike), force(hand), force(out)]

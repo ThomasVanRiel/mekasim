@@ -79,6 +79,18 @@ describe("contact points between two shapes", () => {
     expectPoint(found[0]?.b as [number, number], [0.01, 0.0099]);
   });
 
+  it("does not take two corners that are near each other for parts into each other", () => {
+    // The upper right corner of one box 1 mm from the lower left corner of the other, both ways.
+    const found = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
+      x: 0.011,
+      y: 0.011,
+      angle: 0,
+    });
+    expect(found).toHaveLength(1);
+    expect(found[0]?.distance).toBeCloseTo(Math.hypot(0.001, 0.001), 12);
+    expectPoint(found[0]?.normal as [number, number], [Math.SQRT1_2, Math.SQRT1_2]);
+  });
+
   it("holds a corner that touches a face square to the face", () => {
     // A square on its corner, the corner just on the top face of a box.
     const found = contactPoints(box(0.02, 0.01), HOME, box(0.005, 0.005), {

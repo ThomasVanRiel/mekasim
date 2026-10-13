@@ -121,7 +121,14 @@ lock, with what it is and how it stands at the step being shown ("Pulling with
 sheet as a small brass square on its joint, filled when it is in. Not yet checked
 in the browser.
 
-**Next in phase 3:** the examples (ratchet, door latch, coupler, push latch).
+`examples/fit/door-latch.mekafit.yaml` is built: a sprung bolt with a slanted nose
+that a strike pushes back and that then holds the door against a pull. Building it
+found two faults, both fixed: the quadratic program gave up when two rows it held
+said the same thing in part (it now lets go of the one that carries nothing), and
+two corners near each other were taken for parts into each other (overlap is now
+told by a place lying in the other shape's material).
+
+**Next in phase 3:** the other examples (ratchet, coupler, push latch).
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
 springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and

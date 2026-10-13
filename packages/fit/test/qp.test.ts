@@ -91,4 +91,28 @@ describe("the dense quadratic program", () => {
       ),
     ).toThrow("positive definite");
   });
+
+  it("lets go of a row that another, tighter one makes needless", () => {
+    // One unknown that would be 0.01, and four rows on it: no more than 0, no more
+    // than -0.00025 as seen at a slant, no more than 0.002, no less than -0.012.
+    const solved = solveQp(
+      matFrom([[500]]),
+      Float64Array.of(-5),
+      matFrom([[-Math.SQRT1_2], [-1], [1], [-1]]),
+      Float64Array.of(0.00025 * Math.SQRT1_2, -0.002, -0.012, 0),
+    );
+    expect(solved?.x[0]).toBeCloseTo(-0.00025, 12);
+    expect(solved?.active).toEqual([0]);
+  });
+
+  it("still finds that rows on one unknown that cannot all hold have no answer", () => {
+    expect(
+      solveQp(
+        matFrom([[500]]),
+        Float64Array.of(-5),
+        matFrom([[-1], [1], [-Math.SQRT1_2]]),
+        Float64Array.of(0, 0.001, 0.0005),
+      ),
+    ).toBeUndefined();
+  });
 });

@@ -278,7 +278,8 @@ nearest: a knuckle face against another can touch at both ends.
 
 Where the shapes are into each other the distance is less than nothing and the
 normal keeps its direction, so the contact step pushes them apart again: two
-boundaries that have passed each other are told by their outward directions, and a
+boundaries have passed each other where the nearest place of one lies in the
+material of the other, and a
 corner or bulge inside the other shape is measured by core's `gap`, in place of the
 crossings round it. Two flat faces that lie along each other, facing, give the two
 ends of the stretch they share with the distance between the faces; their nearest
@@ -400,6 +401,9 @@ spring's over the square of its body's reach), or 1 where there are no springs.
   (`qp.ts`). Sizes are tens of variables and constraints.
 - `W` weights each body's angle by its shape `radius` squared, so that a turn and a
   shift of similar size on the sheet weigh alike.
+- Rows that say the same thing in part, as a stop and a contact on one sliding
+  part, cannot all be held with equality. The program then shifts force between
+  them at no cost until one carries nothing, and lets that one go.
 - If the program has no solution, the step is a jam candidate (§5.7).
 
 ### 5.4 Stops and locks

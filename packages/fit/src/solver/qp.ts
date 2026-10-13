@@ -150,7 +150,35 @@ export function solveQp(
           value += system.data[row * active.length + col] * candidate[col];
         equationError = Math.max(equationError, Math.abs(value - rhs[row]));
       }
-      if (equationError > tolerance) return undefined;
+      if (equationError > tolerance) {
+        // The rows held so far say the same thing more than once, and not all of it
+        // can be met with equality. What is left over is a way to shift force between
+        // them at no cost: go along it until one of them carries nothing, and let
+        // that one go. If none would, nothing satisfies the rows at all.
+        const shift = active.map((_, row) => {
+          let value = rhs[row] as number;
+          for (let col = 0; col < active.length; col++)
+            value -= system.data[row * active.length + col] * (candidate[col] as number);
+          return value;
+        });
+        let alpha = Number.POSITIVE_INFINITY;
+        active.forEach((i, k) => {
+          const by = shift[k] as number;
+          if (by < -tolerance) alpha = Math.min(alpha, multipliers[i] / -by);
+        });
+        if (!Number.isFinite(alpha)) return undefined;
+        let dropped = false;
+        active.forEach((i, k) => {
+          multipliers[i] += alpha * (shift[k] as number);
+          if ((shift[k] as number) < -tolerance && multipliers[i] <= tolerance) {
+            multipliers[i] = 0;
+            passive.delete(i);
+            dropped = true;
+          }
+        });
+        if (!dropped) return undefined;
+        continue;
+      }
 
       const negative = active.filter((_, k) => (candidate[k] as number) <= tolerance);
       if (negative.length === 0) {

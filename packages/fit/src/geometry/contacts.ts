@@ -78,6 +78,11 @@ function parameter(segment: Segment, point: Point): number {
   return alongArc(segment, Math.atan2(point[1] - segment.cy, point[0] - segment.cx));
 }
 
+/** Whether a place lies in the material of a shape, and not on its boundary. */
+function sunk(shape: Shape, point: Point): boolean {
+  return insideShape(shape, point[0], point[1]) && nearestOnShape(shape, point).d > SAME;
+}
+
 /** Whether a place on a segment is along it and not at one of its ends. */
 function within(segment: Segment, point: Point): boolean {
   const along = parameter(segment, point);
@@ -271,12 +276,9 @@ export function contactPoints(
     // Two edges in one line that meet end to end hold nothing: the faces beside them do.
     if (pair.d <= SAME && alignmentOf(segmentA, pair.pa, segmentB, pair.pb) < -0.5) return;
     const normal = normalOf(segmentA, pair.pa, segmentB, pair.pb, a, b);
-    // Two boundaries that have passed each other face away from each other: the
-    // material of each lies on the other's side, and they are that far in.
-    const outA = outward(segmentA, pair.pa);
-    const outB = outward(segmentB, pair.pb);
-    const passed =
-      pair.d > SAME && normal[0] * (outA[0] - outB[0]) + normal[1] * (outA[1] - outB[1]) < 0;
+    // Two boundaries have passed each other where the nearest place of one lies in
+    // the material of the other; they are that far in.
+    const passed = pair.d > SAME && (sunk(b, pair.pa) || sunk(a, pair.pb));
     push(
       segmentA,
       segmentB,
