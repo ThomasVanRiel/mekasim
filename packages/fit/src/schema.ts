@@ -1,4 +1,4 @@
-import { documentSchema } from "@mekasim/core";
+import { Document, documentSchema } from "@mekasim/core";
 import * as z from "zod";
 
 /** The key of a mekafit model's first line, and the version it carries. */
@@ -53,6 +53,25 @@ export const Spring = z.union(
   { error: "A spring is on a joint, or it connects two points" },
 );
 
+/** One stage of a move: the body goes to a pose in a time. `pull` stages are to come. */
+export const MoveStage = z.strictObject({
+  to: z.tuple([Expr, Expr, Expr]).describe("The pose it goes to, as [x, y, angle]"),
+  via: z
+    .tuple([Expr, Expr])
+    .optional()
+    .describe("A place its frame passes on the way, along an arc; a straight line without it"),
+  time: Expr.describe("How long the stage takes; seconds unless a unit is given"),
+});
+
+/** A driver that carries a body through stages, starting from its pose. */
+export const Move = z.strictObject({
+  move: Id.describe("The body to carry"),
+  stages: z.array(MoveStage).min(1),
+});
+
+/** mekasim's own driver, which turns a joint. */
+const Motor = Document.shape.drivers.unwrap().valueType;
+
 /**
  * A mekafit document: mekasim's, with another first line and the sections and fields
  * that `docs/mekafit/FORMAT.md` adds, as far as they are built.
@@ -62,5 +81,15 @@ export const FitDocument = documentSchema({
   sections: {
     contacts: z.record(Id, Contact).optional(),
     springs: z.record(Id, Spring).optional(),
+    // The move driver is mekafit's alone, so the whole section is given again with it in.
+    drivers: z
+      .record(
+        Id,
+        z.union([Motor, Move], {
+          error:
+            "A driver turns a joint, with `joint` and `speed`, or carries a body, with `move` and `stages`",
+        }),
+      )
+      .optional(),
   },
 });

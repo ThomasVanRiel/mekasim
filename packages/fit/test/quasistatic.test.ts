@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { simulate as simulateModel } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import type { FitCompiled } from "../src/index.ts";
 import { simulate } from "../src/index.ts";
@@ -7,14 +8,8 @@ import { type CompiledMove, moveDuration, poseAt } from "../src/solver/stages.ts
 
 const DEG = Math.PI / 180;
 
-function compile(text: string): FitCompiled {
-  const result = simulate(text);
-  expect(result.diagnostics.filter(({ severity }) => severity === "error")).toEqual([]);
-  return result.compiled as FitCompiled;
-}
-
-/** A pusher, a loose block 20 mm ahead of it, and a wall 50 mm beyond the block. */
-const pushing = (steps: number) => `mekafit: 1
+/** A pusher carried `to` mm in a second, a loose block 20 mm ahead of it, and a wall 50 mm beyond the block. */
+const pushing = (steps: number, to: number) => `mekafit: 1
 bodies:
   ground:
     points: { O: [0, 0] }
@@ -27,19 +22,23 @@ bodies:
     shape: { path: "M 0 0 H 20 V 20 H 0 Z" }
 pose:
   block: [30, 0, 0]
+drivers:
+  push:
+    move: pusher
+    stages:
+      - { to: [${to}, 0, 0], time: 1 s }
 contacts:
   push: { between: [pusher, block] }
   stop: { between: [block, ground] }
 cycle: { steps: ${steps} }
 `;
 
-function push(compiled: FitCompiled, to: number): CompiledMove {
-  return {
-    id: "push",
-    body: compiled.bodies.get("pusher")?.index as number,
-    start: { x: 0, y: 0, angle: 0 },
-    stages: [{ kind: "to", to: { x: to, y: 0, angle: 0 }, time: 1 }],
-  };
+/** A run without errors, with its compiled model. */
+function run(text: string) {
+  const result = simulate(text);
+  expect(result.diagnostics.filter(({ severity }) => severity === "error")).toEqual([]);
+  const cycle = result.cycle as NonNullable<typeof result.cycle>;
+  return { cycle, compiled: result.compiled as FitCompiled };
 }
 
 describe("stages of a move", () => {
@@ -97,9 +96,7 @@ describe("stages of a move", () => {
 
 describe("the contact step", () => {
   it("pushes a loose block, which stays where it is left", () => {
-    const compiled = compile(pushing(40));
-    const { cycle, jam } = solveQuasistatic(compiled, [push(compiled, 0.04)]);
-    expect(jam).toBeUndefined();
+    const { cycle, compiled } = run(pushing(40, 40));
     expect(cycle.count).toBe(41);
     const block = 3 * (compiled.bodies.get("block")?.index as number);
     const at = (k: number, i: number) => cycle.q[k * cycle.width + block + i] as number;
@@ -114,9 +111,7 @@ describe("the contact step", () => {
   });
 
   it("adds samples where a body moves far in one, and still does not pass through", () => {
-    const compiled = compile(pushing(4));
-    const { cycle, jam } = solveQuasistatic(compiled, [push(compiled, 0.04)]);
-    expect(jam).toBeUndefined();
+    const { cycle, compiled } = run(pushing(4, 40));
     expect(cycle.count).toBeGreaterThan(5);
     const block = 3 * (compiled.bodies.get("block")?.index as number);
     expect(cycle.q[(cycle.count - 1) * cycle.width + block]).toBeCloseTo(0.05, 8);
@@ -124,19 +119,27 @@ describe("the contact step", () => {
   });
 
   it("jams when the block is squeezed against the wall, and names what touches", () => {
-    const compiled = compile(pushing(40));
-    const { cycle, jam } = solveQuasistatic(compiled, [push(compiled, 0.08)]);
+    const result = simulate(pushing(40, 80));
+    const { jam } = result;
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    const compiled = result.compiled as FitCompiled;
     // The block reaches the wall when the pusher is at 70 mm of its 80.
     expect(jam?.time).toBeGreaterThan(0.875);
     expect(jam?.time).toBeLessThan(0.875 + 1 / 40);
     expect(new Set(jam?.rows.map((row) => row.source))).toEqual(new Set(["push", "stop"]));
+    const errors = result.diagnostics.filter(({ severity }) => severity === "error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(
+      /^Jams at 0\.87\d* s: "pusher" against "block", "block" against "ground"$/,
+    );
+    expect(errors[0]?.path).toEqual(["contacts", "push"]);
     const block = 3 * (compiled.bodies.get("block")?.index as number);
     expect(cycle.q[(cycle.count - 1) * cycle.width + block]).toBeCloseTo(0.08, 4);
     expect(cycle.t[cycle.count - 1]).toBeLessThanOrEqual(0.875 + 1e-9);
   });
 
   it("lets a sprung lever follow a bar down and back up", () => {
-    const compiled = compile(`mekafit: 1
+    const { cycle, compiled } = run(`mekafit: 1
 bodies:
   ground:
     points: { O: [0, 0] }
@@ -150,24 +153,20 @@ joints:
   pin: { type: revolute, connect: [ground.O, lever.O] }
 pose:
   bar: [75, 15, 0]
+drivers:
+  press:
+    move: bar
+    stages:
+      - { to: [75, 5, 0], time: 1 }
+      - { to: [75, 15, 0], time: 1 }
 springs:
   up: { joint: pin, stiffness: 0.02 N*m/rad, rest: 30 deg }
 contacts:
   rest: { between: [lever, bar] }
 cycle: { steps: 40 }
 `);
-    const move: CompiledMove = {
-      id: "press",
-      body: compiled.bodies.get("bar")?.index as number,
-      start: { x: 0.075, y: 0.015, angle: 0 },
-      stages: [
-        { kind: "to", to: { x: 0.075, y: 0.005, angle: 0 }, time: 1 },
-        { kind: "to", to: { x: 0.075, y: 0.015, angle: 0 }, time: 1 },
-      ],
-    };
-    const { cycle, jam } = solveQuasistatic(compiled, [move]);
-    expect(jam).toBeUndefined();
     expect(cycle.count).toBe(41);
+    expect(cycle.t[40]).toBeCloseTo(2, 12);
     const lever = 3 * (compiled.bodies.get("lever")?.index as number);
     const bar = 3 * (compiled.bodies.get("bar")?.index as number);
     for (let k = 0; k < cycle.count; k++) {
@@ -181,7 +180,7 @@ cycle: { steps: 40 }
   });
 
   it("settles a sprung arm at its spring's rest angle when nothing is driven", () => {
-    const compiled = compile(`mekafit: 1
+    const { cycle } = run(`mekafit: 1
 bodies:
   ground:
     points: { O: [0, 0] }
@@ -192,8 +191,6 @@ joints:
 springs:
   opener: { joint: pin, stiffness: 0.02 N*m/rad, rest: 70 deg }
 `);
-    const { cycle, jam } = solveQuasistatic(compiled);
-    expect(jam).toBeUndefined();
     expect(cycle.count).toBe(1);
     expect(cycle.q[2]).toBeCloseTo(70 * DEG, 5);
   });
@@ -229,5 +226,92 @@ joints:
     const { cycle } = solveQuasistatic(compiled as FitCompiled);
     expect(cycle.count).toBe(0);
     expect(cycle.failure?.step).toBe(0);
+  });
+});
+
+describe("a move driver in a model", () => {
+  const model = (driver: string) => `mekafit: 1
+bodies:
+  ground:
+    points: { O: [0, 0] }
+  ram:
+    points: { O: [0, 0] }
+pose:
+  ram: [10, 20, 30 deg]
+drivers:
+  push:
+${driver}
+cycle: { steps: 4 }
+`;
+  const errors = (driver: string) =>
+    simulate(model(driver))
+      .diagnostics.filter(({ severity }) => severity === "error")
+      .map(({ message, path }) => ({ message, path }));
+
+  it("carries its body from its pose through the stages, in the time they take", () => {
+    const result = simulate(
+      model(`    move: ram
+    stages:
+      - { to: [50, 20, 30 deg], time: 500 ms }
+      - { to: [50, 60, 90 deg], time: 1.5 }`),
+    );
+    expect(result.diagnostics).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    expect(result.compiled?.period).toBe(2);
+    expect(Array.from(cycle.t)).toEqual([0, 0.5, 1, 1.5, 2]);
+    const at = (k: number) => Array.from(cycle.q.subarray(3 * k, 3 * k + 3));
+    [
+      [0.01, 0.02, 30 * DEG],
+      [0.05, 0.02, 30 * DEG],
+      [0.05, 0.02 + 0.04 / 3, 50 * DEG],
+      [0.05, 0.02 + 0.08 / 3, 70 * DEG],
+      [0.05, 0.06, 90 * DEG],
+    ].forEach((pose, k) => {
+      pose.forEach((value, i) => {
+        expect(at(k)[i]).toBeCloseTo(value, 10);
+      });
+    });
+  });
+
+  it("is not a driver mekasim knows", () => {
+    const text = model("    move: ram\n    stages: [{ to: [50, 20, 0], time: 1 }]");
+    expect(simulate(text).diagnostics).toEqual([]);
+    expect(
+      simulateModel(text.replace("mekafit: 1", "mekasim: 1")).diagnostics.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("says what is wrong with a move, at its place", () => {
+    expect(errors("    move: sled\n    stages: [{ to: [50, 20, 0], time: 1 }]")).toEqual([
+      { message: 'Unknown body "sled"', path: ["drivers", "push", "move"] },
+    ]);
+    expect(errors("    move: ground\n    stages: [{ to: [50, 20, 0], time: 1 }]")).toEqual([
+      { message: '"ground" is fixed and cannot be moved', path: ["drivers", "push", "move"] },
+    ]);
+    expect(errors("    move: ram\n    stages: [{ to: [50, 20, 0], time: 0 }]")).toEqual([
+      {
+        message: "A stage's time must be more than zero",
+        path: ["drivers", "push", "stages", 0, "time"],
+      },
+    ]);
+    expect(errors("    move: ram\n    stages: [{ to: [50, 20, 0], time: 3 mm }]")).toEqual([
+      {
+        message: "Expected a time, got a length",
+        path: ["drivers", "push", "stages", 0, "time"],
+      },
+    ]);
+    expect(
+      errors(
+        "    move: ram\n    stages: [{ to: [50, 20, 0], time: 1 }]\n  again:\n    move: ram\n    stages: [{ to: [0, 0, 0], time: 1 }]",
+      ),
+    ).toEqual([
+      {
+        message: '"ram" is already moved by another driver',
+        path: ["drivers", "again", "move"],
+      },
+    ]);
+    expect(errors("    move: ram\n    speed: 3")[0]?.message).toBe(
+      "A driver turns a joint, with `joint` and `speed`, or carries a body, with `move` and `stages`",
+    );
   });
 });

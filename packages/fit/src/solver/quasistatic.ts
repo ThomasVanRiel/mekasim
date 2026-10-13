@@ -9,7 +9,6 @@ import {
   pinvSolve,
   residual,
   type Shape,
-  type SolverModel,
   solvePosition,
   svd,
   TOLERANCE,
@@ -18,7 +17,6 @@ import type { FitCompiled } from "../contacts.ts";
 import { contactInequalities, type Inequality, linearizeInequalities } from "./inequality.ts";
 import { solveQp } from "./qp.ts";
 import { springTerms } from "./springs.ts";
-import { type CompiledMove, moveConstraint, moveDuration } from "./stages.ts";
 
 /** Where a run stopped because the parts could not be put anywhere. */
 export interface Jam {
@@ -44,6 +42,8 @@ const MAX_SPLITS = 6;
 const PENETRATION = 1e-9;
 /** A step below this fraction of the model's size is no step. */
 const SETTLED = 1e-10;
+/** Joints and contacts this near to met leave the step to the springs, in metres. */
+const NEARLY = 1e-7;
 /** Rows nearer than this are named in a jam, in metres. */
 const TOUCHING = 1e-6;
 /** How much softer than the softest spring the resistance to being moved is. */
@@ -60,19 +60,13 @@ type Attempt = { ok: true; q: Float64Array } | { ok: false; rows: Inequality[]; 
 /**
  * The motion of a mechanism whose parts touch and whose springs settle (DESIGN.md
  * §5): at each sample the spring energy is as low as the joints, the drivers and the
- * contacts allow. `moves` carry bodies through their stages; without any, the run
- * lasts the model's period.
+ * contacts allow. The run lasts the model's period: the time its moves take, or one
+ * cycle of its motor.
  */
-export function solveQuasistatic(
-  compiled: FitCompiled,
-  moves: CompiledMove[] = [],
-): QuasistaticRun {
-  const model: SolverModel = {
-    ...compiled.model,
-    constraints: [...compiled.model.constraints, ...moves.map(moveConstraint)],
-  };
+export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
+  const { model } = compiled;
   const width = model.q0.length;
-  const duration = moves.length > 0 ? Math.max(...moves.map(moveDuration)) : compiled.period;
+  const duration = compiled.period;
   const intervals = duration > 0 ? compiled.steps : 0;
 
   // How far each body reaches from its origin, so that a turn weighs as the shift it makes.
@@ -165,11 +159,15 @@ export function solveQuasistatic(
       );
       const free = nullSpace(decomposition);
       const n = free.cols;
+      // The energy as the program sees it from here: its slope and its curvature.
+      const { gradient: slope, hessian } = springTerms(compiled.springs, q);
+      for (let i = 0; i < width; i++) {
+        hessian.data[i * width + i] += eps * weight[i];
+        slope[i] += eps * weight[i] * (q[i] - previous[i]);
+      }
       if (n > 0) {
-        const { gradient, hessian } = springTerms(compiled.springs, q);
+        const gradient = Float64Array.from(slope);
         for (let i = 0; i < width; i++) {
-          hessian.data[i * width + i] += eps * weight[i];
-          gradient[i] += eps * weight[i] * (q[i] - previous[i]);
           // What the closing step already costs.
           for (let j = 0; j < width; j++) gradient[i] += hessian.data[i * width + j] * dq[j];
         }
@@ -219,16 +217,47 @@ export function solveQuasistatic(
 
       // A step is laid out for the parts as they touch now. One that carries a body
       // further than it may go in a sample is cut short, so that it meets what is in its way.
-      const scale =
+      let scale =
         1 /
         Math.max(
           1,
           travel((i) => dq[i]),
         );
+      // And for the springs as they pull now. A spring's pull turns as its ends move,
+      // which the step does not know; where the energy does not follow what the step
+      // expects of it, the step is halved.
+      const near =
+        phi.every((value) => Math.abs(value) < NEARLY) && rows.every((row) => row.value > -NEARLY);
+      if (near && compiled.springs.length > 0) {
+        let along = 0;
+        let curved = 0;
+        for (let i = 0; i < width; i++) {
+          along += slope[i] * dq[i];
+          for (let j = 0; j < width; j++) curved += dq[i] * hessian.data[i * width + j] * dq[j];
+        }
+        const trial = new Float64Array(width);
+        const energy = (by: number): number => {
+          let held = 0;
+          for (let i = 0; i < width; i++) {
+            trial[i] = q[i] + by * dq[i];
+            held += weight[i] * (trial[i] - previous[i]) ** 2;
+          }
+          return springTerms(compiled.springs, trial).energy + (eps / 2) * held;
+        };
+        const now = energy(0);
+        for (let halved = 0; halved < 40; halved++) {
+          // Down by at least a tenth of what is expected; or, where the joints and
+          // contacts force it up, by no more than nearly twice that.
+          const expected = scale * along + 0.5 * scale * scale * curved;
+          if (energy(scale) - now <= expected + 0.9 * Math.abs(expected) + 1e-12 * Math.abs(now))
+            break;
+          scale /= 2;
+        }
+      }
       stepped = 0;
       for (let i = 0; i < width; i++) {
         q[i] += scale * dq[i];
-        stepped += weight[i] * dq[i] * dq[i];
+        stepped += weight[i] * (scale * dq[i]) ** 2;
       }
       stepped = Math.sqrt(stepped);
     }

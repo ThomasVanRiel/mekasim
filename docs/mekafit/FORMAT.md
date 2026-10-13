@@ -24,9 +24,10 @@ are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
 are built and compile to checked, distinct pairs; a run reports the first overlap
 deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 The force, torque and spring-stiffness units listed under Springs are built for
-expressions. `springs:` is read and checked, but a run does not yet act on it: that
-comes with the contact step. Joint stops and everything after springs are still to
-come.
+expressions. `springs:` and the `move` driver with `to` and `via` stages are built:
+a model with either is solved by the contact step, in which listed contacts push
+and springs settle. `pull` stages, joint stops, locks and the measures of force are
+still to come.
 
 ## A whole example
 
@@ -244,7 +245,7 @@ joints:
 `stops` limits a revolute joint's relative angle, or the travel along a pin-slot or
 slider measured from the first axis point. Either end may be `null`.
 
-## Springs (phase 3; read and checked, not yet acting in a run)
+## Springs (phase 3, built)
 
 ```yaml
 springs:
@@ -284,7 +285,7 @@ the knuckle's tail. When the joint's angle (or travel) passes `at` going the way
 | `drops` | `down`: it drops in as the value falls below `at`, and then holds it below. `up`: the other way round |
 | `engaged` | Whether it is in at the start; default `false` |
 
-## Moving a body (phase 3)
+## Moving a body (phase 3; `to` and `via` built, `pull` to come)
 
 ```yaml
 drivers:
@@ -305,8 +306,10 @@ Carries a body through stages, one after the other, starting from its `pose`.
 | `push` | As `pull`; the same thing, for readability |
 
 A model with a `move` driver is solved over its stages instead of over a cycle:
-`cycle.steps` gives the number of samples over all stages together, and more are
-added where parts move fast against each other. Plots are drawn against time.
+`cycle.steps` gives the number of steps over all stages together, the start and
+the end both sampled, and more are added where parts move fast against each other.
+Plots are drawn against time. `to` is a place on the sheet, not a distance from the
+start; a `time` is in seconds unless it has a unit. A body has one `move` at most.
 
 ## Measures (phases 2–3)
 

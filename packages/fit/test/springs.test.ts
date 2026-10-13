@@ -36,12 +36,8 @@ function compiled(springs: string): CompiledSpring[] {
   return (result.compiled as FitCompiled).springs;
 }
 
-/** Where the bodies are at the start of the run. */
-function startOf(springs: string): Float64Array {
-  const { cycle } = simulate(model(springs));
-  if (!cycle) throw new Error("The model did not run");
-  return cycle.q.subarray(0, cycle.width);
-}
+/** Where the pose puts the arm and the ram, which is where the joints close too. */
+const START = Float64Array.of(0, 0, 30 * DEG, 0.02, 0.05, 0);
 
 function errors(springs: string): { message: string; path?: (string | number)[] }[] {
   return simulate(model(springs))
@@ -101,7 +97,12 @@ describe("spring energy", () => {
     expect(springValue(straight, q)).toBe(3);
     expect(energy).toBe(5);
     expect(Array.from(gradient)).toEqual([10, 0, 0]);
-    expect(Array.from(hessian.data)).toEqual([10, 0, 0, 0, 0, 0, 0, 0, 0]);
+    // Along its line the spring's own stiffness; sideways its tension over its length,
+    // which the point 1 m out from the body's origin feels in the body's turning as well.
+    const sideways = 10 / 3;
+    [10, 0, 0, 0, sideways, sideways, 0, sideways, sideways].forEach((value, i) => {
+      expect(hessian.data[i]).toBeCloseTo(value, 12);
+    });
   });
 
   it("leaves ground out of the coordinates", () => {
@@ -153,6 +154,32 @@ describe("spring energy", () => {
     }
   });
 
+  it("has the sideways stiffness of a stretched straight spring", () => {
+    // A point at a body's origin does not move as the body turns, so the Hessian is exact.
+    const onOrigin: CompiledSpring = { ...straight, b: { body: 0, u: 0, v: 0 }, rest: 0.4 };
+    const q = Float64Array.of(0.6, 0.8, 0.3);
+    const { hessian } = springTerms([onOrigin], q);
+    const h = 1e-6;
+    for (let j = 0; j < 3; j++) {
+      const ahead = Float64Array.from(q);
+      const behind = Float64Array.from(q);
+      ahead[j] += h;
+      behind[j] -= h;
+      const up = springTerms([onOrigin], ahead).gradient;
+      const down = springTerms([onOrigin], behind).gradient;
+      for (let i = 0; i < 3; i++) {
+        expect(hessian.data[i * 3 + j]).toBeCloseTo(
+          ((up[i] as number) - (down[i] as number)) / (2 * h),
+          5,
+        );
+      }
+    }
+    // Pushed short, it is left out: the spring would rather go sideways, and the Hessian stay positive.
+    const short = springTerms([{ ...onOrigin, rest: 2 }], q).hessian;
+    expect(short.data[0]).toBeCloseTo(10 * 0.36, 12);
+    expect(short.data[4]).toBeCloseTo(10 * 0.64, 12);
+  });
+
   it("pulls no particular way when its two points are on one place", () => {
     const { energy, gradient } = springTerms([straight], Float64Array.of(-1, 0, 0));
     expect(energy).toBe(20);
@@ -201,7 +228,7 @@ describe("springs in a model", () => {
     const [spring] = compiled(
       "  opener: { joint: pin, stiffness: 0.02 N*m/rad, preload: 10 N*mm }",
     );
-    const q = startOf("  opener: { joint: pin, stiffness: 0.02 N*m/rad, preload: 10 N*mm }");
+    const q = START;
     expect(spring?.rest).toBeCloseTo(30 * DEG + 0.5, 12);
     // The torque on the arm is the downhill direction of the energy in its angle.
     expect(-(springTerms([spring as CompiledSpring], q).gradient[2] as number)).toBeCloseTo(
@@ -220,7 +247,7 @@ describe("springs in a model", () => {
   it("pulls its two points together with a positive straight preload", () => {
     const text = "  return: { connect: [ram.P, ground.Q], stiffness: k, preload: 4 N }";
     const [spring] = compiled(text);
-    const q = startOf(text);
+    const q = START;
     // The ram is 20 mm along its guide, 50 mm above the line through Q.
     const length = Math.hypot(0.18, 0.05);
     expect(spring?.rest).toBeCloseTo(length - 0.002, 12);
@@ -333,11 +360,12 @@ describe("springs in a model", () => {
     ).toBe("A spring is on a joint, or it connects two points");
   });
 
-  it("solves a model with springs as it does without them, until the contact step is built", () => {
+  it("settles a model with springs, where one without stays as it is posed", () => {
     const sprung = simulate(
       model("  opener: { joint: pin, stiffness: 0.02 N*m/rad, rest: 70 deg }"),
     );
     const plain = simulate(model("").replace("springs:\n", ""));
-    expect(sprung.cycle?.q).toEqual(plain.cycle?.q);
+    expect(plain.cycle?.q[2]).toBeCloseTo(30 * DEG, 12);
+    expect(sprung.cycle?.q[2]).toBeCloseTo(70 * DEG, 5);
   });
 });

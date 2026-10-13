@@ -1,0 +1,52 @@
+# A lever on a pin, held up against a bar by a spring. The bar comes down 10 mm
+# and goes back up; the lever gives way under it and follows it back. Nothing but
+# the spring and the bar holds the lever: where it is, is found by the parts touching.
+mekafit: 1
+meta:
+  name: Sprung lever under a bar
+  units: { length: mm, angle: deg }
+
+bodies:
+  ground:
+    points: { O: [0, 0] }
+  lever:
+    points: { O: [0, 0] }
+    shape:
+      path: "M 0 -5 H 100 V 5 H 0 Z"
+  bar:
+    points: { O: [0, 0] }
+    layer: 1
+    shape:
+      path: "M 0 0 H 10 V 10 H 0 Z"
+
+joints:
+  pin: { type: revolute, connect: [ground.O, lever.O] }
+
+pose:
+  bar: [75, 15, 0]
+
+springs:
+  up: { joint: pin, stiffness: 0.02 N*m/rad, rest: 30 deg }
+
+drivers:
+  press:
+    move: bar
+    stages:
+      - { to: [75, 5, 0], time: 1 s }
+      - { to: [75, 15, 0], time: 1 s }
+
+contacts:
+  rest: { between: [lever, bar] }
+
+cycle: { steps: 80 }
+
+measures:
+  lowest: min(angle(lever))
+  highest: max(angle(lever))
+
+checks:
+  pressed_flat: lowest < 0.01 deg
+  never_through: min(gap(lever, bar)) > -0.001 mm
+
+plots:
+  lever: angle(lever)

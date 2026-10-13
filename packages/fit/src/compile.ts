@@ -17,11 +17,13 @@ import {
 import type * as z from "zod";
 import { compileContacts, type FitCompiled } from "./contacts.ts";
 import { FORCE, FORCE_UNITS, LINEAR_STIFFNESS, TORQUE, TORSIONAL_STIFFNESS } from "./registry.ts";
-import type { Spring } from "./schema.ts";
+import type { Move, Spring } from "./schema.ts";
 import { type CompiledSpring, springValue } from "./solver/springs.ts";
+import { type CompiledMove, moveConstraint, moveDuration, type Stage } from "./solver/stages.ts";
 
 type SpringEntry = z.infer<typeof Spring>;
-type SpringDocument = Document & { springs?: Record<string, SpringEntry> };
+type MoveEntry = z.infer<typeof Move>;
+type DriverEntry = NonNullable<Document["drivers"]>[string] | MoveEntry;
 type Report = (diagnostic: Diagnostic) => void;
 type Path = (string | number)[];
 type Expr = number | string;
@@ -29,17 +31,40 @@ type Expr = number | string;
 /** Raised for a problem that is already recorded as a diagnostic. */
 class Reported extends Error {}
 
+/** A mekafit document as `prepare` leaves it: the moves taken out of `drivers`, where core reads only its own. */
+type Prepared = Document & {
+  springs?: Record<string, SpringEntry>;
+  moves?: Record<string, MoveEntry>;
+};
+
+/** Seconds; core keeps the dimension to itself. */
+const TIME: Dim = [0, 1, 0, 0];
+
+/**
+ * Core's `prepare` hook. Core compiles the drivers that turn a joint, so those that
+ * carry a body are set aside for `compileFit`, which gets this same document.
+ */
+export function prepareFit(source: Document): Document {
+  const motors: Record<string, unknown> = {};
+  const moves: Record<string, MoveEntry> = {};
+  for (const [id, driver] of Object.entries(source.drivers ?? {}) as [string, DriverEntry][]) {
+    if ("move" in driver) moves[id] = driver;
+    else motors[id] = driver;
+  }
+  if (Object.keys(moves).length === 0) return source;
+  return { ...source, drivers: motors, moves } as Prepared;
+}
+
 /** Everything mekafit adds to the compiled model, in core's `extend` hook. */
 export function compileFit(compiled: Compiled, source: Document, report: Report): void {
   compileContacts(compiled, source, report);
+  // The moves first: a spring's preload is taken where the joints and the moves put the bodies.
+  compileMoves(compiled, source, report);
   compileSprings(compiled, source, report);
 }
 
-/** Read and check the springs, with every value in SI and each preload turned into a rest value. */
-export function compileSprings(compiled: Compiled, source: Document, report: Report): void {
-  const doc = source as SpringDocument;
-  const springs: CompiledSpring[] = [];
-
+/** What reading a section needs: expressions with mekafit's units, and problems told at their place. */
+function reader(compiled: Compiled, report: Report) {
   function fail(message: string, path: Path): Reported {
     report({ severity: "error", message, path });
     return new Reported(message);
@@ -63,7 +88,7 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
     }
   }
 
-  /** A length or an angle, where a plain number is in the document's unit. */
+  /** A length, an angle or a time, where a plain number is in the document's unit. */
   function scalar(written: Expr, dim: Dim, path: Path): number {
     try {
       return toSI(quantity(written, path), dim, compiled.units) as number;
@@ -72,6 +97,79 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
       throw error;
     }
   }
+
+  /** Run one entry, so that a problem in it does not hide the next. */
+  function attempt(run: () => void): void {
+    try {
+      run();
+    } catch (error) {
+      if (!(error instanceof Reported)) throw error;
+    }
+  }
+
+  return { fail, quantity, scalar, attempt };
+}
+
+/**
+ * Read and check the `move` drivers. Each becomes a pose constraint in the model, so
+ * that the body counts as driven, and the run lasts as long as the longest of them.
+ */
+export function compileMoves(compiled: Compiled, source: Document, report: Report): void {
+  const doc = source as Prepared;
+  const { fail, scalar, attempt } = reader(compiled, report);
+  const moves: CompiledMove[] = [];
+  const moved = new Set<string>();
+
+  for (const [id, entry] of Object.entries(doc.moves ?? {})) {
+    const path = ["drivers", id];
+    attempt(() => {
+      const body = compiled.bodies.get(entry.move);
+      if (!body) throw fail(`Unknown body "${entry.move}"`, [...path, "move"]);
+      if (body.index < 0)
+        throw fail(`"${entry.move}" is fixed and cannot be moved`, [...path, "move"]);
+      if (moved.has(entry.move))
+        throw fail(`"${entry.move}" is already moved by another driver`, [...path, "move"]);
+      moved.add(entry.move);
+
+      const at = 3 * body.index;
+      const { q0 } = compiled.model;
+      const stages = entry.stages.map((stage, i): Stage => {
+        const here = [...path, "stages", i];
+        const time = scalar(stage.time, TIME, [...here, "time"]);
+        if (!(time > 0)) throw fail("A stage's time must be more than zero", [...here, "time"]);
+        return {
+          kind: "to",
+          to: {
+            x: scalar(stage.to[0], LENGTH, [...here, "to", 0]),
+            y: scalar(stage.to[1], LENGTH, [...here, "to", 1]),
+            angle: scalar(stage.to[2], ANGLE, [...here, "to", 2]),
+          },
+          via: stage.via && [
+            scalar(stage.via[0], LENGTH, [...here, "via", 0]),
+            scalar(stage.via[1], LENGTH, [...here, "via", 1]),
+          ],
+          time,
+        };
+      });
+      moves.push({
+        id,
+        body: body.index,
+        start: { x: q0[at] as number, y: q0[at + 1] as number, angle: q0[at + 2] as number },
+        stages,
+      });
+    });
+  }
+
+  for (const move of moves) compiled.model.constraints.push(moveConstraint(move));
+  if (moves.length > 0) compiled.period = Math.max(...moves.map(moveDuration));
+  (compiled as FitCompiled).moves = moves;
+}
+
+/** Read and check the springs, with every value in SI and each preload turned into a rest value. */
+export function compileSprings(compiled: Compiled, source: Document, report: Report): void {
+  const doc = source as Prepared;
+  const { fail, quantity, scalar, attempt } = reader(compiled, report);
+  const springs: CompiledSpring[] = [];
 
   /**
    * A force, torque or stiffness. The document has no unit of its own for these, so
@@ -118,7 +216,7 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
     const path = ["springs", id];
     const torsion = "joint" in entry;
     const restField = torsion ? "rest" : "length";
-    try {
+    attempt(() => {
       const written = torsion ? entry.rest : entry.length;
       if (written !== undefined && entry.preload !== undefined)
         throw fail(`Give either \`${restField}\` or \`preload\`, not both`, [...path, "preload"]);
@@ -167,7 +265,7 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
           spring.rest = springValue(spring, start()) + torque / spring.stiffness;
         }
         springs.push(spring);
-        continue;
+        return;
       }
 
       const a = point(entry.connect[0], [...path, "connect", 0]);
@@ -202,9 +300,7 @@ export function compileSprings(compiled: Compiled, source: Document, report: Rep
         spring.rest = springValue(spring, start()) - tension / spring.stiffness;
       }
       springs.push(spring);
-    } catch (error) {
-      if (!(error instanceof Reported)) throw error;
-    }
+    });
   }
 
   (compiled as FitCompiled).springs = springs;

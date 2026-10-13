@@ -1,4 +1,4 @@
-import { type BodyPoint, type Mat, mat, place } from "@mekasim/core";
+import { type BodyPoint, type Mat, mat, type Placed, place } from "@mekasim/core";
 
 /** A spring on the relative angle of a revolute joint. */
 export interface TorsionSpring {
@@ -32,7 +32,7 @@ export interface SpringTerms {
   energy: number;
   /** Derivative of the energy with respect to all moving-body coordinates. */
   gradient: Float64Array;
-  /** Gauss-Newton Hessian: symmetric and never negative, whatever the springs' loads. */
+  /** Symmetric and never negative, whatever the springs' loads. */
   hessian: Mat;
 }
 
@@ -51,38 +51,57 @@ export function springValue(spring: CompiledSpring, q: Float64Array): number {
   return Math.hypot(b.x - a.x, b.y - a.y);
 }
 
-/** Derivative of `springValue` with respect to all moving-body coordinates. */
-function valueGradient(spring: CompiledSpring, q: Float64Array): Float64Array {
-  const gradient = new Float64Array(q.length);
+/** `sign` times the derivative of a body's point along `direction`, added to `row`. */
+function addPoint(
+  row: Float64Array,
+  body: number,
+  at: Placed,
+  [dx, dy]: readonly [number, number],
+  sign: number,
+): void {
+  if (body < 0) return;
+  row[3 * body] += sign * dx;
+  row[3 * body + 1] += sign * dy;
+  // d(point)/d(phi) = (-by, bx).
+  row[3 * body + 2] += sign * (-dx * at.by + dy * at.bx);
+}
+
+/**
+ * Derivative of `springValue` with respect to all moving-body coordinates. For a
+ * straight spring also `across`: how fast its second end moves sideways of its line
+ * relative to the first, and its length.
+ */
+function valueGradient(
+  spring: CompiledSpring,
+  q: Float64Array,
+): { along: Float64Array; across?: Float64Array; length?: number } {
+  const along = new Float64Array(q.length);
   if (spring.kind === "torsion") {
-    if (spring.a >= 0) gradient[3 * spring.a + 2] -= 1;
-    if (spring.b >= 0) gradient[3 * spring.b + 2] += 1;
-    return gradient;
+    if (spring.a >= 0) along[3 * spring.a + 2] -= 1;
+    if (spring.b >= 0) along[3 * spring.b + 2] += 1;
+    return { along };
   }
   const a = place(q, spring.a);
   const b = place(q, spring.b);
   const length = Math.hypot(b.x - a.x, b.y - a.y);
   // Two points on one place pull no particular way.
-  if (length < NO_LENGTH) return gradient;
+  if (length < NO_LENGTH) return { along };
   const nx = (b.x - a.x) / length;
   const ny = (b.y - a.y) / length;
-  for (const [body, end, sign] of [
-    [spring.a.body, a, -1],
-    [spring.b.body, b, 1],
-  ] as const) {
-    if (body < 0) continue;
-    gradient[3 * body] += sign * nx;
-    gradient[3 * body + 1] += sign * ny;
-    // d(point)/d(phi) = (-by, bx).
-    gradient[3 * body + 2] += sign * (-nx * end.by + ny * end.bx);
-  }
-  return gradient;
+  const across = new Float64Array(q.length);
+  addPoint(along, spring.a.body, a, [nx, ny], -1);
+  addPoint(along, spring.b.body, b, [nx, ny], 1);
+  addPoint(across, spring.a.body, a, [-ny, nx], -1);
+  addPoint(across, spring.b.body, b, [-ny, nx], 1);
+  return { along, across, length };
 }
 
 /**
- * The springs' energy at `q`, with its gradient and Gauss-Newton Hessian. The Hessian
- * leaves out the term in which a loaded straight spring's direction turns, so it is
- * exact for torsion springs and for straight springs at their rest length.
+ * The springs' energy at `q`, with its gradient and a Hessian that is never negative.
+ * It is the Gauss-Newton one, with the stiffness a stretched straight spring has
+ * sideways of its line added: its tension over its length. What is left out is how
+ * a turning body carries the spring's end round, and the sideways term of a spring
+ * that is pushed short, which would make the Hessian negative.
  */
 export function springTerms(springs: CompiledSpring[], q: Float64Array): SpringTerms {
   const width = q.length;
@@ -90,18 +109,23 @@ export function springTerms(springs: CompiledSpring[], q: Float64Array): SpringT
   const hessian = mat(width, width);
   let energy = 0;
 
-  for (const spring of springs) {
-    const stretch = springValue(spring, q) - spring.rest;
-    const row = valueGradient(spring, q);
-    energy += 0.5 * spring.stiffness * stretch * stretch;
+  const add = (row: Float64Array, stiffness: number): void => {
     for (let i = 0; i < width; i++) {
       const di = row[i] as number;
       if (di === 0) continue;
-      gradient[i] += spring.stiffness * stretch * di;
-      for (let j = 0; j < width; j++) {
-        hessian.data[i * width + j] += spring.stiffness * di * (row[j] as number);
-      }
+      for (let j = 0; j < width; j++)
+        hessian.data[i * width + j] += stiffness * di * (row[j] as number);
     }
+  };
+
+  for (const spring of springs) {
+    const stretch = springValue(spring, q) - spring.rest;
+    const { along, across, length } = valueGradient(spring, q);
+    energy += 0.5 * spring.stiffness * stretch * stretch;
+    for (let i = 0; i < width; i++)
+      gradient[i] += spring.stiffness * stretch * (along[i] as number);
+    add(along, spring.stiffness);
+    if (across && length && stretch > 0) add(across, (spring.stiffness * stretch) / length);
   }
   return { energy, gradient, hessian };
 }

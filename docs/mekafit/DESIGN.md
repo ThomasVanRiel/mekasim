@@ -40,7 +40,7 @@ packages/fit/src
   registry.ts     force, torque and stiffness units added to mekafit's expressions
   contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   edit.ts         additions to `contacts:` made by the tool and finder
-  compile.ts      core's `extend` hook: contacts and springs; locks, stops, move drivers to come
+  compile.ts      core's `prepare` and `extend` hooks: contacts, springs, move drivers; locks and stops to come
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
@@ -48,7 +48,7 @@ packages/fit/src
     qp.ts         small dense quadratic program (dual active set)
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
-    quasistatic.ts the contact step and the stage-driven run (`to` stages; not yet called by a run)
+    quasistatic.ts the contact step and the stage-driven run (`to` stages; `pull` to come)
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
@@ -157,8 +157,10 @@ nothing, so nothing new becomes valid in a mekasim model.
    add sections, and give the other format's first line. mekasim's `Document` is
    `documentSchema()`. mekafit's `schema.ts` calls it with shapes, stops, contacts,
    springs, latches, studies and `mekafit: 1`. The `move` driver is a new kind of
-   driver, not a field on mekasim's; `extra` gets a way to add it when phase 3
-   builds it.
+   driver, not a field on mekasim's. It needed no way of its own into `extra`:
+   mekafit gives the `drivers` section again among its sections, with mekasim's
+   driver (taken from `Document`) or a move, and its `prepare` hook sets the moves
+   aside under `moves` before core compiles the drivers it knows.
 2. **Expressions.** `expr/` and `analysis/measures.ts` accept a registry of extra
    units and extra functions. A function gets its arguments and a context with the
    compiled model and the sample index, and returns a value or a signal. mekasim
@@ -376,6 +378,10 @@ does), repeat up to 30 times:
    touch now, and a longer one could pass what is in its way. Stop when
    `|Phi| < 1e-10`, every `g > -1e-9 m` and `|dq|_W` is below 1e-10 of the model size.
 
+Near a position where the joints and contacts are met, a step is also halved until
+the energy follows what the step expects of it (down by at least a tenth of that,
+or up by no more than nearly twice it where the constraints force it up).
+
 The first sample closes the joints from the pose as mekasim does, then settles the
 springs and contacts with up to 400 such steps, since a spring may carry a part a
 long way before it rests. `eps` is 1e-6 of the softest spring's stiffness (a torsion
@@ -409,9 +415,12 @@ distance between two points). Preloads are turned into rest values at compile,
 from the position in which the joints close at time 0 starting from the pose. A
 positive straight-spring preload is tension, pulling the points together; a
 positive torsion preload acts in the joint's positive-angle direction. Negative
-preloads act the other way. The Hessian leaves out the term in which a loaded
-straight spring's direction turns, so it is never negative; a straight spring whose
-two points are on one place has no direction and adds no gradient there.
+preloads act the other way. To the Gauss-Newton Hessian is added the stiffness a
+stretched straight spring has sideways of its line, its tension over its length;
+without it a spring pulled across a slider never settles. The same term of a spring
+pushed short is left out, and so is how a turning body carries the spring's end
+round, so the Hessian is never negative. A straight spring whose two points are on
+one place has no direction and adds no gradient there.
 
 ### 5.6 The move driver
 
@@ -462,6 +471,9 @@ positions, and the measures of speed say "from positions" in their tooltip.
 no springs, locks, stops or `move` driver uses core's own cycle solve; shapes,
 contacts and `gap()` work on it all the same. Otherwise the contact step replaces
 the cycle solve and returns a `Cycle`, so core's measures and plots work on it.
+Each move is a pose constraint in the compiled model, so its body counts as driven,
+and the model's period is the time the moves take. mekasim's warning that a part is
+not driven is dropped in a contact run, where springs and contacts hold such parts.
 
 ## 6. Studies (phase 4)
 

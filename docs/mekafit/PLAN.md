@@ -81,21 +81,29 @@ one-sided rows with their translation and rotation gradients, ready for the
 quadratic program. `springs:` is read and checked (`packages/fit/src/compile.ts`):
 both kinds, their stiffness and preload with units, and each preload turned into a
 rest value where the joints close from the starting pose. `solver/springs.ts` gives
-their energy, gradient and Gauss-Newton Hessian. A model with springs still runs as
-it does without them, since no run calls the contact step yet.
+their energy, gradient and Hessian.
 
-The contact step itself is built for `to` stages (`solver/quasistatic.ts`, with the
-stage paths and the pose constraint in `solver/stages.ts`): at each sample the
-spring energy is minimised under the joints, the drivers and the contact rows, with
-samples split where a body moves far or the step does not settle, and a jam that
-names the touching rows. Its tests push a loose block, squeeze it against a wall
-until it jams, and let a sprung lever follow a bar down and back. `contactPoints`
-was changed for it: where shapes are into each other the distance is negative and
-the normal keeps its direction, and two flat faces along each other give their two
-ends. **It is not wired into a run yet**: the `move` driver is not in the format,
-and adding it needs a way into core's schema and compile (DESIGN.md §2.3), which
-Thomas checks in mekasim before more is built on it. That is next, then `pull`
-stages.
+The contact step runs models (`solver/quasistatic.ts`, with the stage paths and the
+pose constraint in `solver/stages.ts`): at each sample the spring energy is
+minimised under the joints, the drivers and the contact rows, with samples split
+where a body moves far or the step does not settle, and a jam that names the parts
+in each other's way ("Jams at 0.876 s: `pusher` against `block`, ..."). A model with
+springs or a `move` driver is solved by it; any other still goes down mekasim's
+cycle solve. The `move` driver with `to` and `via` stages is in the format. It
+needed nothing in core: mekafit's schema gives the `drivers` section again with the
+move in it, and core's `prepare` hook sets the moves aside before core compiles the
+rest. `contactPoints` was changed for the step: where shapes are into each other
+the distance is negative and the normal keeps its direction, and two flat faces
+along each other give their two ends. `examples/fit/sprung-lever.mekafit.yaml` is
+the first example solved by contact.
+
+**Next in phase 3:** `pull` stages, then stops and locks, forces, the new measures
+(`force`, `latched`, `final`, `first`), the Springs and locks fold, and the examples.
+
+**Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev
+server (the lever should lie against the bar's corner all the way down and back,
+and its angle plot should be a smooth dip to 0); and the two mekasim fixes of the
+same day, the middle click that pasted and the ground plate's doubled holes.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
@@ -123,7 +131,7 @@ stages.
 Then phase 3, the contact step (DESIGN.md §5), which starts with
 `contactPoints` (§3.3) on top of `geometry/distance.ts`. Its force units were built
 first, following DESIGN.md §9; the quadratic program, `contactPoints`, the contact
-rows and the springs are built too.
+rows, the springs and the step for `to` stages are built too.
 
 **Settled with Thomas on 2026-10-13**, beyond what the sections below say:
 

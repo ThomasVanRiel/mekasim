@@ -11,7 +11,9 @@ import {
 } from "@mekasim/core";
 import type * as z from "zod";
 import type { Contact } from "./schema.ts";
+import type { Jam } from "./solver/quasistatic.ts";
 import type { CompiledSpring } from "./solver/springs.ts";
+import type { CompiledMove } from "./solver/stages.ts";
 
 type ContactEntry = z.infer<typeof Contact>;
 type ContactDocument = Document & { contacts?: Record<string, ContactEntry> };
@@ -30,6 +32,7 @@ export interface CompiledContact {
 export interface FitCompiled extends Compiled {
   contacts: CompiledContact[];
   springs: CompiledSpring[];
+  moves: CompiledMove[];
 }
 
 /** What a listed pair did over one run, including where it came closest. */
@@ -53,6 +56,8 @@ export interface ContactCandidate {
 export interface FitSimulation extends Simulation {
   compiled?: FitCompiled;
   contacts: ContactResult[];
+  /** Where a contact run stopped because the parts could not be put anywhere. */
+  jam?: Jam;
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */
