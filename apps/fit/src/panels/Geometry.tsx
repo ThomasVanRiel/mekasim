@@ -1,7 +1,8 @@
 import type { Drawing, ShapeUse } from "@mekasim/fit";
 import { label } from "@mekasim/ui";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useStore } from "../store.ts";
+import { thumbOf } from "../thumb.ts";
 
 const small =
   "shrink-0 rounded-sm border border-rule bg-sheet px-1.5 py-0.5 text-[12px] hover:border-ink-soft active:bg-paper";
@@ -46,6 +47,43 @@ function PickDrawing({ children, onPick }: { children: string; onPick(text: stri
   );
 }
 
+/** A small picture of a layer: its outlines filled, and what does not close in red. */
+function Picture({ drawing, layer }: { drawing: Drawing; layer: string }) {
+  const thumb = useMemo(
+    () =>
+      thumbOf(
+        drawing.layers.get(layer) ?? [],
+        drawing.open.filter((open) => open.layer === layer).map((open) => open.chain),
+      ),
+    [drawing, layer],
+  );
+  if (!thumb) return null;
+  return (
+    <svg
+      viewBox={thumb.viewBox}
+      role="img"
+      aria-label={`What is on layer ${layer}`}
+      className="h-12 w-20 border border-rule bg-paper"
+    >
+      <g transform="scale(1 -1)" strokeLinejoin="round">
+        <path
+          d={thumb.closed}
+          fillRule="evenodd"
+          className="fill-rule stroke-ink"
+          vectorEffect="non-scaling-stroke"
+          strokeWidth={1}
+        />
+        <path
+          d={thumb.open}
+          className="fill-none stroke-red"
+          vectorEffect="non-scaling-stroke"
+          strokeWidth={1.5}
+        />
+      </g>
+    </svg>
+  );
+}
+
 /** What one drawing holds: its layers with their outlines, who uses them, and what was left out. */
 function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
   const skipped = [...drawing.skipped];
@@ -63,6 +101,9 @@ function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
           <caption className="sr-only">Layers of {drawing.file}</caption>
           <thead>
             <tr className="text-left text-[12px] text-ink-soft">
+              <th className="py-0.5 pr-2 font-normal">
+                <span className="sr-only">Picture</span>
+              </th>
               <th className="py-0.5 pr-2 font-normal">Layer</th>
               <th className="py-0.5 pr-2 font-normal">Outlines</th>
               <th className="py-0.5 font-normal">Used by</th>
@@ -73,7 +114,10 @@ function Report({ drawing, uses }: { drawing: Drawing; uses: ShapeUse[] }) {
               const holes = outlines.reduce((sum, outline) => sum + outline.holes.length, 0);
               const users = uses.filter((use) => use.layer === layer).map((use) => label(use.body));
               return (
-                <tr key={layer} className="border-rule border-t align-baseline">
+                <tr key={layer} className="border-rule border-t align-middle">
+                  <td className="w-20 py-1 pr-2">
+                    <Picture drawing={drawing} layer={layer} />
+                  </td>
                   <th
                     scope="row"
                     className="py-0.5 pr-2 text-left font-mono font-normal text-[12px]"
