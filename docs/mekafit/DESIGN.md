@@ -34,13 +34,14 @@ packages/core/src            mekasim's core
     disk.ts       a model's drawings from beside it, for the command line and tests
   simulate.ts     takes `files`, and the hooks of §2.3
 packages/fit/src
-  schema.ts       mekafit document: mekasim's schema with `mekafit: 1`
+  schema.ts       mekafit document: mekasim's schema with `mekafit: 1` and `contacts:`
   load.ts         reads `mekafit: 1` and `mekasim: 1` files; `asMekasim`
-  simulate.ts     core's pipeline with mekafit's schema
+  simulate.ts     core's pipeline with mekafit's schema and extension hook
+  contacts.ts     checked, distinct body pairs compiled from `between` and `among`
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
-  compile.ts      contacts, springs, locks, stops, move drivers, in core's `extend` hook
+  compile.ts      springs, locks, stops, move drivers, in core's `extend` hook
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/

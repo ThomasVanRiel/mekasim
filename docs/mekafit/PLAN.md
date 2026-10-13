@@ -34,7 +34,7 @@ their code is in the shared packages:
 What mekafit itself has so far: its first line `mekafit: 1`, the app skeleton (the
 shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
 Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
-is only the schema with that first line and the calls into core.
+has the schema, contact-pair compilation and the calls into core.
 
 **Phase 2, clearance, is begun, and what is built of it is mekasim's too.** In
 `packages/core`: the exact distance between two lines or arcs and between two
@@ -43,9 +43,10 @@ shapes, with the two places it is between and a negative value where shapes over
 measures, checks and plots. Every gap a model asks about is drawn in both apps
 between its two nearest places; on mekafit's sheet in red where the parts are into
 each other. Two bodies joined by a pin are not counted as running into each other:
-their gap is 0 where they overlap, and the model warns about it. Still to do, in
-mekafit: `contacts:` and the message when parts run into each other, the Contacts
-fold, the Contact tool and "Find contacts", and the `clearance-check` example.
+their gap is 0 where they overlap, and the model warns about it. In mekafit,
+`contacts:` is read, checked and compiled to distinct pairs. Still to do: the
+message when parts run into each other, the Contacts fold, the Contact tool and
+"Find contacts", and the `clearance-check` example.
 
 **Not built yet in phase 1:**
 
@@ -68,12 +69,12 @@ first if it is not in the conversation.
 **Next, in this order** (the rest of phase 2, mekafit's alone, in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
 
-1. `contacts:` in mekafit's schema (`between: [a, b]`, `among: [...]`), added through
+1. **Built.** `contacts:` in mekafit's schema (`between: [a, b]`, `among: [...]`), added through
    `documentSchema`'s `sections` in `packages/fit/src/schema.ts`, and compiled to
    pairs of bodies in the `extend` hook of `simulate` (`packages/fit/src/simulate.ts`):
    `among` expanded, pairs given twice dropped, a name that is no body or has no
    `shape` reported as an error at its place.
-2. After the run, each pair's gap over the motion with core's `gapsOf`
+2. **Next.** After the run, each pair's gap over the motion with core's `gapsOf`
    (`packages/core/src/analysis/gaps.ts`), which already leaves pinned pairs at 0.
    The first sample where a pair is more than 0.001 mm into each other gives the
    message "`knuckle` runs into `head` at step 41, 0.3 mm deep", at the contacts

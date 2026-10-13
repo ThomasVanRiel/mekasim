@@ -7,11 +7,12 @@ import {
   simulate as simulateModel,
   sweep as sweepModel,
 } from "@mekasim/core";
+import { compileContacts } from "./contacts.ts";
 import { FitDocument } from "./schema.ts";
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
 function options(files?: Files): SimulateOptions {
-  return { schema: FitDocument, files };
+  return { schema: FitDocument, files, extend: compileContacts };
 }
 
 /**
