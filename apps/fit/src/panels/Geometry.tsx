@@ -63,7 +63,7 @@ function Picture({ drawing, layer }: { drawing: Drawing; layer: string }) {
       viewBox={thumb.viewBox}
       role="img"
       aria-label={`What is on layer ${layer}`}
-      className="h-12 w-20 border border-rule bg-paper"
+      className="h-12 w-20"
     >
       <g transform="scale(1 -1)" strokeLinejoin="round">
         <path
