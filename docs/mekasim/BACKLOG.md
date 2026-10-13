@@ -133,7 +133,8 @@ Done so far:
 - **The base plate** covers all fixed pivots in one piece, which for a long
   mechanism is a large plate. It can be deleted in the cutting program.
 - **Parts are stacked in one column,** not nested to save material.
-- **One STL holds all parts** on one bed; there is no file per part.
+- **The STL holds all parts as one solid.** The 3MF keeps them apart, as named
+  objects in one file; there is no file per part.
 - **Outlines are polygons,** with 96 corners to a full turn, not true arcs.
 
 ## Known gaps

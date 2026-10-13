@@ -9,6 +9,7 @@ import {
   pinvSolve,
   residual,
   type Shape,
+  type SolverModel,
   solvePosition,
   svd,
   TOLERANCE,
@@ -17,6 +18,7 @@ import type { FitCompiled } from "../contacts.ts";
 import { contactInequalities, type Inequality, linearizeInequalities } from "./inequality.ts";
 import { solveQp } from "./qp.ts";
 import { springTerms } from "./springs.ts";
+import { moveConstraint, plannedStarts, stageAt, stageEnds } from "./stages.ts";
 
 /** Where a run stopped because the parts could not be put anywhere. */
 export interface Jam {
@@ -30,6 +32,8 @@ export interface Jam {
 export interface QuasistaticRun {
   cycle: Cycle;
   jam?: Jam;
+  /** The pulls that nothing held: the driver, and when its pull ended. A result, not a fault. */
+  free: { driver: string; time: number }[];
 }
 
 /** Steps of the sequential program tried for one sample. */
@@ -46,6 +50,8 @@ const SETTLED = 1e-10;
 const NEARLY = 1e-7;
 /** Rows nearer than this are named in a jam, in metres. */
 const TOUCHING = 1e-6;
+/** A pulled body that nothing holds goes this many times the model's size in its stage. */
+const FREE_TRAVEL = 10;
 /** How much softer than the softest spring the resistance to being moved is. */
 const RESISTANCE = 1e-6;
 
@@ -55,7 +61,9 @@ function thickness(shape: Shape): number {
   return around > 0 ? (2 * Math.abs(loopArea(shape.outer))) / around : 0;
 }
 
-type Attempt = { ok: true; q: Float64Array } | { ok: false; rows: Inequality[]; open: string[] };
+type Attempt =
+  | { ok: true; q: Float64Array; limited: string[] }
+  | { ok: false; rows: Inequality[]; open: string[] };
 
 /**
  * The motion of a mechanism whose parts touch and whose springs settle (DESIGN.md
@@ -64,10 +72,25 @@ type Attempt = { ok: true; q: Float64Array } | { ok: false; rows: Inequality[]; 
  * cycle of its motor.
  */
 export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
-  const { model } = compiled;
+  const { model, moves } = compiled;
   const width = model.q0.length;
   const duration = compiled.period;
   const intervals = duration > 0 ? compiled.steps : 0;
+
+  // A move holds its body only in its `to` stages, and from where the run has taken it.
+  const moved = new Set(moves.map((move) => move.id));
+  const joints = model.constraints.filter((c) => !(c.driver && moved.has(c.source)));
+  const starts = moves.map(plannedStarts);
+  const holds = moves.map((move, m) => moveConstraint(move, starts[m]));
+  const modelAt = (t: number): SolverModel => ({
+    ...model,
+    constraints: [
+      ...joints,
+      ...holds.filter(
+        (_, m) => stageAt(moves[m] as (typeof moves)[number], t)?.stage.kind !== "pull",
+      ),
+    ],
+  });
 
   // How far each body reaches from its origin, so that a turn weighs as the shift it makes.
   const reach = new Float64Array(model.bodies.length);
@@ -116,10 +139,10 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     return furthest;
   }
 
-  function openSources(phi: Float64Array): string[] {
+  function openSources(constraints: SolverModel["constraints"], phi: Float64Array): string[] {
     const worst = new Map<string, number>();
     let row = 0;
-    for (const constraint of model.constraints) {
+    for (const constraint of constraints) {
       let error = 0;
       for (let k = 0; k < constraint.size; k++) error = Math.max(error, Math.abs(phi[row + k]));
       row += constraint.size;
@@ -129,30 +152,66 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     return [...worst].sort((x, y) => y[1] - x[1]).map(([source]) => source);
   }
 
-  /** One sample: from the guess, step until the joints close, nothing overlaps and nothing moves. */
+  // How far the whole model reaches, for how far a pulled body goes when nothing holds it.
+  let span = size;
+  for (const body of compiled.bodies.values()) {
+    if (body.index < 0) {
+      for (const { u, v } of body.points.values()) span = Math.max(span, Math.hypot(u, v));
+      continue;
+    }
+    const at = 3 * body.index;
+    span = Math.max(span, Math.hypot(model.q0[at], model.q0[at + 1]) + reach[body.index]);
+  }
+
+  /**
+   * One sample: from the guess, step until the joints close, nothing overlaps and
+   * nothing moves. `since` is the time of the sample before it.
+   */
   function attempt(
     previous: Float64Array,
     guess: Float64Array,
     t: number,
+    since: number,
     iterations = MAX_ITERATIONS,
   ): Attempt {
     const q = Float64Array.from(guess);
+    const now = modelAt(t);
+    // The bodies let go and pulled in this sample. Each may go only so far in it along
+    // its pull, so that one that nothing holds moves on evenly and not all at once.
+    const pulls = moves.flatMap((move) => {
+      const stage = stageAt(move, t)?.stage;
+      if (stage?.kind !== "pull") return [];
+      const force = Math.hypot(stage.force[0], stage.force[1]);
+      const most = (FREE_TRAVEL * span * (t - since)) / stage.time;
+      return [{ move, stage, at: 3 * move.body, force, most }];
+    });
+    const limit = ({ move, stage, at, force, most }: (typeof pulls)[number]): Inequality => {
+      const gradient = new Float64Array(width);
+      if (force === 0) return { source: move.id, kind: "limit", value: most, gradient };
+      const ux = stage.force[0] / force;
+      const uy = stage.force[1] / force;
+      gradient[at] = -ux;
+      gradient[at + 1] = -uy;
+      const gone = (q[at] - previous[at]) * ux + (q[at + 1] - previous[at + 1]) * uy;
+      return { source: move.id, kind: "limit", value: most - gone, gradient };
+    };
+    let limited: string[] = [];
     let stepped = Number.POSITIVE_INFINITY;
     for (let iteration = 0; ; iteration++) {
-      const phi = residual(model, q, t);
-      const rows = contactInequalities(compiled, q);
+      const phi = residual(now, q, t);
+      const rows = [...contactInequalities(compiled, q), ...pulls.map(limit)];
       const closed = phi.every((value) => Math.abs(value) < TOLERANCE);
       if (closed && stepped < SETTLED * size && rows.every((row) => row.value > -PENETRATION))
-        return { ok: true, q };
+        return { ok: true, q, limited };
       const failed = (): Attempt => ({
         ok: false,
-        rows: rows.filter((row) => row.value < TOUCHING),
-        open: openSources(phi),
+        rows: rows.filter((row) => row.kind !== "limit" && row.value < TOUCHING),
+        open: openSources(now.constraints, phi),
       });
       if (iteration >= iterations) return failed();
 
       // The joints leave some directions free; the step that closes them is core's own.
-      const decomposition = svd(jacobian(model, q));
+      const decomposition = svd(jacobian(now, q));
       const dq = pinvSolve(
         decomposition,
         phi.map((value) => -value),
@@ -165,6 +224,12 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         hessian.data[i * width + i] += eps * weight[i];
         slope[i] += eps * weight[i] * (q[i] - previous[i]);
       }
+      // A pull is energy that falls as the body goes its way.
+      for (const { stage, at } of pulls) {
+        slope[at] -= stage.force[0];
+        slope[at + 1] -= stage.force[1];
+      }
+      limited = [];
       if (n > 0) {
         const gradient = Float64Array.from(slope);
         for (let i = 0; i < width; i++) {
@@ -210,6 +275,10 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         }
         const solved = solveQp(reduced, linear, sides, wanted);
         if (!solved) return failed();
+        limited = solved.active
+          .map((r) => rows[r] as Inequality)
+          .filter((row) => row.kind === "limit")
+          .map((row) => row.source);
         for (let i = 0; i < width; i++) {
           for (let k = 0; k < n; k++) dq[i] += free.data[i * n + k] * solved.x[k];
         }
@@ -228,7 +297,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       // expects of it, the step is halved.
       const near =
         phi.every((value) => Math.abs(value) < NEARLY) && rows.every((row) => row.value > -NEARLY);
-      if (near && compiled.springs.length > 0) {
+      if (near && (compiled.springs.length > 0 || pulls.length > 0)) {
         let along = 0;
         let curved = 0;
         for (let i = 0; i < width; i++) {
@@ -242,7 +311,10 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
             trial[i] = q[i] + by * dq[i];
             held += weight[i] * (trial[i] - previous[i]) ** 2;
           }
-          return springTerms(compiled.springs, trial).energy + (eps / 2) * held;
+          let pulled = 0;
+          for (const { stage, at } of pulls)
+            pulled += stage.force[0] * trial[at] + stage.force[1] * trial[at + 1];
+          return springTerms(compiled.springs, trial).energy + (eps / 2) * held - pulled;
         };
         const now = energy(0);
         for (let halved = 0; halved < 40; halved++) {
@@ -265,6 +337,9 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
 
   const times: number[] = [];
   const samples: Float64Array[] = [];
+  const free: QuasistaticRun["free"] = [];
+  /** The pulls that something held in at least one sample, each as its move and stage. */
+  const held = new Set<string>();
   let jam: Jam | undefined;
 
   /** The sample at `t`, from the last one; split in two where that fails or moves too far. */
@@ -280,13 +355,19 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         last,
         last.map((value, i) => value + ratio * (value - before[i])),
         t,
+        from,
       );
     }
-    if (!result?.ok) result = attempt(last, last, t);
+    if (!result?.ok) result = attempt(last, last, t, from);
     const reached = result.ok ? result.q : last;
     if (result.ok && (splits >= MAX_SPLITS || travel((i) => reached[i] - last[i]) <= 1)) {
       times.push(t);
       samples.push(result.q);
+      for (const [m, move] of moves.entries()) {
+        const now = stageAt(move, t);
+        if (now?.stage.kind === "pull" && !result.limited.includes(move.id))
+          held.add(`${m}:${now.index}`);
+      }
       return true;
     }
     if (splits >= MAX_SPLITS) {
@@ -296,14 +377,23 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     return advance((from + t) / 2, splits + 1) && advance(t, splits + 1);
   }
 
+  // The samples are spread over the stages by their time, each stage's end among them.
+  const ends = [...new Set([...moves.flatMap(stageEnds), duration])]
+    .filter((end) => end > 0 && end <= duration)
+    .sort((x, y) => x - y);
+  const counts = ends.map((end, i) =>
+    Math.max(1, Math.round((intervals * (end - (ends[i - 1] ?? 0))) / duration)),
+  );
+  const asked = intervals > 0 ? counts.reduce((sum, count) => sum + count, 1) : 1;
+
   // The joints close from the starting pose as in mekasim; then the springs and contacts settle.
   const start = Float64Array.from(model.q0);
-  const assembled = solvePosition(model, start, 0, 200);
+  const assembled = solvePosition(modelAt(0), start, 0, 200);
   if (!assembled.ok) {
     const none = new Float64Array(0);
     return {
       cycle: {
-        steps: intervals + 1,
+        steps: asked,
         count: 0,
         width,
         t: none,
@@ -312,18 +402,35 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         qdd: none,
         failure: { step: 0, time: 0, open: assembled.open },
       },
+      free,
     };
   }
-  const settled = attempt(start, start, 0, MAX_SETTLING);
+  const settled = attempt(start, start, 0, 0, MAX_SETTLING);
   times.push(0);
   samples.push(settled.ok ? settled.q : start);
   if (!settled.ok) jam = { time: 0, rows: settled.rows, open: settled.open };
 
-  for (let k = 1; k <= intervals && !jam; k++) {
-    if (!advance((k * duration) / intervals, 0)) break;
+  let begun = 0;
+  run: for (const [i, end] of (intervals > 0 && !jam ? ends : []).entries()) {
+    const count = counts[i] as number;
+    for (let k = 1; k <= count; k++) {
+      if (!advance(k === count ? end : begun + (k * (end - begun)) / count, 0)) break run;
+    }
+    // Where a pull has taken its body is where the next stage begins.
+    const reached = samples[samples.length - 1] as Float64Array;
+    for (const [m, move] of moves.entries()) {
+      const index = stageEnds(move).indexOf(end);
+      if (move.stages[index]?.kind !== "pull") continue;
+      const at = 3 * move.body;
+      const pose = { x: reached[at], y: reached[at + 1], angle: reached[at + 2] };
+      // What follows it until the next `to` begins there too.
+      for (let next = index + 1; next <= move.stages.length; next++) {
+        (starts[m] as ReturnType<typeof plannedStarts>)[next] = pose;
+        if (move.stages[next]?.kind !== "pull") break;
+      }
+      if (!held.has(`${m}:${index}`)) free.push({ driver: move.id, time: end });
+    }
+    begun = end;
   }
-  return {
-    cycle: cycleFromPositions(times, samples, Math.max(intervals + 1, samples.length)),
-    jam,
-  };
+  return { cycle: cycleFromPositions(times, samples, Math.max(asked, samples.length)), jam, free };
 }

@@ -2,7 +2,8 @@ import { type CompiledBody, type Mat, mat, type Point, type Pose } from "@mekasi
 import type { CompiledContact, FitCompiled } from "../contacts.ts";
 import { CONTACT_MARGIN, type ContactPoint, contactPoints } from "../geometry/contacts.ts";
 
-export type InequalityKind = "contact" | "stop" | "lock";
+/** `limit` is how far a pulled body may go in one sample; it is the run's own, and names nothing in a jam. */
+export type InequalityKind = "contact" | "stop" | "lock" | "limit";
 
 /** One current one-sided condition, written `value >= 0`. */
 export interface Inequality {

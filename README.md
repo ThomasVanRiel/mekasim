@@ -60,7 +60,8 @@ mechanism, and paste the YAML it answers with into the source. The text is
 added.
 
 "Make" in the header takes the real width, thickness and pin size of
-the links, and downloads them as flat pieces: a DXF to laser cut, an STL to print.
+the links, and downloads them as flat pieces: a DXF to laser cut, and a 3MF or an STL
+to print. The 3MF holds every piece as an object of its own, the STL all in one.
 "Download DXF of the points" there saves the joints at the start of the cycle as
 points, with the links as lines between them, to build on in a CAD program.
 
@@ -132,7 +133,7 @@ apps/sim/src
   viewport/   the drawing: three.js rendering, labels,
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, checks, plots, messages, timeline
-  io/         STL
+  io/         3MF, STL
 ```
 
 The app deploys to Netlify from `netlify.toml` as a static site.

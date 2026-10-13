@@ -11,6 +11,7 @@ import {
 } from "@mekasim/core";
 import { download, fileStem, formatNumber, label } from "@mekasim/ui";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { to3mf } from "../io/3mf.ts";
 import { toStl } from "../io/stl.ts";
 import { useStore } from "../store.ts";
 import { Field } from "./Field.tsx";
@@ -189,6 +190,16 @@ function Build() {
         <button
           type="button"
           className={button}
+          title="Every piece as an object of its own, by name, to move or leave out in the printing program"
+          disabled={parts.length === 0}
+          onClick={() => download(`${stem}.3mf`, to3mf(parts, sizes.thickness, label), "model/3mf")}
+        >
+          Download 3MF to print
+        </button>
+        <button
+          type="button"
+          className={button}
+          title="All pieces as one solid"
           disabled={parts.length === 0}
           onClick={() => download(`${stem}.stl`, toStl(parts, sizes.thickness), "model/stl")}
         >

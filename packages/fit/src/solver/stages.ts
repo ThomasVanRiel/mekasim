@@ -9,8 +9,15 @@ export interface ToStage {
   time: number;
 }
 
-/** `pull` stages are to come. */
-export type Stage = ToStage;
+/** A stage that lets the body go and pulls it with a force, at the origin of its frame. */
+export interface PullStage {
+  kind: "pull";
+  /** In newtons, along the sheet's x and y. */
+  force: Point;
+  time: number;
+}
+
+export type Stage = ToStage | PullStage;
 
 /** A `move` driver: one body carried through its stages, starting from its pose. */
 export interface CompiledMove {
@@ -59,34 +66,70 @@ function alongVia(from: Pose, via: Point, to: Pose, s: number): Point {
   return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
 }
 
-/** Where a move holds its body at time `t`; after its last stage, where that ended. */
-export function poseAt(move: CompiledMove, t: number): Pose {
-  let from = move.start;
-  let begun = 0;
-  for (const stage of move.stages) {
-    const s = stage.time > 0 ? (t - begun) / stage.time : 1;
-    if (s < 1) {
-      const at = Math.max(s, 0);
-      const [x, y] = stage.via
-        ? alongVia(from, stage.via, stage.to, at)
-        : [from.x + at * (stage.to.x - from.x), from.y + at * (stage.to.y - from.y)];
-      return { x, y, angle: from.angle + at * (stage.to.angle - from.angle) };
-    }
-    from = stage.to;
-    begun += stage.time;
-  }
-  return from;
+/** When each stage of a move ends, in seconds from the start of the run. */
+export function stageEnds(move: CompiledMove): number[] {
+  let at = 0;
+  return move.stages.map((stage) => {
+    at += stage.time;
+    return at;
+  });
 }
 
-/** The three equations that hold a moved body at its pose for the time. */
-export function moveConstraint(move: CompiledMove): Constraint {
+/**
+ * Where each stage begins, and last where the move ends, as far as the stages say.
+ * Where a pull takes the body is for a run to find; until it has, what follows a pull
+ * is put where the pull began.
+ */
+export function plannedStarts(move: CompiledMove): Pose[] {
+  const starts = [move.start];
+  for (const stage of move.stages) {
+    starts.push(stage.kind === "to" ? stage.to : (starts[starts.length - 1] as Pose));
+  }
+  return starts;
+}
+
+/** The stage a move is in at time `t`: each lasts up to and with its end. None once the last is over. */
+export function stageAt(
+  move: CompiledMove,
+  t: number,
+): { index: number; stage: Stage; begun: number } | undefined {
+  let begun = 0;
+  for (const [index, stage] of move.stages.entries()) {
+    if (t <= begun + stage.time) return { index, stage, begun };
+    begun += stage.time;
+  }
+  return undefined;
+}
+
+/**
+ * Where a move holds its body at time `t`; after its last stage, where that ended.
+ * During a pull nothing holds the body, and this is where the pull began.
+ */
+export function poseAt(move: CompiledMove, t: number, starts = plannedStarts(move)): Pose {
+  const now = stageAt(move, t);
+  if (!now) return starts[move.stages.length] as Pose;
+  const from = starts[now.index] as Pose;
+  const { stage } = now;
+  if (stage.kind === "pull") return from;
+  const s = stage.time > 0 ? Math.min(1, Math.max(0, (t - now.begun) / stage.time)) : 1;
+  const [x, y] = stage.via
+    ? alongVia(from, stage.via, stage.to, s)
+    : [from.x + s * (stage.to.x - from.x), from.y + s * (stage.to.y - from.y)];
+  return { x, y, angle: from.angle + s * (stage.to.angle - from.angle) };
+}
+
+/**
+ * The three equations that hold a moved body at its pose for the time. `starts` is
+ * where its stages begin, which a run fills in as it finds where each pull ends.
+ */
+export function moveConstraint(move: CompiledMove, starts = plannedStarts(move)): Constraint {
   const at = 3 * move.body;
   return {
     source: move.id,
     driver: true,
     size: 3,
     residual(q, t, out, row) {
-      const pose = poseAt(move, t);
+      const pose = poseAt(move, t, starts);
       out[row] = q[at] - pose.x;
       out[row + 1] = q[at + 1] - pose.y;
       out[row + 2] = q[at + 2] - pose.angle;
