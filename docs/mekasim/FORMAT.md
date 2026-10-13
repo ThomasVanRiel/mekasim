@@ -1,7 +1,7 @@
 # The mekasim model format
 
 A model is one YAML file, by convention named `something.mekasim.yaml`. This page
-describes format version 1. Working examples are in [`examples/`](../examples).
+describes format version 1. Working examples are in [`examples/`](../../examples).
 
 Solve a model from the command line:
 

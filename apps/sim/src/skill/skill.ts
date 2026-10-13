@@ -1,4 +1,4 @@
-import format from "../../../../docs/FORMAT.md?raw";
+import format from "../../../../docs/mekasim/FORMAT.md?raw";
 import guide from "../../../../skill/SKILL.md?raw";
 import { EXAMPLES } from "../examples.ts";
 

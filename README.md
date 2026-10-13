@@ -5,7 +5,7 @@ solve their exact motion and measure what they do.
 
 There is a solver core with a command-line runner, and a browser app that shows a
 model moving in 2D and 3D next to its source. Drawing tools are next; see
-[docs/PLAN.md](docs/PLAN.md).
+[docs/mekasim/PLAN.md](docs/mekasim/PLAN.md).
 
 ## Use
 
@@ -79,7 +79,7 @@ Measures
   ...
 ```
 
-The model format is described in [docs/FORMAT.md](docs/FORMAT.md); start from one
+The model format is described in [docs/mekasim/FORMAT.md](docs/mekasim/FORMAT.md); start from one
 of the files in [`examples/`](examples). Besides links and pins a model can have
 gears, belts, cams and fixed-distance ties, and cranks and rods given by their
 dimensions instead of point positions.

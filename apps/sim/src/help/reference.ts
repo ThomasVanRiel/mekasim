@@ -1,4 +1,4 @@
-import format from "../../../../docs/FORMAT.md?raw";
+import format from "../../../../docs/mekasim/FORMAT.md?raw";
 import { type Block, parseMarkdown, plain } from "./markdown.ts";
 
 /** Sections of the format reference that are about working outside the app. */
@@ -35,5 +35,5 @@ export function sectionsOf(blocks: Block[]): Section[] {
   );
 }
 
-/** The format reference in `docs/FORMAT.md`, as shown in the help panel. */
+/** The format reference in `docs/mekasim/FORMAT.md`, as shown in the help panel. */
 export const HELP: Block[] = helpBlocks(format);

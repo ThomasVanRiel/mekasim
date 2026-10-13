@@ -6,7 +6,7 @@ reference). **Phase 1, the viewer, is built** and deployed to Netlify.
 components, is built.** Phases 5 and 6 are parked in [BACKLOG.md](BACKLOG.md) while
 the backlog is worked through. A second app for part shapes, clearance,
 contact and studies, sharing mekasim's core, is planned in
-[mekafit/PLAN.md](mekafit/PLAN.md); it leaves mekasim as it is.
+[../mekafit/PLAN.md](../mekafit/PLAN.md); it leaves mekasim as it is.
 
 Phase 4 as built: gear, belt, cam and distance joints in the solver; crank and rod
 components that expand to bodies and joints; bodies layered automatically for the
@@ -156,7 +156,7 @@ Notes:
 - A JSON Schema is generated from the same type definitions. It drives validation
   and autocomplete in the source panel, and works in external editors through the
   YAML language server.
-- A format reference (`docs/FORMAT.md`) with every joint type, field and measure
+- A format reference (`docs/mekasim/FORMAT.md`) with every joint type, field and measure
   function is a phase 0 deliverable, since hand-written YAML is a primary input.
 
 Measure vocabulary (initial): `x(p)`, `y(p)`, `dist(p, q)`, `angle(body)`,

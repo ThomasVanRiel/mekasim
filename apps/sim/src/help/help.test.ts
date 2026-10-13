@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { type Block, type Inline, parseInline, parseMarkdown, plain, slug } from "./markdown.ts";
 import { helpBlocks, sectionsOf } from "./reference.ts";
 
-const FORMAT = readFileSync(new URL("../../../../docs/FORMAT.md", import.meta.url), "utf8");
+const FORMAT = readFileSync(new URL("../../../../docs/mekasim/FORMAT.md", import.meta.url), "utf8");
 
 describe("reading Markdown", () => {
   it("finds code, bold text and links within a line", () => {

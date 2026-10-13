@@ -2,7 +2,7 @@
 
 A mekafit model is one YAML file, by convention named `something.mekafit.yaml`,
 starting with `mekafit: 1`. It is the mekasim format, described in
-[../FORMAT.md](../FORMAT.md), with the sections and fields on this page added.
+[../mekasim/FORMAT.md](../mekasim/FORMAT.md), with the sections and fields on this page added.
 Everything there holds here: units and expressions, bodies, joints, components,
 drivers, pose, traces, measures, plots, frames.
 
@@ -16,7 +16,7 @@ This page is written ahead of the build. The phase that adds each part is given 
 its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
 
 Built so far: the first line `mekafit: 1`. A shape written out as `path` with
-`holes` is mekasim's own by now ([../FORMAT.md](../FORMAT.md), "Shapes"), and so are
+`holes` is mekasim's own by now ([../mekasim/FORMAT.md](../mekasim/FORMAT.md), "Shapes"), and so are
 `checks:` and conditions. What mekafit adds to shapes is where they come from: a
 drawing kept beside the model. Everything else on this page is still to come.
 
@@ -160,7 +160,7 @@ dimensions gives `place`, so the outline lands where its points are.
 
 ### Shape written out
 
-`shape: { path, holes }` is mekasim's, described in [../FORMAT.md](../FORMAT.md)
+`shape: { path, holes }` is mekasim's, described in [../mekasim/FORMAT.md](../mekasim/FORMAT.md)
 under "Shapes", with the path text it reads. mekafit adds one more way to write it:
 
 | Field | Meaning |
@@ -295,7 +295,7 @@ added where parts move fast against each other. Plots are drawn against time.
 | `final(e)`, `first(e)` | The value at the last and the first sample |
 
 Conditions (`a < b`, `and`, `or`, `not`) and the `checks:` section are mekasim's,
-described in [../FORMAT.md](../FORMAT.md). A check on something that varies has to
+described in [../mekasim/FORMAT.md](../mekasim/FORMAT.md). A check on something that varies has to
 hold at every sample; `final(...)` asks for it at the end of the run only, which is
 what most checks on a contact run want.
 

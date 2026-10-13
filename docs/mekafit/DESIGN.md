@@ -143,7 +143,7 @@ nothing, so nothing new becomes valid in a mekasim model.
    passes no registry.
 
    Comparisons, `and`, `or` and `not` need no extension: mekasim has them, with
-   its `checks:` section (`docs/FORMAT.md`). A study's `pass` is made of the same
+   its `checks:` section (`docs/mekasim/FORMAT.md`). A study's `pass` is made of the same
    conditions, and the model's checks are what it tests by default (§6.1).
 3. **Compile and solve.** `simulate(text, options?)` takes the schema and the
    registry, and optional hooks: `extend`, which adds to the compiled model and can

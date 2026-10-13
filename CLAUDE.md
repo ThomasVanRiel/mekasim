@@ -1,8 +1,8 @@
 # CLAUDE.md
 
 mekasim is a browser app for exploring planar mechanisms described in YAML.
-The plan and its phases are in `docs/PLAN.md`; the model format is in `docs/FORMAT.md`.
-Ideas and known gaps outside the phases are collected in `docs/BACKLOG.md`.
+The plan and its phases are in `docs/mekasim/PLAN.md`; the model format is in `docs/mekasim/FORMAT.md`.
+Ideas and known gaps outside the phases are collected in `docs/mekasim/BACKLOG.md`.
 
 A second app, mekafit (working name), for part shapes, clearance, contact and
 studies, is planned in `docs/mekafit/PLAN.md`, designed in `docs/mekafit/DESIGN.md`
