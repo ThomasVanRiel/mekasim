@@ -607,6 +607,12 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       loads: { contacts: {}, springs: {}, stops: {}, locks: {}, drivers: {} },
     };
   }
+  // A lock that is not said to be in or out is in where its joint starts beyond its place.
+  for (const lock of compiled.locks) {
+    if (lock.engaged !== undefined) continue;
+    const value = jointValue(lock.value, start);
+    if (lock.drops === "down" ? value < lock.at : value > lock.at) engaged.add(lock.id);
+  }
   const settled = attempt(start, start, 0, 0, MAX_SETTLING);
   keep(0, settled.ok ? settled.q : start);
   if (!settled.ok) jam = { time: 0, rows: settled.rows, open: settled.open };

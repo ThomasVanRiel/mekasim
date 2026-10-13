@@ -235,6 +235,22 @@ ${latch}
     );
   });
 
+  it("is in from the start where the joint starts beyond it, unless it is said to be out", () => {
+    // The ram starts at 40 mm, below a lock at 50 mm that drops going down.
+    const begun = simulate(sprung("  catch: { joint: guide, at: 50 mm, drops: down }"));
+    expect(begun.diagnostics).toEqual([]);
+    const cycle = begun.cycle as NonNullable<typeof begun.cycle>;
+    expect(begun.latched.catch?.[0]).toBe(1);
+    expect(cycle.q[3 * cycle.t.indexOf(1)]).toBeCloseTo(0.05, 9);
+
+    const out = simulate(
+      sprung("  catch: { joint: guide, at: 50 mm, drops: down, engaged: false }"),
+    );
+    const pulled = out.cycle as NonNullable<typeof out.cycle>;
+    expect(out.latched.catch?.[0]).toBe(0);
+    expect(pulled.q[3 * pulled.t.indexOf(1)]).toBeCloseTo(0.09, 8);
+  });
+
   it("holds from the start when it is engaged", () => {
     // In from the start at 50 mm, going down: the ram cannot be pulled out past it.
     const result = simulate(

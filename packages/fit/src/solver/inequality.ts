@@ -50,8 +50,8 @@ export interface CompiledLock {
   at: number;
   /** `down`: in once the value falls below `at`, then holding it below. `up`: the other way round. */
   drops: "down" | "up";
-  /** Whether it is in at the start. */
-  engaged: boolean;
+  /** Whether it is in at the start. Not said, it is in where the joint starts beyond `at`. */
+  engaged?: boolean;
   bodies: [string, string];
 }
 

@@ -301,7 +301,7 @@ filled while it is in.
 | `joint` | A revolute joint, pin-slot or slider |
 | `at` | Where it drops in |
 | `drops` | `down`: it drops in as the value falls below `at`, and then holds it below. `up`: the other way round |
-| `engaged` | Whether it is in at the start; default `false` |
+| `engaged` | Whether it is in at the start. Left out, it is in where the joint starts beyond `at` the way it drops, as a sprung pin would be, and out otherwise. `false` keeps it out until the joint next passes `at` |
 
 ## Moving a body (phase 3, built)
 

@@ -93,7 +93,12 @@ export const Latch = z.strictObject({
     .describe(
       "down: in once the value falls below `at`, holding it below; up: the other way round",
     ),
-  engaged: z.boolean().optional().describe("Whether it is in at the start; default false"),
+  engaged: z
+    .boolean()
+    .optional()
+    .describe(
+      "Whether it is in at the start; left out, it is in where the joint starts beyond its place",
+    ),
 });
 
 /** mekasim's own driver, which turns a joint. */

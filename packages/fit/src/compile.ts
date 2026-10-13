@@ -254,7 +254,7 @@ export function compileStops(compiled: Compiled, source: Document, report: Repor
         value,
         at: scalar(latch.at, dim, [...path, "at"]),
         drops: latch.drops,
-        engaged: latch.engaged ?? false,
+        engaged: latch.engaged,
         bodies,
       });
     });
