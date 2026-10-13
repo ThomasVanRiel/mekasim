@@ -1,81 +1,8 @@
 @import "tailwindcss";
-@import "@fontsource/barlow/400.css";
-@import "@fontsource/barlow/500.css";
-@import "@fontsource/barlow/600.css";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
+@import "@mekasim/ui/theme.css";
 
-/* An engineering computation pad: green-tint paper, graphite ink, layout-dye blue. */
-@theme {
-  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-
-  --color-paper: #edf1ea;
-  --color-sheet: #f8f9f6;
-  --color-rule: #c5cfc3;
-  --color-ink: #20282d;
-  --color-ink-soft: #5a666d;
-  --color-dye: #2046c4;
-  --color-brass: #8a6714;
-  --color-red: #b52d24;
-}
-
-/* Colours that no utility class names: the editor's comments, the warning mark, the
-   brass of the scrubber, and the lines of the plots. */
-:root {
-  color-scheme: light;
-  --comment: #6b7d68;
-  --amber: #e3c46a;
-  --marker: #b58a2e;
-
-  --series-1: #2a78d6;
-  --series-2: #eb6834;
-  --series-3: #1baf7a;
-  --series-4: #eda100;
-  --series-5: #e87ba4;
-  --series-6: #008300;
-  --series-7: #4a3aa7;
-  --series-8: #e34948;
-
-  --sweep-1: #6da7ec;
-  --sweep-2: #3987e5;
-  --sweep-3: #256abf;
-  --sweep-4: #184f95;
-  --sweep-5: #0d366b;
-}
-
-/* The same pad after dark: slate paper, chalk ink. Set on the root element by `theme.ts`. */
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --color-paper: #151a18;
-  --color-sheet: #1d2321;
-  --color-rule: #3a4541;
-  --color-ink: #e2e8e1;
-  --color-ink-soft: #9aa8a2;
-  --color-dye: #7d9cff;
-  --color-brass: #d3a94a;
-  --color-red: #ee7468;
-
-  --comment: #7f917c;
-  --amber: #6e5a1e;
-  --marker: #c79a3a;
-
-  --series-1: #3987e5;
-  --series-2: #d95926;
-  --series-3: #199e70;
-  --series-4: #c98500;
-  --series-5: #d55181;
-  --series-6: #008300;
-  --series-7: #9085e9;
-  --series-8: #e66767;
-
-  /* Still from the faintest against the sheet to the strongest, so here from dark to light. */
-  --sweep-1: #1c5cab;
-  --sweep-2: #2a78d6;
-  --sweep-3: #5598e7;
-  --sweep-4: #86b6ef;
-  --sweep-5: #b7d3f6;
-}
+/* Classes used in the shared interface parts are found there. */
+@source "../../../packages/ui/src";
 
 html,
 body,

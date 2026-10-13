@@ -9,11 +9,9 @@ import {
   toDxf,
   toPointsDxf,
 } from "@mekasim/core";
+import { download, fileStem, formatNumber, label } from "@mekasim/ui";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { download, fileStem } from "../io/download.ts";
 import { toStl } from "../io/stl.ts";
-import { label } from "../names.ts";
-import { formatNumber } from "../plot/geometry.ts";
 import { useStore } from "../store.ts";
 import { Field } from "./Field.tsx";
 

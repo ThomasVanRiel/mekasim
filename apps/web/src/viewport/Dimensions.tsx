@@ -1,11 +1,11 @@
 import { formatQuantity, LENGTH } from "@mekasim/core";
+import { useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useRef } from "react";
 import { Vector3 } from "three";
 import type { LineSegments2 } from "three-stdlib";
 import { useStore } from "../store.ts";
-import { useColors } from "../theme.ts";
 import { toWorld } from "./pick.ts";
 import type { Scene } from "./scene.ts";
 

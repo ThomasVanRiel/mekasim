@@ -1,5 +1,6 @@
 import type { Point } from "@mekasim/core";
 import { GROUND } from "@mekasim/core";
+import { bodyColor, useColors } from "@mekasim/ui";
 import { Line, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +17,6 @@ import {
   Vector3,
 } from "three";
 import { useStore } from "../store.ts";
-import { bodyColor, useColors } from "../theme.ts";
 import { Dimensions } from "./Dimensions.tsx";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";

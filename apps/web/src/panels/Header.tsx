@@ -1,10 +1,8 @@
 import { NEW_MODEL } from "@mekasim/core";
+import { download, encodeModel, exampleFragment, fileStem, useTheme } from "@mekasim/ui";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
-import { download, fileStem } from "../io/download.ts";
-import { encodeModel, exampleFragment } from "../io/share.ts";
 import { useStore } from "../store.ts";
-import { useTheme } from "../theme.ts";
 import { Make } from "./Build.tsx";
 
 const button =

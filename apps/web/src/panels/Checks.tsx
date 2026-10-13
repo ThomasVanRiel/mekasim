@@ -1,5 +1,5 @@
+import { label } from "@mekasim/ui";
 import { type CheckOutcome, checkOutcome, checkSummary } from "../checks.ts";
-import { label } from "../names.ts";
 import { useStore } from "../store.ts";
 
 const small = "rounded-sm border border-rule bg-sheet px-1.5 text-[12px] hover:border-ink-soft";

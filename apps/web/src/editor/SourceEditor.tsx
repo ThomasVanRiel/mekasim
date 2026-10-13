@@ -6,10 +6,10 @@ import { Compartment } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { tags } from "@lezer/highlight";
 import { entityAt } from "@mekasim/core";
+import { useTheme } from "@mekasim/ui";
 import { basicSetup } from "codemirror";
 import { useEffect, useRef } from "react";
 import { editorBridge, useStore } from "../store.ts";
-import { useTheme } from "../theme.ts";
 import { undoGrouping } from "./history.ts";
 import { external, linkedNames } from "./linked.ts";
 

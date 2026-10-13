@@ -1,7 +1,6 @@
 import { ANGLE, formatQuantity } from "@mekasim/core";
+import { label, PLOT_LEFT, PLOT_PAD, PLOT_RIGHT } from "@mekasim/ui";
 import type { CSSProperties, ReactNode } from "react";
-import { label } from "../names.ts";
-import { PLOT_LEFT, PLOT_PAD, PLOT_RIGHT } from "../plot/geometry.ts";
 import { RATES, useStore } from "../store.ts";
 
 /** Width of the slider's marker, as set in the stylesheet. */

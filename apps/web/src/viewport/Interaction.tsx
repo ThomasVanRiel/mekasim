@@ -1,9 +1,9 @@
+import { useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
 import { type OrthographicCamera, Vector3 } from "three";
 import { type DraftPoint, useStore } from "../store.ts";
-import { useColors } from "../theme.ts";
 import { type Hit, pick } from "./pick.ts";
 import {
   clickCam,

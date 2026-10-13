@@ -1,8 +1,7 @@
 import { addFrame, type Edit, GROUND } from "@mekasim/core";
+import { Choice, label, refLabel } from "@mekasim/ui";
 import type { Coordinates } from "../coordinates.ts";
-import { label, refLabel } from "../names.ts";
 import { useStore } from "../store.ts";
-import { Choice } from "./Choice.tsx";
 import { Field } from "./Field.tsx";
 
 const button = "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft";

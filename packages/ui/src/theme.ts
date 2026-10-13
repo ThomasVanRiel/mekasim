@@ -19,7 +19,7 @@ export interface Palette {
   bodies: string[];
 }
 
-/** Keep in step with the tokens in `index.css`. */
+/** Keep in step with the tokens in `theme.css`. */
 export const PALETTES: Record<Theme, Palette> = {
   light: {
     paper: "#edf1ea",
@@ -77,7 +77,7 @@ export function bodyColor(palette: Palette, index: number): string {
   return palette.bodies[index % palette.bodies.length] as string;
 }
 
-/** Also read by the script in `index.html` that sets the theme before the first paint. */
+/** Also read by the script in an app's `index.html` that sets the theme before the first paint. */
 const STORAGE_KEY = "mekasim.theme";
 
 /** The theme to show: the one chosen here, or else the one the system asks for. */

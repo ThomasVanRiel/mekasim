@@ -1,8 +1,7 @@
+import { download, FOLD_BUTTON, Fold } from "@mekasim/ui";
 import { useCallback, useState } from "react";
-import { download } from "../io/download.ts";
 import { useLayout } from "../layout.ts";
 import { SKILL, SKILL_FILE } from "../skill/skill.ts";
-import { FOLD_BUTTON, Fold } from "./Fold.tsx";
 
 /** The panel's id, for the button that folds it open. */
 export const SKILL_ID = "ai-skill";

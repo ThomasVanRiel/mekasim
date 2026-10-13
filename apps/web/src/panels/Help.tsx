@@ -1,8 +1,8 @@
+import { Fold } from "@mekasim/ui";
 import { createElement, Fragment, type ReactNode, useCallback, useRef } from "react";
 import type { Block, Inline } from "../help/markdown.ts";
 import { HELP, sectionsOf } from "../help/reference.ts";
 import { useLayout } from "../layout.ts";
-import { Fold } from "./Fold.tsx";
 
 /** The panel's id, for the button that folds it open. */
 export const HELP_ID = "format-help";

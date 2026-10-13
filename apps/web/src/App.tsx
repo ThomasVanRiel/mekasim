@@ -1,10 +1,9 @@
+import { BESIDE_FOLD, decodeModel, exampleIn } from "@mekasim/ui";
 import { type CSSProperties, type ReactNode, useEffect } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
-import { decodeModel, exampleIn } from "./io/share.ts";
 import { useLayout } from "./layout.ts";
 import { Checks } from "./panels/Checks.tsx";
-import { BESIDE_FOLD } from "./panels/Fold.tsx";
 import { Header } from "./panels/Header.tsx";
 import { HELP_ID, Help } from "./panels/Help.tsx";
 import { Inspector } from "./panels/Inspector.tsx";

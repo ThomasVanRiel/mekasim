@@ -1,6 +1,6 @@
 import { docFactor, formatQuantity, LENGTH } from "@mekasim/core";
+import { label } from "@mekasim/ui";
 import type { ReactNode } from "react";
-import { label } from "../names.ts";
 import { useStore } from "../store.ts";
 
 function Cell({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {

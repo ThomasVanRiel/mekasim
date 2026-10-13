@@ -109,14 +109,19 @@ packages/core/src
   edit/       changes to model text in place, model operations
   simulate.ts the whole pipeline in one call
   cli.ts      command-line runner
+packages/ui/src
+  theme.ts    colours and fonts (with theme.css), light and dark
+  names.ts    names from the model as words
+  plot/       chart geometry and drawing
+  io/         share links, downloads
+  *.tsx       parts of the interface that hold no model: folds, dividers, choices
 apps/web/src
   store.ts    model text, solved result, playback state
   editor/     YAML source editor, renaming by editing
   viewport/   the drawing: scene description, three.js rendering, labels,
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, checks, plots, messages, timeline
-  plot/       chart geometry and drawing
-  io/         share links, downloads, STL
+  io/         STL
 ```
 
 The app deploys to Netlify from `netlify.toml` as a static site.

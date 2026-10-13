@@ -34,7 +34,8 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 
 ## Conventions
 
-- pnpm workspaces: `packages/core` (pure TypeScript, no DOM) and `apps/web` (React).
+- pnpm workspaces: `packages/core` (pure TypeScript, no DOM), `packages/ui` (React
+  parts and the look shared by the apps; no model, no app store) and `apps/web` (React).
 - Core runs as TypeScript directly in Node, so no `enum` or parameter properties,
   and relative imports carry the `.ts` extension.
 - Logic that does not need a browser belongs in plain modules with unit tests

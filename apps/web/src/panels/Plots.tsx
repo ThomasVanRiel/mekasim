@@ -1,11 +1,16 @@
 import { toCsv } from "@mekasim/core";
+import {
+  buildCharts,
+  buildSweepCharts,
+  Chart,
+  download,
+  fileStem,
+  label,
+  PLOT_LEFT,
+  PLOT_PAD,
+} from "@mekasim/ui";
 import { type CSSProperties, useMemo } from "react";
-import { download, fileStem } from "../io/download.ts";
 import { useLayout } from "../layout.ts";
-import { label } from "../names.ts";
-import { Chart } from "../plot/Chart.tsx";
-import { buildCharts, buildSweepCharts } from "../plot/charts.ts";
-import { PLOT_LEFT, PLOT_PAD } from "../plot/geometry.ts";
 import { sweepValues, useStore } from "../store.ts";
 import { Timeline } from "./Timeline.tsx";
 

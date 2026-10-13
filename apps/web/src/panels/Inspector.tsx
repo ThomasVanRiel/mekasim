@@ -8,6 +8,7 @@ import {
   nameMeasure,
   toggleTrace,
 } from "@mekasim/core";
+import { Choice, label, refLabel, titled } from "@mekasim/ui";
 import type { ReactNode } from "react";
 import {
   type MeasureChoice,
@@ -16,10 +17,8 @@ import {
   positionMeasures,
   speedMeasure,
 } from "../coordinates.ts";
-import { label, refLabel, titled } from "../names.ts";
 import { useStore } from "../store.ts";
 import { deleteSelection, linkMeasures } from "../viewport/tools.ts";
-import { Choice } from "./Choice.tsx";
 import { CoordinatePicker, useCoordinates } from "./Coordinates.tsx";
 import { Field } from "./Field.tsx";
 

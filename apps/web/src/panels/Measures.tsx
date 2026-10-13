@@ -1,6 +1,5 @@
 import { addPlot, formatQuantity, type Quantity, type Units } from "@mekasim/core";
-import { label } from "../names.ts";
-import { extentOf } from "../plot/geometry.ts";
+import { extentOf, label } from "@mekasim/ui";
 import { useStore } from "../store.ts";
 
 const small = "rounded-sm border border-rule bg-sheet px-1.5 text-[12px] hover:border-ink-soft";

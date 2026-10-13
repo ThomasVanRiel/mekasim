@@ -1,7 +1,6 @@
 import { type Path, paramValue, UNITS } from "@mekasim/core";
+import { label, MAX_SWEEP_RUNS } from "@mekasim/ui";
 import { useState } from "react";
-import { label } from "../names.ts";
-import { MAX_SWEEP_RUNS } from "../plot/charts.ts";
 import { LIVE, type Sweep, useStore } from "../store.ts";
 import { Field, toValue } from "./Field.tsx";
 
