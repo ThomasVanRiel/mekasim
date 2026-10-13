@@ -53,15 +53,25 @@ export const Spring = z.union(
   { error: "A spring is on a joint, or it connects two points" },
 );
 
-/** One stage of a move: the body goes to a pose in a time. `pull` stages are to come. */
-export const MoveStage = z.strictObject({
-  to: z.tuple([Expr, Expr, Expr]).describe("The pose it goes to, as [x, y, angle]"),
-  via: z
-    .tuple([Expr, Expr])
-    .optional()
-    .describe("A place its frame passes on the way, along an arc; a straight line without it"),
-  time: Expr.describe("How long the stage takes; seconds unless a unit is given"),
-});
+const StageTime = Expr.describe("How long the stage takes; seconds unless a unit is given");
+const Force = z.tuple([Expr, Expr]).describe("The force as [fx, fy], such as [-500 N, 0]");
+
+/** One stage of a move: the body is carried to a pose, or let go and pulled. */
+export const MoveStage = z.union(
+  [
+    z.strictObject({
+      to: z.tuple([Expr, Expr, Expr]).describe("The pose it goes to, as [x, y, angle]"),
+      via: z
+        .tuple([Expr, Expr])
+        .optional()
+        .describe("A place its frame passes on the way, along an arc; a straight line without it"),
+      time: StageTime,
+    }),
+    z.strictObject({ pull: Force, time: StageTime }),
+    z.strictObject({ push: Force, time: StageTime }),
+  ],
+  { error: "A stage has `to` and `time`, or `pull` or `push` and `time`" },
+);
 
 /** A driver that carries a body through stages, starting from its pose. */
 export const Move = z.strictObject({

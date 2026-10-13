@@ -48,7 +48,7 @@ packages/fit/src
     qp.ts         small dense quadratic program (dual active set)
     springs.ts    spring energy, gradient and Gauss-Newton Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
-    quasistatic.ts the contact step and the stage-driven run (`to` stages; `pull` to come)
+    quasistatic.ts the contact step and the stage-driven run
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
@@ -429,11 +429,16 @@ one place has no direction and adds no gradient there.
   through `via`, over the stage's time.
 - A `pull` stage drops those equations and adds `-F · x_body` to `E`. If something
   holds the body, the program finds the equilibrium. If nothing does, the body keeps
-  moving; when it has moved more than ten times the largest shape size since the
-  stage began with no contact force against the pull, the driver "came free" and
-  the stage ends there. That is a result, not an error.
-- The run has `cycle.steps` intervals over the stages by their time, so one sample
-  more than that, the start and the end both among them. A sample is split
+  moving. So that it moves on evenly and not all at once, a one-sided row of the
+  run's own lets it go only so far along its pull in each sample: at a pace that
+  takes it ten times the model's size over the stage. A pull in which that row was
+  the only thing against the body in every sample "came free". That is a result,
+  not an error: an `info` message, and `free` on the simulation.
+- The stage after a pull begins where the pull left the body. Each stage's end is
+  a sample, so that this place is one the run has solved.
+- The run has `cycle.steps` intervals spread over the stages by their time, at
+  least one in each, so one sample more than there are intervals, the start and
+  the end both among them. A sample is split
   in two (up to six times) wherever a body in a contact pair has moved more than a
   quarter of its shape's thickness (against tunnelling); this is seen once the
   sample is solved, and the added samples are part of the result. The thickness is

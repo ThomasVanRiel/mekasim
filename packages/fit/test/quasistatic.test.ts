@@ -315,3 +315,114 @@ cycle: { steps: 4 }
     );
   });
 });
+
+describe("a pull", () => {
+  /** A ram on a slide along x, 40 mm out, with a spring back to the start of the slide if asked. */
+  const ram = (stages: string, spring = true) => `mekafit: 1
+bodies:
+  ground:
+    points: { A: [0, 0], B: [100, 0] }
+  ram:
+    points: { P: [0, 0] }
+joints:
+  guide: { type: slider, axis: [ground.A, ground.B], point: ram.P }
+pose:
+  ram: [40, 0, 0]
+${spring ? "springs:\n  back: { connect: [ground.A, ram.P], stiffness: 2 N/mm, length: 40 }\n" : ""}drivers:
+  tug:
+    move: ram
+    stages:
+${stages}
+cycle: { steps: 20 }
+`;
+
+  it("finds where a spring holds the body: its force is the pull's", () => {
+    const result = simulate(ram("      - { pull: [10 N, 0], time: 1 }"));
+    expect(result.diagnostics).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    expect(cycle.count).toBe(21);
+    // 10 N on 2 N/mm is 5 mm.
+    expect(cycle.q[20 * 3]).toBeCloseTo(0.045, 8);
+    expect(cycle.q[20 * 3 + 1]).toBeCloseTo(0, 10);
+    expect(result.free).toEqual([]);
+  });
+
+  it("is a push as well, and may point any way", () => {
+    const pushed = simulate(ram("      - { push: [-4 N, 30 N], time: 1 }"));
+    expect(pushed.diagnostics).toEqual([]);
+    // Only the part along the slide moves the ram: 4 N back on 2 N/mm.
+    expect(pushed.cycle?.q[20 * 3]).toBeCloseTo(0.038, 8);
+  });
+
+  it("comes free where nothing holds the body, which is a result and no fault", () => {
+    const result = simulate(ram("      - { pull: [10 N, 0], time: 2 }", false));
+    expect(result.free).toEqual([{ driver: "tug", time: 2 }]);
+    expect(result.jam).toBeUndefined();
+    expect(result.diagnostics).toEqual([
+      {
+        severity: "info",
+        message: '"tug" came free at 2 s: nothing held "ram" against its pull',
+        path: ["drivers", "tug"],
+        position: expect.anything(),
+      },
+    ]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    // It goes on evenly, ten times the model's size of 100 mm in the stage.
+    expect(cycle.q[10 * 3]).toBeCloseTo(0.54, 8);
+    expect(cycle.q[20 * 3]).toBeCloseTo(1.04, 8);
+  });
+
+  it("is followed by a stage that begins where the pull left the body", () => {
+    const result = simulate(
+      ram("      - { pull: [10 N, 0], time: 1 }\n      - { to: [60, 0, 0], time: 1 }"),
+    );
+    expect(result.diagnostics).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    expect(cycle.count).toBe(21);
+    expect(cycle.t[10]).toBe(1);
+    expect(cycle.q[10 * 3]).toBeCloseTo(0.045, 8);
+    expect(cycle.q[15 * 3]).toBeCloseTo(0.0525, 8);
+    expect(cycle.q[20 * 3]).toBeCloseTo(0.06, 10);
+  });
+
+  it("stops a loose block at a wall", () => {
+    const result = simulate(`mekafit: 1
+bodies:
+  ground:
+    points: { O: [0, 0] }
+    shape: { path: "M 100 -20 H 110 V 40 H 100 Z" }
+  block:
+    points: { O: [0, 0] }
+    shape: { path: "M 0 0 H 20 V 20 H 0 Z" }
+pose:
+  block: [30, 0, 0]
+drivers:
+  shove:
+    move: block
+    stages:
+      - { pull: [5 N, 0], time: 1 }
+contacts:
+  stop: { between: [block, ground] }
+cycle: { steps: 20 }
+`);
+    expect(result.diagnostics).toEqual([]);
+    expect(result.free).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    const last = (cycle.count - 1) * 3;
+    expect(cycle.q[last]).toBeCloseTo(0.08, 8);
+    expect(cycle.q[last + 1]).toBeCloseTo(0, 8);
+    expect(cycle.q[last + 2]).toBeCloseTo(0, 8);
+  });
+
+  it("wants its force with a unit", () => {
+    const errors = simulate(ram("      - { pull: [10, 0], time: 1 }"))
+      .diagnostics.filter(({ severity }) => severity === "error")
+      .map(({ message, path }) => ({ message, path }));
+    expect(errors).toEqual([
+      {
+        message: "A pull is a force, such as [-500 N, 0]",
+        path: ["drivers", "tug", "stages", 0, "pull", 0],
+      },
+    ]);
+  });
+});

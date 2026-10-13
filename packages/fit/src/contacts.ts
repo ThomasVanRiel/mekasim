@@ -58,6 +58,8 @@ export interface FitSimulation extends Simulation {
   contacts: ContactResult[];
   /** Where a contact run stopped because the parts could not be put anywhere. */
   jam?: Jam;
+  /** The pulls that nothing held: the driver, and when its pull ended. */
+  free: { driver: string; time: number }[];
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */

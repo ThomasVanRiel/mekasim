@@ -98,6 +98,16 @@ function reader(compiled: Compiled, report: Report) {
     }
   }
 
+  /**
+   * A force, torque or stiffness. The document has no unit of its own for these, so
+   * a plain number is not read; `kind` says what is wanted, with an example.
+   */
+  function load(written: Expr, dim: Dim, kind: string, path: Path): number {
+    const { value, dim: found } = quantity(written, path);
+    if (!found.every((exponent, i) => exponent === dim[i])) throw fail(kind, path);
+    return value as number;
+  }
+
   /** Run one entry, so that a problem in it does not hide the next. */
   function attempt(run: () => void): void {
     try {
@@ -107,7 +117,7 @@ function reader(compiled: Compiled, report: Report) {
     }
   }
 
-  return { fail, quantity, scalar, attempt };
+  return { fail, scalar, load, attempt };
 }
 
 /**
@@ -116,7 +126,7 @@ function reader(compiled: Compiled, report: Report) {
  */
 export function compileMoves(compiled: Compiled, source: Document, report: Report): void {
   const doc = source as Prepared;
-  const { fail, scalar, attempt } = reader(compiled, report);
+  const { fail, scalar, load, attempt } = reader(compiled, report);
   const moves: CompiledMove[] = [];
   const moved = new Set<string>();
 
@@ -137,16 +147,30 @@ export function compileMoves(compiled: Compiled, source: Document, report: Repor
         const here = [...path, "stages", i];
         const time = scalar(stage.time, TIME, [...here, "time"]);
         if (!(time > 0)) throw fail("A stage's time must be more than zero", [...here, "time"]);
+        const force = "pull" in stage ? stage.pull : "push" in stage ? stage.push : undefined;
+        if (force) {
+          const field = "pull" in stage ? "pull" : "push";
+          const component = (k: 0 | 1): number =>
+            force[k] === 0
+              ? 0
+              : load(force[k], FORCE, "A pull is a force, such as [-500 N, 0]", [
+                  ...here,
+                  field,
+                  k,
+                ]);
+          return { kind: "pull", force: [component(0), component(1)], time };
+        }
+        const carried = stage as Extract<typeof stage, { to: unknown }>;
         return {
           kind: "to",
           to: {
-            x: scalar(stage.to[0], LENGTH, [...here, "to", 0]),
-            y: scalar(stage.to[1], LENGTH, [...here, "to", 1]),
-            angle: scalar(stage.to[2], ANGLE, [...here, "to", 2]),
+            x: scalar(carried.to[0], LENGTH, [...here, "to", 0]),
+            y: scalar(carried.to[1], LENGTH, [...here, "to", 1]),
+            angle: scalar(carried.to[2], ANGLE, [...here, "to", 2]),
           },
-          via: stage.via && [
-            scalar(stage.via[0], LENGTH, [...here, "via", 0]),
-            scalar(stage.via[1], LENGTH, [...here, "via", 1]),
+          via: carried.via && [
+            scalar(carried.via[0], LENGTH, [...here, "via", 0]),
+            scalar(carried.via[1], LENGTH, [...here, "via", 1]),
           ],
           time,
         };
@@ -168,18 +192,8 @@ export function compileMoves(compiled: Compiled, source: Document, report: Repor
 /** Read and check the springs, with every value in SI and each preload turned into a rest value. */
 export function compileSprings(compiled: Compiled, source: Document, report: Report): void {
   const doc = source as Prepared;
-  const { fail, quantity, scalar, attempt } = reader(compiled, report);
+  const { fail, scalar, load, attempt } = reader(compiled, report);
   const springs: CompiledSpring[] = [];
-
-  /**
-   * A force, torque or stiffness. The document has no unit of its own for these, so
-   * a plain number is not read; `kind` says what is wanted, with an example.
-   */
-  function load(written: Expr, dim: Dim, kind: string, path: Path): number {
-    const { value, dim: found } = quantity(written, path);
-    if (!found.every((exponent, i) => exponent === dim[i])) throw fail(kind, path);
-    return value as number;
-  }
 
   /** The force or torque in the spring at the start; a plain 0 says there is none. */
   function preload(written: Expr, dim: Dim, kind: string, path: Path): number {

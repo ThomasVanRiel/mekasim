@@ -89,7 +89,10 @@ minimised under the joints, the drivers and the contact rows, with samples split
 where a body moves far or the step does not settle, and a jam that names the parts
 in each other's way ("Jams at 0.876 s: `pusher` against `block`, ..."). A model with
 springs or a `move` driver is solved by it; any other still goes down mekasim's
-cycle solve. The `move` driver with `to` and `via` stages is in the format. It
+cycle solve. The `move` driver is in the format, with `to` and `via` stages and
+with `pull` and `push`, which let the body go and pull it: it rests where a spring
+or a contact holds it, and a pull that nothing holds comes free, which is told as
+a remark and kept with the run. It
 needed nothing in core: mekafit's schema gives the `drivers` section again with the
 move in it, and core's `prepare` hook sets the moves aside before core compiles the
 rest. `contactPoints` was changed for the step: where shapes are into each other
@@ -97,7 +100,7 @@ the distance is negative and the normal keeps its direction, and two flat faces
 along each other give their two ends. `examples/fit/sprung-lever.mekafit.yaml` is
 the first example solved by contact.
 
-**Next in phase 3:** `pull` stages, then stops and locks, forces, the new measures
+**Next in phase 3:** stops and locks, then forces, the new measures
 (`force`, `latched`, `final`, `first`), the Springs and locks fold, and the examples.
 
 **Waiting for Thomas (2026-10-13):** a look at the sprung lever in mekafit's dev

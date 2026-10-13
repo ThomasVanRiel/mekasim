@@ -20,10 +20,10 @@ import {
 } from "./contacts.ts";
 import { FIT_REGISTRY } from "./registry.ts";
 import { FitDocument } from "./schema.ts";
-import { type Jam, solveQuasistatic } from "./solver/quasistatic.ts";
+import { type Jam, type QuasistaticRun, solveQuasistatic } from "./solver/quasistatic.ts";
 
 /** A cycle that remembers where its contact run stopped, for the message about it. */
-type FitCycle = Cycle & { jam?: Jam };
+type FitCycle = Cycle & { jam?: Jam; free?: QuasistaticRun["free"] };
 
 /**
  * A model with springs or a `move` driver is solved by the contact step; any other
@@ -33,8 +33,8 @@ function solve(compiled: Compiled): Cycle {
   const fit = compiled as FitCompiled;
   if (fit.springs.length === 0 && fit.moves.length === 0)
     return solveCycle(compiled.model, compiled.period, compiled.steps);
-  const { cycle, jam } = solveQuasistatic(fit);
-  return Object.assign(cycle, { jam });
+  const { cycle, jam, free } = solveQuasistatic(fit);
+  return Object.assign(cycle, { jam, free });
 }
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
@@ -81,7 +81,18 @@ function finish(text: string, simulation: SweepRun["simulation"]): FitSimulation
     if (diagnostic.path) diagnostic.position = locate(diagnostic.path);
     simulation.diagnostics.push(diagnostic);
   }
-  return Object.assign(simulation, { contacts, jam }) as FitSimulation;
+  const free = (simulation.cycle as FitCycle | undefined)?.free ?? [];
+  for (const { driver, time } of free) {
+    const moved = fit?.moves.find((move) => move.id === driver);
+    const path = ["drivers", driver];
+    simulation.diagnostics.push({
+      severity: "info",
+      message: `"${driver}" came free at ${Number(time.toPrecision(4))} s: nothing held "${fit?.model.bodies[moved?.body ?? -1]}" against its pull`,
+      path,
+      position: locate(path),
+    });
+  }
+  return Object.assign(simulation, { contacts, jam, free }) as FitSimulation;
 }
 
 function list(ids: string[]): string {

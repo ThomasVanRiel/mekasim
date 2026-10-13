@@ -24,9 +24,9 @@ are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
 are built and compile to checked, distinct pairs; a run reports the first overlap
 deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 The force, torque and spring-stiffness units listed under Springs are built for
-expressions. `springs:` and the `move` driver with `to` and `via` stages are built:
+expressions. `springs:` and the `move` driver with all its stages are built:
 a model with either is solved by the contact step, in which listed contacts push
-and springs settle. `pull` stages, joint stops, locks and the measures of force are
+and springs settle. Joint stops, locks and the measures of force are
 still to come.
 
 ## A whole example
@@ -285,7 +285,7 @@ the knuckle's tail. When the joint's angle (or travel) passes `at` going the way
 | `drops` | `down`: it drops in as the value falls below `at`, and then holds it below. `up`: the other way round |
 | `engaged` | Whether it is in at the start; default `false` |
 
-## Moving a body (phase 3; `to` and `via` built, `pull` to come)
+## Moving a body (phase 3, built)
 
 ```yaml
 drivers:
@@ -310,6 +310,12 @@ A model with a `move` driver is solved over its stages instead of over a cycle:
 the end both sampled, and more are added where parts move fast against each other.
 Plots are drawn against time. `to` is a place on the sheet, not a distance from the
 start; a `time` is in seconds unless it has a unit. A body has one `move` at most.
+
+A pull acts at the origin of the body's frame, and its force is written with its
+unit. The body goes where the pull takes it until a spring or a contact holds it.
+If nothing does, it moves on at an even pace for the stage's time, and the run
+says that the driver came free; that is a result to check for, not a fault in the
+model. A stage after a pull begins where the pull left the body.
 
 ## Measures (phases 2–3)
 
