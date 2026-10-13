@@ -51,7 +51,7 @@ angle, with either knuckle open or closed, and it must hold when pulled.
 | Springs | Torsion and linear springs, as energy the quasi-static step minimises. No mass needed. |
 | Locks | Out-of-plane locks, pawls and detents are `latches` on a joint: a one-way stop that drops in at an angle. Not geometry. |
 | Moving a body | A `move` driver carries a body along a line or arc, then can pull it with a force. This is how one coupler is pushed into the other. |
-| Studies | A `studies:` section in the model, as `plots:` is in mekasim, so a shared model arrives with its studies. A study varies parameters within ranges, runs the model for each draw and checks conditions written as expressions. |
+| Studies | A `studies:` section in the model, as `plots:` is in mekasim, so a shared model arrives with its studies. A study varies parameters within ranges, runs the model for each draw and tests it against the model's `checks`, which mekasim has too. |
 | Replay | A run is replayed by solving the model with that run's values. Only the values and the outcome are stored. |
 | Determinism | Every run is reproducible from the model text and the study seed. No `Math.random` in the solver or studies. |
 | Drawing | 2D only, as SVG. The sheet basics (pan, zoom, grid, labels, dimensions) are shared in `packages/ui`, which is also what the embeddable viewer in mekasim's backlog needs. mekasim keeps its Three.js drawing. |
@@ -71,9 +71,9 @@ apps/web        mekasim, now importing its theme and controls from packages/ui
 apps/fit        mekafit
 ```
 
-`packages/fit` depends on `packages/core`; `apps/fit` on both and on `packages/ui`;
-`apps/web` on `packages/core` and `packages/ui`. Nothing in `packages/core` or
-`apps/web` depends on `packages/fit`.
+`packages/fit` and `packages/ui` each depend on `packages/core`; `apps/fit` on all
+three; `apps/web` on `packages/core` and `packages/ui`. Nothing in `packages/core`,
+`packages/ui` or `apps/web` depends on `packages/fit`.
 
 ## 4. The pipeline
 

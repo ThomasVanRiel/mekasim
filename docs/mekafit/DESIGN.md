@@ -70,8 +70,22 @@ Moved from `apps/web/src` unchanged except for import paths, because none of the
 reads mekasim's store:
 
 `theme.ts`, the colour tokens and font imports of `index.css` (as `theme.css`),
-`panels/Fold.tsx`, `panels/Splitter.tsx`, `panels/Choice.tsx`, `plot/Chart.tsx`,
-`plot/charts.ts`, `plot/geometry.ts`, `io/share.ts`, `io/download.ts`, and their tests.
+`names.ts` (which `plot/charts.ts` uses), `panels/Fold.tsx`, `panels/Choice.tsx`,
+`plot/Chart.tsx`, `plot/charts.ts`, `plot/geometry.ts`, `io/share.ts`,
+`io/download.ts`, and their tests.
+
+`panels/Splitter.tsx` moves with one change, because it reads mekasim's layout
+store (`layout.ts`, with mekasim's panel names and its `mekasim.layout` key in the
+browser's storage). In `packages/ui` it takes what it read as props: `size` (a
+number, or undefined for the default) and `onResize(size | undefined)`, and no
+longer names a panel. `clamp` moves with it. `layout.ts` stays in `apps/web`, and
+so does a `panels/Splitter.tsx` of a few lines that takes `panel` as before, reads
+and writes `useLayout`, and renders the shared one; mekasim's use of it does not
+change. mekafit has a layout store of its own, with its own panels and key.
+
+`packages/ui` depends on `@mekasim/core` (the charts are built from its results) and
+on `zustand` (`theme.ts` keeps the chosen theme in a small store of its own). It
+holds no model and no session state.
 
 `apps/web` imports them from `@mekasim/ui`. Its `index.css` keeps what is mekasim's
 own and imports `@mekasim/ui/theme.css`. Tailwind v4 only finds classes in files it
@@ -103,7 +117,8 @@ Thomas checks mekasim in `pnpm dev` after the move, before phase 0 continues.
 ### 2.3 Extension points in core
 
 Four, each with a test showing that without it mekasim gives exactly what it gave
-before:
+before. Whatever an extension adds is off unless asked for: mekasim asks for
+nothing, so nothing new becomes valid in a mekasim model.
 
 1. **Schema.** `schema/document.ts` builds the document schema with a function,
    `documentSchema(extra?)`, where `extra` can add fields to bodies and to joints,
@@ -114,6 +129,10 @@ before:
    units and extra functions. A function gets its arguments and a context with the
    compiled model and the sample index, and returns a value or a signal. mekasim
    passes no registry.
+
+   Comparisons, `and`, `or` and `not` need no extension: mekasim has them, with
+   its `checks:` section (`docs/FORMAT.md`). A study's `pass` is made of the same
+   conditions, and the model's checks are what it tests by default (§6.1).
 3. **Compile and solve.** `simulate(text, options?)` takes optional hooks: one that
    adds to the compiled model, and one that replaces the cycle solve and returns a
    `Cycle`. Without them it is today's `simulate`. Compile already maps names to
@@ -380,16 +399,19 @@ the cycle solve and returns a `Cycle`, so core's measures and plots work on it.
 2. Write them into the text with core's `editText`, keeping bounds, as core's
    `sweep()` does.
 3. `simulate()` the edited text.
-4. Evaluate each `pass` expression; a signal is read at its last sample.
+4. Evaluate the conditions: the study's `pass` when it has one, otherwise the
+   model's `checks`. They hold as a check does in mekasim (a single value must not
+   be 0, a signal must not be 0 at any sample), through the same code, so a run
+   shown on the sheet has the checks its outcome was counted from.
 
 ```ts
 interface RunResult {
   index: number;
   values: Record<string, number>;      // SI
   outcome: "passed" | "failed" | "unsolved";
-  failed: string[];                    // pass conditions that did not hold
+  failed: string[];                    // conditions that did not hold
   message?: string;                    // for unsolved: the solver's message
-  numbers: Record<string, number>;     // each pass expression's value
+  numbers: Record<string, number>;     // each condition's value, 1 or 0
   ms: number;
 }
 ```
@@ -465,7 +487,8 @@ Layout as described in PLAN.md §5. Following mekasim's code:
 Without a browser. Per phase:
 
 **0 Split.** Example baseline and schema identity (§2.2); each moved module's tests
-moved with it; extension points: with and without, same results; the sheet's view
+moved with it; the shared splitter's sizes and keys through its props; extension
+points: with and without, same results; the sheet's view
 transform, grid and label placement; mekafit loads a mekasim example and solves it to
 mekasim's numbers.
 
@@ -523,8 +546,7 @@ and `.zip`, follow file → `copy` → shape export → help text.
 Contacts fold and gap dimensions → Contact tool and "Find contacts" →
 `clearance-check` example.
 
-**Phase 3.** Comparison and logic operators, force units (through the expression
-registry) → qp.ts → inequality.ts and contacts.ts → springs.ts → quasistatic.ts for
+**Phase 3.** Force units (through the expression registry) → qp.ts → inequality.ts and contacts.ts → springs.ts → quasistatic.ts for
 `to` stages, then `pull` stages → stops and locks → forces → `force`, `latched`,
 `final`, `first` → Springs and locks fold → examples (ratchet, door latch, coupler).
 

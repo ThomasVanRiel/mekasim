@@ -78,9 +78,13 @@ pose:
   b_knuckle: [400, dx, 180 deg + turn + b_open]
 
 measures:
-  coupled: final(latched(lock)) and final(latched(b_lock))
   tightest: min(gap(knuckle, b_knuckle))
   push_force: max(force(push))
+
+checks:                                         # what a run has to meet
+  couples: final(latched(lock)) and final(latched(b_lock))
+  holds: final(dist(head.O, b_head.O)) < 125 mm
+  not_too_hard: push_force < 80 N
 
 plots:
   clearance: [gap(knuckle, b_knuckle), gap(knuckle, head)]
@@ -90,10 +94,6 @@ studies:
     runs: 500
     seed: 1
     vary: [dx, turn, a_open, b_open]            # each over its min to max
-    pass:
-      couples: coupled
-      holds: final(dist(head.O, b_head.O)) < 125 mm
-      not_too_hard: push_force < 80 N
 ```
 
 ## Shapes (phase 1)
@@ -300,8 +300,11 @@ added where parts move fast against each other. Plots are drawn against time.
 | `force(name)` | Contact force of a contact pair, force of a spring, or the force a `move` driver needs (its torque in a turning stage is `torque(name)`) |
 | `latched(lock)` | 1 while the lock is in, 0 while it is out |
 | `final(e)`, `first(e)` | The value at the last and the first sample |
-| `a < b`, `<=`, `>`, `>=` | 1 or 0, sample by sample |
-| `a and b`, `a or b`, `not a` | 1 or 0 |
+
+Conditions (`a < b`, `and`, `or`, `not`) and the `checks:` section are mekasim's,
+described in [../FORMAT.md](../FORMAT.md). A check on something that varies has to
+hold at every sample; `final(...)` asks for it at the end of the run only, which is
+what most checks on a contact run want.
 
 `gap` is drawn on the sheet as a dimension between its two nearest points, as
 `dist` is now.
@@ -319,13 +322,11 @@ studies:
       turn: { mean: 0 deg, spread: 1.5 deg }
       a_open: { pick: [0 deg, 70 deg] }
       b_open: { pick: [0 deg, 70 deg] }
-    pass:
-      couples: coupled
-      holds: final(dist(head.O, b_head.O)) < 125 mm
 ```
 
 A study solves the model many times, each time with different values of some
-parameters, and checks every run against conditions.
+parameters, and tests every run against the model's `checks`. A run passes when
+all of them are met.
 
 | Field | Meaning |
 |---|---|
@@ -333,7 +334,7 @@ parameters, and checks every run against conditions.
 | `seed` | Starting number for the random draws. The same model text and seed always give the same runs |
 | `sample` | `random`; `spread` (default) covers the ranges evenly with fewer runs, as a Latin hypercube does; `grid` takes every combination of `steps` values per parameter |
 | `vary` | Parameters to vary. As a list, each over its own `min` to `max`. As a map, each with its own range |
-| `pass` | Named conditions, each an expression that must come out non-zero at the end of the run. A run passes when all of them hold |
+| `pass` | Optional: named conditions for this study alone, written as checks are, tested instead of the model's `checks` |
 
 A parameter's range is one of:
 
