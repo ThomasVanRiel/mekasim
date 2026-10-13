@@ -112,6 +112,7 @@ packages/core/src
 packages/ui/src
   theme.ts    colours and fonts (with theme.css), light and dark
   names.ts    names from the model as words
+  editor/     YAML source editor, renaming by editing
   plot/       chart geometry and drawing
   io/         share links, downloads
   *.tsx       parts of the interface that hold no model: folds, dividers, choices
@@ -121,7 +122,6 @@ packages/fit/src   mekafit's side of the pipeline (see docs/mekafit)
 apps/fit/src       mekafit, a second app for parts that touch (see docs/mekafit)
 apps/web/src
   store.ts    model text, solved result, playback state
-  editor/     YAML source editor, renaming by editing
   viewport/   the drawing: three.js rendering, labels,
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, checks, plots, messages, timeline

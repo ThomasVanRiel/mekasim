@@ -1,4 +1,5 @@
 import type { Severity } from "@mekasim/core";
+import { SourceEditor } from "@mekasim/ui";
 import { useStore } from "../store.ts";
 
 const KIND: Record<Severity, string> = { error: "Error", warning: "Warning", info: "Note" };
@@ -9,10 +10,7 @@ const MARK: Record<Severity, string> = {
   info: "bg-rule text-ink",
 };
 
-/**
- * The model's text, and under it what there is to say about it. A plain text field
- * for now: mekasim's editor comes over once it takes its text as a property.
- */
+/** The model's text in the editor mekasim has too, and under it what there is to say about it. */
 export function Source() {
   const text = useStore((s) => s.text);
   const setText = useStore((s) => s.setText);
@@ -21,13 +19,11 @@ export function Source() {
   return (
     <div className="flex min-h-0 flex-col border-rule border-r">
       <h2 className="border-rule border-b px-3 py-1.5 font-semibold">Source</h2>
-      <textarea
-        aria-label="Source of the model"
-        className="min-h-0 flex-1 resize-none bg-sheet px-3 py-2 font-mono text-[13px] leading-relaxed outline-none"
-        spellCheck={false}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
+      <div className="relative min-h-0 flex-1">
+        <div className="absolute inset-0">
+          <SourceEditor text={text} diagnostics={diagnostics} onEdit={setText} />
+        </div>
+      </div>
       <section aria-label="Messages" className="max-h-[35%] overflow-y-auto border-rule border-t">
         <h2 className="border-rule border-b px-3 py-1.5 font-semibold">Messages</h2>
         {diagnostics.length === 0 ? (

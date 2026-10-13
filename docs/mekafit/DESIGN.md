@@ -165,10 +165,10 @@ settings. Opens a model (file, share link or the last one kept in the browser),
 solves it with `@mekasim/fit`, draws bodies on the SVG sheet (the plate outlines
 mekasim draws, until shapes exist), plays and scrubs. A mekasim model opens as it is.
 
-The skeleton has the header, the source as a plain text field with the messages
-under it, the sheet, and the Run panel with playback and the model's plots. Still
-to come as their phases need them: mekasim's editor in place of the text field, the
-side panel, dividers between the panels, the Geometry tab and the tools.
+The skeleton has the header, the source in the editor mekasim has (moved to
+`packages/ui/src/editor` and given its text, messages and callbacks as properties)
+with the messages under it, the sheet, and the Run panel with playback and the
+model's plots. Still to come as their phases need them: the side panel, dividers between the panels, the Geometry tab and the tools.
 "Open in mekasim" needs `VITE_MEKASIM_URL` set for the site's build; in the dev
 server it points at mekasim's dev server.
 

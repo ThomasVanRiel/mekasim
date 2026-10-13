@@ -9,7 +9,7 @@ import {
   simulate,
   sweep as solveSweep,
 } from "@mekasim/core";
-import { buildScene, type Scene } from "@mekasim/ui";
+import { buildScene, LIVE, type Scene } from "@mekasim/ui";
 import { create } from "zustand";
 import { type Coordinates, SHEET } from "./coordinates.ts";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
@@ -81,7 +81,7 @@ function runSweep(text: string, sweep: Sweep | undefined): SweepRun[] | undefine
 }
 
 /** Edits that belong to one continuous gesture, such as a drag; they undo as one step. */
-export const LIVE = "input.type.live";
+export { LIVE };
 
 /** The source editor owns the text and its undo history; these reach into it. */
 export const editorBridge: { text?: () => string; undo?: () => void; redo?: () => void } = {};

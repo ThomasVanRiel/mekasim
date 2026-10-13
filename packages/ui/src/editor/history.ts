@@ -1,6 +1,11 @@
 import { history } from "@codemirror/commands";
 import type { Extension } from "@codemirror/state";
-import { LIVE } from "../store.ts";
+
+/**
+ * The user event of a change that is one step of a continuous gesture outside the
+ * editor, such as a drag on the drawing or a slider being moved.
+ */
+export const LIVE = "input.type.live";
 
 /**
  * What undoes as one step. Typing in one place without a long pause is one step,

@@ -1,8 +1,7 @@
 import { undo, undoDepth } from "@codemirror/commands";
 import { EditorState, type Transaction } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { LIVE } from "../store.ts";
-import { undoGrouping } from "./history.ts";
+import { LIVE, undoGrouping } from "./history.ts";
 import { linkedNames } from "./linked.ts";
 
 const MODEL = `mekasim: 1

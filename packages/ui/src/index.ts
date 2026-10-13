@@ -1,4 +1,6 @@
 export { Choice } from "./Choice.tsx";
+export { LIVE } from "./editor/history.ts";
+export { type EditorHandle, SourceEditor } from "./editor/SourceEditor.tsx";
 export { BESIDE_FOLD, FOLD_BUTTON, Fold } from "./Fold.tsx";
 export { download, fileStem } from "./io/download.ts";
 export { decodeModel, encodeModel, exampleFragment, exampleIn } from "./io/share.ts";
