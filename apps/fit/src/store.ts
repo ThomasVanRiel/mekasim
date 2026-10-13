@@ -1,6 +1,7 @@
 import { type Edit, editText, type Files } from "@mekasim/core";
 import {
   addContacts,
+  asFitText,
   type ContactResult,
   type FitSimulation,
   keepOutlines,
@@ -8,7 +9,7 @@ import {
 } from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
-import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
+import { DEFAULT_EXAMPLE } from "./examples.ts";
 import { comfortableRate } from "./playback.ts";
 
 const STORAGE_KEY = "mekafit.text";
@@ -103,8 +104,9 @@ function keep(text: string, files: Files): void {
 
 /** The model, its solved run and the playback. Session state only; the model is its text. */
 export const useStore = create<State>((set, get) => {
-  const text = kept() ?? fourBar;
-  const files = keptFiles();
+  const saved = kept();
+  const text = saved ?? DEFAULT_EXAMPLE.text;
+  const files = saved === null ? DEFAULT_EXAMPLE.files : keptFiles();
   const first = solve(text, files);
   return {
     ...first,
@@ -186,7 +188,7 @@ export const useStore = create<State>((set, get) => {
         return 0;
       }
       const edits: Edit[] = addContacts(doc, pairs);
-      if (edits.length > 0) get().setText(editText(get().text, edits));
+      if (edits.length > 0) get().setText(editText(asFitText(get().text), edits));
       return edits.length;
     },
   };

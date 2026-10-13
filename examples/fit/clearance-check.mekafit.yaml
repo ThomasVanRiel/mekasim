@@ -1,0 +1,47 @@
+# A deliberately simple clearance check: the turning knuckle stays inside the
+# round opening in its head. The opening's centre is 2 mm to the right of the pin;
+# its radius is 30 mm and the tip reaches 25 mm, so the closest gap is 3 mm when
+# the knuckle points left, halfway through the run.
+mekafit: 1
+meta:
+  name: Knuckle clearance check
+  units: { length: mm, angle: deg }
+
+params:
+  rpm: 10
+
+bodies:
+  ground:
+    points: { O: [0, 0] }
+  head:
+    points: { O: [0, 0], K: [0, 0] }
+    shape:
+      path: "M -38 0 A 40 40 0 1 1 42 0 A 40 40 0 1 1 -38 0 Z M -28 0 A 30 30 0 1 1 32 0 A 30 30 0 1 1 -28 0 Z"
+  knuckle:
+    points: { K: [0, 0], T: [25, 0] }
+    layer: 1
+    shape:
+      path: "M -3 -3 L 20 -3 L 25 0 L 20 3 L -3 3 Z"
+
+joints:
+  fixed: { type: weld, connect: [ground.O, head.O] }
+  pin: { type: revolute, connect: [head.K, knuckle.K] }
+
+drivers:
+  motor: { joint: pin, speed: rpm }
+
+contacts:
+  working_clearance: { between: [head, knuckle] }
+
+measures:
+  clearance: gap(head, knuckle)
+  tightest: min(clearance)
+
+checks:
+  clears: clearance >= 2.999 mm
+
+plots:
+  clearance: gap(head, knuckle)
+
+cycle:
+  steps: 72

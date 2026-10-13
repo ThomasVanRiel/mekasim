@@ -204,7 +204,7 @@ is not copied is not copied.
 | `at` | Shift after turning, `[x, y]`; default `[0, 0]` |
 | `mirror` | `true` mirrors across the y axis before turning; default `false` |
 
-## Contacts (phase 2; format, run check and Contacts fold built)
+## Contacts (phase 2 built)
 
 ```yaml
 contacts:

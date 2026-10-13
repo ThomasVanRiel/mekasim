@@ -1,7 +1,8 @@
 import { docFactor, LENGTH } from "@mekasim/core";
-import { decodeModel, Sheet, Splitter } from "@mekasim/ui";
+import { decodeModel, exampleIn, Sheet, Splitter } from "@mekasim/ui";
 import { type CSSProperties, useEffect } from "react";
 import { gapsWithContact } from "./contacts.ts";
+import { EXAMPLES } from "./examples.ts";
 import { useLayout } from "./layout.ts";
 import { Contacts } from "./panels/Contacts.tsx";
 import { Header } from "./panels/Header.tsx";
@@ -74,8 +75,17 @@ function useKeys(): void {
 
 /** A model that arrives packed into the link replaces the one kept from the last visit. */
 function useLinkedModel(): void {
+  const text = useStore((s) => s.text);
+
   useEffect(() => {
     function open(): void {
+      const example = EXAMPLES.find(({ id }) => id === exampleIn(location.hash));
+      if (example) {
+        if (useStore.getState().text !== example.text) {
+          useStore.getState().load(example.text, example.files);
+        }
+        return;
+      }
       decodeModel(location.hash).then((packed) => {
         if (packed === undefined) return;
         useStore.getState().load(packed);
@@ -86,6 +96,13 @@ function useLinkedModel(): void {
     window.addEventListener("hashchange", open);
     return () => window.removeEventListener("hashchange", open);
   }, []);
+
+  useEffect(() => {
+    const example = EXAMPLES.find(({ id }) => id === exampleIn(location.hash));
+    if (example && example.text !== text) {
+      history.replaceState(null, "", location.pathname + location.search);
+    }
+  }, [text]);
 }
 
 export function App() {

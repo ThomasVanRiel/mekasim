@@ -68,6 +68,7 @@ packages/ui/src
   drawings/       the Geometry tab, the picture of a layer, the handling of picked files
 apps/fit/src
   store.ts        model text, drawings, solved run, playback
+  examples.ts     mekafit's own examples from `examples/fit`, with their drawings
   layout.ts       sizes of the panels
   playback.ts     how the position in a run moves on
   App.tsx         layout (§7)

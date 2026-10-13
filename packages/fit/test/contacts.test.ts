@@ -3,6 +3,7 @@ import { editText } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import {
   addContacts,
+  asFitText,
   type FitCompiled,
   findContacts,
   hasContact,
@@ -166,5 +167,10 @@ describe("finding and adding contacts", () => {
     );
     expect(after.diagnostics.filter(({ severity }) => severity === "error")).toEqual([]);
     expect((after.compiled as FitCompiled).contacts).toHaveLength(3);
+  });
+
+  it("changes a mekasim first line when a fit-only section is added", () => {
+    expect(asFitText("# model\nmekasim: 1\nmeta: {}\n")).toBe("# model\nmekafit: 1\nmeta: {}\n");
+    expect(asFitText("mekafit: 1\nbodies: {}\n")).toBe("mekafit: 1\nbodies: {}\n");
   });
 });

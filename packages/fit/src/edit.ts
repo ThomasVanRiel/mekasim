@@ -1,10 +1,15 @@
 import { type Document, type Edit, freeName } from "@mekasim/core";
 import type * as z from "zod";
 import { pairKey } from "./contacts.ts";
-import type { Contact } from "./schema.ts";
+import { type Contact, FORMAT, FORMAT_VERSION } from "./schema.ts";
 
 type ContactEntry = z.infer<typeof Contact>;
 type ContactDocument = Document & { contacts?: Record<string, ContactEntry> };
+
+/** Give a mekasim model mekafit's first line before writing a mekafit-only section. */
+export function asFitText(text: string): string {
+  return text.replace(/^mekasim(\s*:\s*)1\b/m, `${FORMAT}$1${FORMAT_VERSION}`);
+}
 
 /** Whether two bodies are already paired by a `between` entry or an expanded `among` entry. */
 export function hasContact(source: Document, a: string, b: string): boolean {

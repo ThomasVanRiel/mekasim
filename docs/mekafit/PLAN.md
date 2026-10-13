@@ -36,7 +36,7 @@ shared editor and Geometry tab, the SVG sheet drawing shapes with true arcs, the
 Run panel with playback and plots, dividers), and "Open in mekasim". `packages/fit`
 has the schema, contact-pair compilation and the calls into core.
 
-**Phase 2, clearance, is begun, and what is built of it is mekasim's too.** In
+**Phase 2, clearance, is built and browser-checked.** In
 `packages/core`: the exact distance between two lines or arcs and between two
 shapes, with the two places it is between and a negative value where shapes overlap
 (`geometry/distance.ts`, `geometry/tree.ts`), and `gap(a, b)` as a function in
@@ -49,8 +49,10 @@ first place a listed pair runs into each other by more than 0.001 mm. Each pair'
 closest gap is kept with the run and shown in the Contacts fold; hovering it moves
 the run there and draws the gap. The Contact tool writes a picked pair into the
 model, and "Find contacts" proposes the shaped pairs that come within a chosen
-distance, leaving the choice of which to add to the user. Still to do: the
-`clearance-check` example and mekafit's example picker.
+distance, leaving the choice of which to add to the user. The Contact tool,
+finder and example picker have been checked in the browser.
+`examples/fit/clearance-check.mekafit.yaml` is mekafit's own
+motor-driven example, solved by a test, and the app has its own example picker.
 
 **Not built yet in phase 1:**
 
@@ -63,11 +65,14 @@ distance, leaving the choice of which to add to the user. Still to do: the
 - A shape on `ground` is drawn in mekafit but not in mekasim's 3D view.
 
 **Browser checks passed by Thomas:** the `gap()` and unchanged `dist` drawing from
-commit `a5debb5`, and the Contacts fold's rows, closest values, hover-to-step
-behavior and gap dimension. In the shaped four-bar the two pinned pairs correctly
-stay at 0, while crank and rocker come closest at 97 mm at step 217.
+commit `a5debb5`; the Contacts fold's rows, closest values, hover-to-step behavior
+and gap dimension; the Contact tool; "Find contacts"; and mekafit's own example
+picker with the clearance example. In the shaped four-bar the two pinned pairs
+correctly stay at 0, while crank and rocker come closest at 97 mm at step 217.
 
-**Next, in this order** (the rest of phase 2, mekafit's alone, in `packages/fit` and
+**Waiting for Thomas:** nothing in phase 2.
+
+**Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
 
 1. **Built.** `contacts:` in mekafit's schema (`between: [a, b]`, `among: [...]`), added through
@@ -84,11 +89,11 @@ stay at 0, while crank and rocker come closest at 97 mm at step 217.
 3. **Built and browser-checked.** The result per pair (smallest gap, its step,
    its two places) kept beside the simulation for the Contacts fold, then the fold
    itself in `apps/fit/src/panels`, with hovering a row moving the run to that step.
-4. **Built; browser check waiting.** The Contact tool and "Find contacts" (§3
+4. **Built and browser-checked.** The Contact tool and "Find contacts" (§3
    below, DESIGN.md §4).
-5. **Next.** `examples/fit/clearance-check.mekafit.yaml`, motor-driven, gaps only,
-   solved by a test as DESIGN.md §8 says, and mekafit's own example picker (Thomas
-   asked that mekafit's examples be separate from mekasim's).
+5. **Built and browser-checked.** `examples/fit/clearance-check.mekafit.yaml`,
+   motor-driven, gaps only, solved by a test as DESIGN.md §8 says, and mekafit's
+   own example picker (Thomas asked that its examples be separate from mekasim's).
 
 Then phase 3, the contact step (DESIGN.md §5), which starts with
 `contactPoints` (§3.3) on top of `geometry/distance.ts`.
