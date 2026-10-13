@@ -6,6 +6,7 @@ describe("mekafit's example picker", () => {
     expect(EXAMPLES.map(({ id }) => id)).toEqual([
       "clearance-check",
       "door-latch",
+      "knuckle-coupler",
       "ratchet",
       "sprung-lever",
     ]);

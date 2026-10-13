@@ -137,7 +137,16 @@ face's end, in place of every pair of segments with rules for the special cases.
 And where the rows as laid out do not let the whole of a closing step through, the
 step now takes part of it and lays the rows out again.
 
-**Next in phase 3:** the other examples (coupler, push latch).
+`examples/fit/knuckle-coupler.mekafit.yaml` is built: two much simplified couplers,
+one standing with its knuckle open, the other pushed into it with its knuckle shut
+and locked. The nose strikes the open knuckle's tail and swings it shut, its lock
+drops, and a pull of 150 N is then held by the hooked noses and both locks. With
+both knuckles shut the run jams and names them, as phase 3 asks. It differs from
+the "done when" of phase 3 in one thing: only one knuckle starts open. In this
+simple shape two open knuckles pass each other's tails; closing both at once needs
+the thrower a real coupler has inside its head.
+
+**Next in phase 3:** the push latch, the last of its examples.
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
 springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and

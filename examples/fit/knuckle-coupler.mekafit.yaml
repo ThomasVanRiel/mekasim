@@ -1,0 +1,78 @@
+# Two knuckle couplers, much simplified. The left one stands still with its knuckle
+# open; the right one, its knuckle closed and locked, is pushed into it. Its nose
+# strikes the tail of the open knuckle and swings it shut round the nose, and the
+# lock drops in behind. Then the right coupler is pulled away with 150 N: the two
+# noses hook, and the locks hold the knuckles shut against the pull.
+mekafit: 1
+meta:
+  name: Knuckle coupler
+  units: { length: mm, angle: deg }
+
+params:
+  open: 45 deg
+
+bodies:
+  ground:
+    points: { O: [0, 0], along: [100, 0], pin: [-22, 20] }
+    # The head of the left coupler, with the lug that carries its knuckle.
+    shape:
+      path: "M -70 -30 H -30 V 10 H -14 V 30 H -70 Z"
+  knuckle_a:
+    points: { pin: [0, 0] }
+    layer: 1
+    # A hook: the tail hangs from the pin, the nose from the far end of the bridge.
+    shape:
+      path: "M -6 -26 H 6 V -6 H 24 V -28 H 36 V 6 H -6 Z"
+      holes: { pin: 5 }
+  head_b:
+    points: { O: [0, 0], pin: [-22, 20] }
+    shape:
+      path: "M -70 -30 H -30 V 10 H -14 V 30 H -70 Z"
+  knuckle_b:
+    points: { pin: [0, 0] }
+    layer: 1
+    shape:
+      path: "M -6 -26 H 6 V -6 H 24 V -28 H 36 V 6 H -6 Z"
+      holes: { pin: 5 }
+
+joints:
+  rail: { type: slider, axis: [ground.O, ground.along], point: head_b.O, angle: 180 deg }
+  pin_a: { type: revolute, connect: [ground.pin, knuckle_a.pin], stops: [0, open] }
+  pin_b: { type: revolute, connect: [head_b.pin, knuckle_b.pin], stops: [0, open] }
+
+pose:
+  knuckle_a: [-22, 20, open]
+  # The right coupler is the left one turned half round, 40 mm off.
+  head_b: [40, 0, 180 deg]
+  knuckle_b: [62, -20, 180 deg]
+
+latches:
+  lock_a: { joint: pin_a, at: 2 deg, drops: down }
+  lock_b: { joint: pin_b, at: 2 deg, drops: down, engaged: true }
+
+drivers:
+  shunt:
+    move: head_b
+    stages:
+      - { to: [-2, 0, 180 deg], time: 2 s }
+      - { pull: [150 N, 0], time: 1 s }
+
+contacts:
+  knuckles: { between: [knuckle_a, knuckle_b] }
+
+cycle: { steps: 180 }
+
+measures:
+  knuckle: angle(knuckle_a)
+  slack: final(x(head_b.O))
+
+checks:
+  closed: final(angle(knuckle_a)) < 2.01 deg
+  locked: final(latched(lock_a)) > 0 and final(latched(lock_b)) > 0
+  coupled: final(x(head_b.O)) > 2 mm and final(x(head_b.O)) < 8 mm
+  never_through: min(gap(knuckle_a, knuckle_b)) > -0.001 mm
+
+plots:
+  knuckle: angle(knuckle_a)
+  coupler: x(head_b.O)
+  pull: force(knuckles)

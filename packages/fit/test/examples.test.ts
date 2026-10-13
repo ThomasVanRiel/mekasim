@@ -61,6 +61,39 @@ describe("mekafit's examples", () => {
     expect(result.free).toEqual([]);
   });
 
+  it("has a knuckle coupler that is swung shut, locks, and holds against a pull", () => {
+    const result = simulate(read("knuckle-coupler.mekafit.yaml"));
+    const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
+    const knuckle = value("knuckle") as Float64Array;
+    // Open at 45 degrees until the other nose strikes its tail; shut once pushed home.
+    expect(knuckle[0]).toBeCloseTo(Math.PI / 4, 9);
+    expect(Math.min(...knuckle)).toBeCloseTo(0, 6);
+    // The lock is out until then and in ever after, and the other was in from the start.
+    const lock = result.latched.lock_a as Float64Array;
+    expect(lock[0]).toBe(0);
+    expect(lock.at(-1)).toBe(1);
+    expect(Array.from(result.latched.lock_b as Float64Array).every((v) => v === 1)).toBe(true);
+    // Pulled apart, the noses hook after a few millimetres and both locks carry the pull.
+    expect(value("slack")).toBeGreaterThan(0.004);
+    expect(value("slack")).toBeLessThan(0.007);
+    expect(result.loads?.locks.lock_a?.at(-1)).toBeGreaterThan(0.5);
+    expect(result.loads?.locks.lock_b?.at(-1)).toBeGreaterThan(0.5);
+    expect(result.loads?.contacts.knuckles?.at(-1)).toBeGreaterThan(100);
+    expect(result.free).toEqual([]);
+  });
+
+  it("jams the couplers when both knuckles are shut, and names them", () => {
+    const shut = read("knuckle-coupler.mekafit.yaml")
+      .replace("knuckle_a: [-22, 20, open]", "knuckle_a: [-22, 20, 0]")
+      .replace(
+        "lock_a: { joint: pin_a, at: 2 deg, drops: down }",
+        "lock_a: { joint: pin_a, at: 2 deg, drops: down, engaged: true }",
+      );
+    const errors = simulate(shut).diagnostics.filter(({ severity }) => severity === "error");
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toMatch(/^Jams at [\d.]+ s: .*"knuckle_a" against "knuckle_b"/);
+  });
+
   it("has a motor-driven clearance check with its hand-worked closest gap", () => {
     const result = simulate(read("clearance-check.mekafit.yaml"));
     const tightest = result.measures.find(({ id }) => id === "tightest")?.quantity?.value;
