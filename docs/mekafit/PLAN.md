@@ -78,7 +78,12 @@ small dense quadratic program is built and checked against hand-solved, redundan
 and infeasible cases. `contactPoints` finds up to four distinct nearby places with
 their normals, including both ends of flat faces. Contact points now become
 one-sided rows with their translation and rotation gradients, ready for the
-quadratic program. Springs are next.
+quadratic program. `springs:` is read and checked (`packages/fit/src/compile.ts`):
+both kinds, their stiffness and preload with units, and each preload turned into a
+rest value where the joints close from the starting pose. `solver/springs.ts` gives
+their energy, gradient and Gauss-Newton Hessian. A model with springs still runs as
+it does without them, since nothing minimises that energy yet. The quasi-static
+step for `to` stages (`quasistatic.ts`) is next.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
 `apps/fit`; DESIGN.md §4 and FORMAT.md "Contacts" say what each is):
@@ -105,8 +110,8 @@ quadratic program. Springs are next.
 
 Then phase 3, the contact step (DESIGN.md §5), which starts with
 `contactPoints` (§3.3) on top of `geometry/distance.ts`. Its force units were built
-first, following DESIGN.md §9; the quadratic program and `contactPoints` are built
-too.
+first, following DESIGN.md §9; the quadratic program, `contactPoints`, the contact
+rows and the springs are built too.
 
 **Settled with Thomas on 2026-10-13**, beyond what the sections below say:
 
@@ -121,6 +126,10 @@ too.
 - A positive straight-spring `preload` is tension, pulling its two points together.
   A positive torsion-spring `preload` turns its joint in the positive-angle
   direction. Negative values act the other way.
+- A stiffness or a preload is written with its unit (`2 N/mm`, `5 N`). A plain
+  number is not read, since the document has no unit of its own for forces; a plain
+  `0` preload is read as none. (Claude's choice while building springs; say if a
+  default unit is wanted instead.)
 - A push-to-open latch, a pin riding in a heart-shaped slot as in a drawer catch, is
   wanted as a mekafit example once contact is solved (DESIGN.md §8).
 

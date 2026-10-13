@@ -11,6 +11,7 @@ import {
 } from "@mekasim/core";
 import type * as z from "zod";
 import type { Contact } from "./schema.ts";
+import type { CompiledSpring } from "./solver/springs.ts";
 
 type ContactEntry = z.infer<typeof Contact>;
 type ContactDocument = Document & { contacts?: Record<string, ContactEntry> };
@@ -28,6 +29,7 @@ export interface CompiledContact {
 /** The part of mekafit's compiled model added in core's `extend` hook. */
 export interface FitCompiled extends Compiled {
   contacts: CompiledContact[];
+  springs: CompiledSpring[];
 }
 
 /** What a listed pair did over one run, including where it came closest. */

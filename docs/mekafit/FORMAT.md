@@ -24,7 +24,9 @@ are kept for what mekasim does not have yet: SVG drawings, `plate` and `copy`
 are built and compile to checked, distinct pairs; a run reports the first overlap
 deeper than 0.001 mm and keeps each pair's closest gap for the Contacts fold.
 The force, torque and spring-stiffness units listed under Springs are built for
-expressions. Joint stops, springs and everything after them are still to come.
+expressions. `springs:` is read and checked, but a run does not yet act on it: that
+comes with the contact step. Joint stops and everything after springs are still to
+come.
 
 ## A whole example
 
@@ -242,7 +244,7 @@ joints:
 `stops` limits a revolute joint's relative angle, or the travel along a pin-slot or
 slider measured from the first axis point. Either end may be `null`.
 
-## Springs (phase 3)
+## Springs (phase 3; read and checked, not yet acting in a run)
 
 ```yaml
 springs:
@@ -255,8 +257,14 @@ A torsion spring on a revolute joint, or a straight spring between two points.
 `preload` instead of `rest` or `length` gives the torque or force at the starting
 position. A positive preload on a straight spring is tension: it pulls its two
 points together. A positive preload on a torsion spring turns the joint in its
-positive-angle direction. A negative preload acts the other way. New units: `N`,
+positive-angle direction. A negative preload acts the other way. The starting
+position is where the joints close from the `pose`. New units: `N`,
 `N*m`, `N*mm`, `N/mm`, `N*m/rad`, `N*mm/deg`.
+
+A spring has either its rest value or a `preload`, not both. `stiffness` and
+`preload` are written with their unit; a plain number is not read, except a
+`preload` of `0`. A joint's angle is that of the second body it connects less that
+of the first, as for a driver.
 
 ## Locks (phase 3)
 

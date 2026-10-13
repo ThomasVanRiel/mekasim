@@ -40,18 +40,18 @@ packages/fit/src
   registry.ts     force, torque and stiffness units added to mekafit's expressions
   contacts.ts     checked pairs; gaps over a run, closest results and overlap messages
   edit.ts         additions to `contacts:` made by the tool and finder
+  compile.ts      core's `extend` hook: contacts and springs; locks, stops, move drivers to come
   geometry/
     contacts.ts   several nearest points per pair of shapes, for the contact step
   solver/
     inequality.ts one-sided constraints: contact rows built; stop and lock rows to come
     qp.ts         small dense quadratic program (dual active set)
+    springs.ts    spring energy, gradient and Gauss-Newton Hessian
   (to come)
   measures.ts     force, torque, latched (through core's registry)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
-  compile.ts      springs, locks, stops, move drivers, in core's `extend` hook
   solver/
     quasistatic.ts the contact step and the stage-driven run
-    springs.ts    spring energy, gradient and Gauss-Newton Hessian
   study/
     random.ts     seeded generator (splitmix32 seeding xoshiro128**)
     sample.ts     random, spread (Latin hypercube), grid
@@ -390,10 +390,13 @@ does), repeat up to 30 times:
 
 `springs.ts` gives energy, gradient and Gauss-Newton Hessian in `q` for torsion
 springs (on the relative angle of a revolute joint) and straight springs (on the
-distance between two points). Preloads are turned into rest values at compile. A
+distance between two points). Preloads are turned into rest values at compile,
+from the position in which the joints close at time 0 starting from the pose. A
 positive straight-spring preload is tension, pulling the points together; a
 positive torsion preload acts in the joint's positive-angle direction. Negative
-preloads act the other way.
+preloads act the other way. The Hessian leaves out the term in which a loaded
+straight spring's direction turns, so it is never negative; a straight spring whose
+two points are on one place has no direction and adds no gradient there.
 
 ### 5.6 The move driver
 

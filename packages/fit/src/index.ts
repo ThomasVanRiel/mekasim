@@ -1,3 +1,4 @@
+export { compileFit, compileSprings } from "./compile.ts";
 export {
   type CompiledContact,
   type ContactCandidate,
@@ -39,3 +40,11 @@ export {
   linearizeInequalities,
 } from "./solver/inequality.ts";
 export { type QpSolution, solveQp } from "./solver/qp.ts";
+export {
+  type CompiledSpring,
+  type SpringTerms,
+  type StraightSpring,
+  springTerms,
+  springValue,
+  type TorsionSpring,
+} from "./solver/springs.ts";
