@@ -15,6 +15,9 @@ drivers, pose, traces, measures, plots, frames.
 This page is written ahead of the build. The phase that adds each part is given in
 its heading (see [PLAN.md](PLAN.md)); mark a part as built when its phase is done.
 
+Built so far: the first line `mekafit: 1`, and a shape written out as `path` with
+`holes`. Everything else on this page is still to come.
+
 ## A whole example
 
 A knuckle coupler, modelled once and placed a second time turned round. The

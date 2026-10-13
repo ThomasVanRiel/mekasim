@@ -1,0 +1,58 @@
+# The crank-rocker four-bar of mekasim's examples, with real outlines for its links.
+# Each outline is written out as path text in the link's own frame; the holes sit on
+# the link's named points. Path text holds plain numbers, so the crank's outline is
+# drawn for a radius of 40 mm and does not follow `r`.
+mekafit: 1
+meta:
+  name: Four-bar with shaped links
+
+params:
+  r: 40 mm          # crank radius
+  rpm: 300
+  pin: 6 mm         # diameter of the pins
+
+bodies:
+  ground:
+    points: { O2: [0, 0], O4: [180, 0] }
+  crank:
+    points: { O: [0, 0], A: [r, 0] }
+    shape:
+      # A bar with round ends, wider at the shaft than at the pin.
+      path: "M 0 -14 L 40 -9 A 9 9 0 0 1 40 9 L 0 14 A 14 14 0 0 1 0 -14 Z"
+      holes: { O: 10, A: pin }
+  coupler:
+    points: { A: [0, 0], B: [160, 0], P: [80, 60] }
+    layer: 1
+    shape:
+      # A bar from A to B with a lug standing up to carry the point P.
+      path: "M 0 -9 L 160 -9 A 9 9 0 0 1 160 9 L 104 9 L 89 60 A 9 9 0 0 1 71 60 L 56 9 L 0 9 A 9 9 0 0 1 0 -9 Z"
+      holes: { A: pin, B: pin, P: 4 }
+  rocker:
+    points: { B: [0, 0], O: [110, 0] }
+    shape:
+      path: "M 0 -9 L 110 -9 A 9 9 0 0 1 110 9 L 0 9 A 9 9 0 0 1 0 -9 Z"
+      holes: { B: pin, O: pin }
+
+joints:
+  main:  { type: revolute, connect: [ground.O2, crank.O] }
+  pin_a: { type: revolute, connect: [crank.A, coupler.A] }
+  pin_b: { type: revolute, connect: [coupler.B, rocker.B] }
+  rock:  { type: revolute, connect: [rocker.O, ground.O4] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+traces: [coupler.P]
+
+measures:
+  rocker_swing: range(angle(rocker))
+
+checks:
+  swings_enough: rocker_swing > 40 deg
+
+plots:
+  rocker: angle(rocker)
+
+pose:
+  coupler: [40, 0, 40]
+  rocker: [160, 110, -80]

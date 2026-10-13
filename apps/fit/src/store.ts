@@ -1,5 +1,4 @@
-import type { Simulation } from "@mekasim/core";
-import { simulate } from "@mekasim/fit";
+import { type FitSimulation, shapeBounds, simulate } from "@mekasim/fit";
 import { buildScene, type Scene } from "@mekasim/ui";
 import { create } from "zustand";
 import fourBar from "../../../examples/four-bar.mekasim.yaml?raw";
@@ -16,15 +15,24 @@ function kept(): string | null {
 }
 
 interface Solved {
-  simulation: Simulation;
+  simulation: FitSimulation;
   /** The last version of the model that could be drawn, shown while the text has errors. */
-  shown?: Simulation;
+  shown?: FitSimulation;
   scene?: Scene;
 }
 
 function solve(text: string, before?: Solved): Solved {
   const simulation = simulate(text);
   const scene = buildScene(simulation);
+  // The outlines reach beyond the points the scene is fitted to.
+  if (scene && simulation.compiled) {
+    scene.bounds = shapeBounds(
+      scene.bounds,
+      scene.cycle,
+      simulation.compiled.bodies,
+      simulation.shapes,
+    );
+  }
   return scene
     ? { simulation, shown: simulation, scene }
     : { simulation, shown: before?.shown, scene: before?.scene };

@@ -78,9 +78,12 @@ function useLinkedModel(): void {
   }, []);
 }
 
+const NO_SHAPES = new Map<string, never>();
+
 export function App() {
   const scene = useStore((s) => s.scene);
   const units = useStore((s) => s.shown?.compiled?.units);
+  const shapes = useStore((s) => s.shown?.shapes);
   const name = useStore((s) => s.shown?.doc?.meta?.name);
   const step = useStore((s) => s.step);
   const opened = useStore((s) => s.opened);
@@ -105,7 +108,7 @@ export function App() {
               label={`Drawing of ${name ?? "the model"}`}
               overlay={<Names scene={scene} step={step} />}
             >
-              <Drawing scene={scene} step={step} />
+              <Drawing scene={scene} step={step} shapes={shapes ?? NO_SHAPES} />
             </Sheet>
           ) : null}
           {stale && (

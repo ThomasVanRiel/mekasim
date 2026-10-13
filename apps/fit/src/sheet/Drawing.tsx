@@ -1,3 +1,4 @@
+import { type Shape, writePath } from "@mekasim/fit";
 import {
   bodyColor,
   type Palette,
@@ -7,7 +8,7 @@ import {
   SheetLabel,
   useColors,
 } from "@mekasim/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, useMemo } from "react";
 
 type Pose = [x: number, y: number, angle: number];
 
@@ -53,14 +54,45 @@ const LINE = { vectorEffect: "non-scaling-stroke", strokeWidth: 1.25 } as const;
  * The mechanism at a step of the run, in world coordinates, for inside a `Sheet`:
  * the plates mekasim draws, their pins and slots, wheels, cams and traces.
  */
-export function Drawing({ scene, step }: { scene: Scene; step: number }) {
+export function Drawing({
+  scene,
+  step,
+  shapes,
+}: {
+  scene: Scene;
+  step: number;
+  /** The real outline of each body that has one; the others are drawn as plates. */
+  shapes: Map<string, Shape>;
+}) {
   const colors: Palette = useColors();
+  // An outline and its holes as one path, filled where it is material.
+  const outlines = useMemo(
+    () =>
+      new Map(
+        [...shapes].map(([id, shape]) => [id, writePath([shape.outer, ...shape.holes])] as const),
+      ),
+    [shapes],
+  );
   const poses = posesAt(scene, step);
   // Drawn from the back to the front, as the layers lie.
   const bodies = [...scene.bodies].sort((a, b) => a.z - b.z);
 
+  const ground = outlines.get("ground");
+
   return (
     <>
+      {/* What stands still lies under everything that moves. */}
+      {ground && (
+        <path
+          d={ground}
+          fillRule="evenodd"
+          fill={colors.gridMajor}
+          fillOpacity={0.6}
+          stroke={colors.ink}
+          strokeLinejoin="round"
+          {...LINE}
+        />
+      )}
       {scene.traces.map((trace) => (
         <path
           key={trace.ref}
@@ -98,7 +130,8 @@ export function Drawing({ scene, step }: { scene: Scene; step: number }) {
       {bodies.map((body) => (
         <On key={body.id} poses={poses} body={body.index}>
           <path
-            d={`${path(body.outline)}Z`}
+            d={outlines.get(body.id) ?? `${path(body.outline)}Z`}
+            fillRule="evenodd"
             fill={bodyColor(colors, body.index)}
             fillOpacity={0.85}
             stroke={colors.ink}

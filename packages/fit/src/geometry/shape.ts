@@ -188,6 +188,18 @@ export function placeLoop(loop: Loop, placement: Placement): Loop {
   };
 }
 
+/** A shape laid down somewhere else, with its bounds and reach found anew. */
+export function placeShape(shape: Shape, placement: Placement): Shape {
+  let outer = placeLoop(shape.outer, placement);
+  let holes = shape.holes.map((hole) => placeLoop(hole, placement));
+  // Mirrored, every loop goes round the other way; turn them back.
+  if (placement.mirror) {
+    outer = reverseLoop(outer);
+    holes = holes.map(reverseLoop);
+  }
+  return { outer, holes, bounds: loopBounds(outer), radius: reach(outer) };
+}
+
 /**
  * How many times a loop goes round a point: 0 outside it, 1 inside an anticlockwise
  * loop, -1 inside a clockwise one. Exact for arcs as for lines; a point on the loop
