@@ -122,7 +122,7 @@ apps/fit/src       mekafit, a second app for parts that touch (see docs/mekafit)
 apps/web/src
   store.ts    model text, solved result, playback state
   editor/     YAML source editor, renaming by editing
-  viewport/   the drawing: scene description, three.js rendering, labels,
+  viewport/   the drawing: three.js rendering, labels,
               hit-testing, drawing tools
   panels/     header, inspector, parameters, measures, checks, plots, messages, timeline
   io/         STL
