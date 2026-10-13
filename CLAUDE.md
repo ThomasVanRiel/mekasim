@@ -4,6 +4,15 @@ mekasim is a browser app for exploring planar mechanisms described in YAML.
 The plan and its phases are in `docs/PLAN.md`; the model format is in `docs/FORMAT.md`.
 Ideas and known gaps outside the phases are collected in `docs/BACKLOG.md`.
 
+A second app, mekafit (working name), for part shapes, clearance, contact and
+studies, is planned in `docs/mekafit/PLAN.md`, designed in `docs/mekafit/DESIGN.md`
+and its format drafted in `docs/mekafit/FORMAT.md`. It lives in `apps/fit` with
+`packages/fit` and shares `packages/ui` and `packages/core` with mekasim. Work through
+it in the order of section 9 of the design. mekasim's behaviour, format and look must
+not change: the example baseline and schema tests guard that, and any change to
+`apps/web` or `packages/core` for mekafit's sake is checked by Thomas in mekasim's
+dev server before more is built on it.
+
 ## Checking the UI
 
 Do not use headless browsers or Playwright, and do not add them to the project.
