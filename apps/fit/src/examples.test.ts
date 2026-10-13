@@ -7,6 +7,7 @@ describe("mekafit's example picker", () => {
       "clearance-check",
       "door-latch",
       "knuckle-coupler",
+      "push-latch",
       "ratchet",
       "sprung-lever",
     ]);

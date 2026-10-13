@@ -110,6 +110,20 @@ describe("contact points between two shapes", () => {
     expectPoint(turned[0]?.normal as [number, number], [0, -1]);
   });
 
+  it("holds a disc that just touches a face square to the face", () => {
+    const found = contactPoints(box(0.02, 0.01), HOME, disc(0.003), {
+      x: 0.01,
+      y: 0.013,
+      angle: 0,
+    });
+    const touch = found.find(({ distance }) => Math.abs(distance) < 1e-12);
+    expect(touch?.a[0]).toBeCloseTo(0.01, 9);
+    expect(touch?.a[1]).toBeCloseTo(0.01, 12);
+    // Just where a round and a flat touch is found to a tenth of a nanometre, the way out to match.
+    expect(touch?.normal[0]).toBeCloseTo(0, 6);
+    expect(touch?.normal[1]).toBeCloseTo(1, 12);
+  });
+
   it("gives touching and crossing boundaries a finite unit normal", () => {
     const touching = contactPoints(box(0.01, 0.01), HOME, box(0.01, 0.01), {
       x: 0.01,

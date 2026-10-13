@@ -146,7 +146,19 @@ the "done when" of phase 3 in one thing: only one knuckle starts open. In this
 simple shape two open knuckles pass each other's tails; closing both at once needs
 the thrower a real coupler has inside its head.
 
-**Next in phase 3:** the push latch, the last of its examples.
+`examples/fit/push-latch.mekafit.yaml` is built, Thomas's push-to-open catch: a pin
+that can only go sideways, in a track round a heart on the drawer. One push and
+the pin is caught in the heart's cleft with the drawer in; the next and it goes
+down the other side and the drawer comes out. It goes round one way because each
+peak of the track stands to one side of the pocket before it; there is no spring
+on the pin. The shapes are drawn to work, not to look like a bought catch.
+
+A part that a spring carries a long way, as the drawer coming out, now takes
+several samples over it instead of failing to settle in one.
+
+**Phase 3 is built.** Its examples are in mekafit's picker; none of it has been
+seen in the browser yet. Phase 4, studies, is next (DESIGN.md §6 and §9), unless
+Thomas would first have what phase 1 still lacks.
 
 **Open, for Thomas to say when he looks:** `force()` and `torque()` cover contacts,
 springs and drivers, as FORMAT.md lists them. How hard a stop or a lock is held, and

@@ -1,0 +1,71 @@
+# A push-to-open catch, as on a drawer. The drawer carries a track round a heart;
+# a pin on the frame rides in it and can only go sideways. A spring pushes the
+# drawer out. Pushed in and let go, the pin is caught in the cleft of the heart and
+# the drawer stays in. Pushed and let go again, the pin goes down the other side
+# and the drawer comes out. The pin goes round one way only because each peak of
+# the track stands a little to one side of the pocket before it.
+mekafit: 1
+meta:
+  name: Push latch
+  units: { length: mm, angle: deg }
+
+bodies:
+  ground:
+    points: { O: [0, 0], up: [0, 100], left: [-40, 0], right: [40, 0], anchor: [0, -100] }
+  drawer:
+    points: { O: [0, 0] }
+    # A plate with the track cut out of it.
+    shape:
+      path: "M -40 -62 H 40 V 15 H -40 Z M 0 5 L 30 -12 L 30 -38 L 14 -50 L 8 -42 L -10 -50 L -28 -38 L -28 -12 Z"
+  heart:
+    points: { O: [0, 0] }
+    # The island in the track: a point on top, a cleft underneath.
+    shape:
+      path: "M -8 -10 L -18 -20 L -4 -33 L 4 -25 L 20 -33 L 20 -24 Z"
+  pin:
+    points: { C: [0, 0] }
+    layer: 1
+    shape:
+      path: "M -3 0 A 3 3 0 1 0 3 0 A 3 3 0 1 0 -3 0 Z"
+
+joints:
+  # The drawer runs in and out; `in` is how far it is pushed in.
+  runner: { type: slider, axis: [ground.O, ground.up], point: drawer.O, stops: [0, 48] }
+  fixed: { type: weld, connect: [drawer.O, heart.O] }
+  # The pin stays level and goes from side to side.
+  sideways: { type: slider, axis: [ground.left, ground.right], point: pin.C }
+
+pose:
+  pin: [0, 0, 0]
+
+springs:
+  # Stretched 10 mm with the drawer out, so it sits on its stop with 3 N.
+  out: { connect: [ground.anchor, drawer.O], stiffness: 0.3 N/mm, length: 90 }
+
+drivers:
+  hand:
+    move: drawer
+    stages:
+      - { to: [0, 45, 0], time: 1 s }
+      - { pull: [0, 0], time: 1 s }
+      - { to: [0, 45, 0], time: 1 s }
+      - { pull: [0, 0], time: 1 s }
+
+contacts:
+  walls: { between: [pin, drawer] }
+  island: { between: [pin, heart] }
+
+cycle: { steps: 400 }
+
+measures:
+  in: y(drawer.O)
+  pin: x(pin.C)
+
+checks:
+  out_again: final(y(drawer.O)) < 0.01 mm
+  never_through: min(gap(pin, heart)) > -0.001 mm and min(gap(pin, drawer)) > -0.001 mm
+
+plots:
+  drawer: y(drawer.O)
+  pin: x(pin.C)
+  catch: [force(island), force(walls)]

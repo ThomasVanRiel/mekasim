@@ -94,6 +94,31 @@ describe("mekafit's examples", () => {
     expect(errors[0]?.message).toMatch(/^Jams at [\d.]+ s: .*"knuckle_a" against "knuckle_b"/);
   });
 
+  it("has a push latch that stays in after one push and comes out after the next", () => {
+    const result = simulate(read("push-latch.mekafit.yaml"));
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    const value = (id: string) =>
+      result.measures.find((m) => m.id === id)?.quantity?.value as Float64Array;
+    const drawer = value("in");
+    const pin = value("pin");
+    const at = (t: number) => cycle.t.findIndex((time) => time >= t - 1e-9);
+    // Pushed 45 mm in, the pin has gone down the right of the heart.
+    expect(drawer[at(1)]).toBeCloseTo(0.045, 9);
+    expect(pin[at(1)]).toBeGreaterThan(0.012);
+    // Let go, the drawer comes back only as far as the cleft, and stays there.
+    expect(drawer[at(2)]).toBeGreaterThan(0.025);
+    expect(drawer[at(2)]).toBeLessThan(0.033);
+    expect(drawer[at(2)]).toBeCloseTo(drawer[at(1.6)] as number, 8);
+    expect(result.loads?.contacts.island?.[at(2)]).toBeGreaterThan(1);
+    // Pushed again, the pin goes down the left; let go, the drawer comes all the way out.
+    expect(pin[at(3)]).toBeLessThan(-0.003);
+    expect(drawer.at(-1)).toBeCloseTo(0, 9);
+    // And the pin is back at the top, to the right of the heart's point for the next push.
+    expect(pin.at(-1)).toBeGreaterThan(-0.008);
+    expect(pin.at(-1)).toBeLessThan(0.003);
+    expect(result.free).toEqual([]);
+  });
+
   it("has a motor-driven clearance check with its hand-worked closest gap", () => {
     const result = simulate(read("clearance-check.mekafit.yaml"));
     const tightest = result.measures.find(({ id }) => id === "tightest")?.quantity?.value;

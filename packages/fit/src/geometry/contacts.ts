@@ -373,10 +373,18 @@ export function contactPoints(
     // Two straight edges are nearest at a corner of one, which the corners have taken.
     if (segmentA.kind === "line" && segmentB.kind === "line") return;
     const pair = nearest(segmentA, segmentB);
-    // So have they where a curve is nearest at one of its ends; and where a curve
-    // crosses the other boundary, the deepest place of the overlap stands for it.
-    if (pair.d > margin || pair.d <= SAME) return;
+    // So have they where a curve is nearest at one of its ends.
+    if (pair.d > margin) return;
     if (!within(segmentA, pair.pa) || !within(segmentB, pair.pb)) return;
+    if (pair.d <= SAME) {
+      // A curve that just touches is held square to itself there. One that crosses
+      // the other boundary gets the same, and the deepest place of the overlap
+      // says how deep.
+      const out = segmentA.kind === "arc" ? outward(segmentA, pair.pa) : outward(segmentB, pair.pb);
+      const normal: Point = segmentA.kind === "arc" ? out : [-out[0], -out[1]];
+      push(onA, onB, { distance: 0, a: pair.pa, b: pair.pb, normal }, 0);
+      return;
+    }
     const along = unit([pair.pb[0] - pair.pa[0], pair.pb[1] - pair.pa[1]]);
     const passed = sunk(b, pair.pa) || sunk(a, pair.pb);
     push(

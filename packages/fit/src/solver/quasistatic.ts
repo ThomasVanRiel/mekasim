@@ -241,6 +241,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     };
     let limited: string[] = [];
     let stepped = Number.POSITIVE_INFINITY;
+    let onItsWay = false;
     for (let iteration = 0; ; iteration++) {
       const phi = residual(now, q, t);
       const rows = [
@@ -257,7 +258,13 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         rows: rows.filter((row) => row.kind !== "limit" && row.value < TOUCHING),
         open: openSources(now.constraints, phi),
       });
-      if (iteration >= iterations) return failed();
+      // Parts that a spring is still carrying along, as far as they may go in a sample
+      // each time, have not failed to settle: they are on their way, and the next
+      // sample takes them on from here.
+      if (iteration >= iterations) {
+        const sound = closed && rows.every((row) => row.value > -PENETRATION);
+        return sound && onItsWay ? { ok: true, q, limited } : failed();
+      }
 
       // The joints leave some directions free; the step that closes them is core's own.
       const decomposition = svd(jacobian(now, q));
@@ -348,12 +355,9 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
 
       // A step is laid out for the parts as they touch now. One that carries a body
       // further than it may go in a sample is cut short, so that it meets what is in its way.
-      let scale =
-        1 /
-        Math.max(
-          1,
-          travel((i) => dq[i]),
-        );
+      const far = travel((i) => dq[i]);
+      onItsWay = far > 1;
+      let scale = 1 / Math.max(1, far);
       // And for the springs as they pull now. A spring's pull turns as its ends move,
       // which the step does not know; where the energy does not follow what the step
       // expects of it, the step is halved.
@@ -464,7 +468,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       }
       const identity = mat(m, m);
       for (let r = 0; r < m; r++) {
-        normal.data[r * m + r] += 1e-9 * largest + 1e-30;
+        normal.data[r * m + r] += 1e-9 * largest + 1e-12;
         identity.data[r * m + r] = 1;
       }
       const solved = solveQp(normal, linear, identity, new Float64Array(m));

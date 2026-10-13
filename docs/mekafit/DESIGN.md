@@ -280,7 +280,8 @@ They are gathered three ways, so that each holds only where it is true:
    they share, with the distance between the faces. Their nearest points alone would
    be one arbitrary place, with no direction once they touch.
 3. **Two boundaries of which one at least is curved**, where they are nearest along
-   both, as two arcs or an arc and a face.
+   both, as two arcs or an arc and a face. One that just touches is held square to
+   the curve there.
 
 Places on one spot of both boundaries (within `merge`, 0.2 mm) that hold the same
 way are one; two that hold different ways are both kept, as where a corner of each
@@ -397,6 +398,10 @@ let go would be carried past where it comes to rest, onto another branch):
 Near a position where the joints and contacts are met, a step is also halved until
 the energy follows what the step expects of it (down by at least a tenth of that,
 or up by no more than nearly twice it where the constraints force it up).
+
+A sample whose parts are still being carried along at the end of its steps, each
+cut short as above, with the joints closed and nothing overlapping, is kept as it
+is: the parts are on their way, and the next sample takes them on.
 
 The first sample closes the joints from the pose as mekasim does, then settles the
 springs and contacts with up to 400 such steps, since a spring may carry a part a
