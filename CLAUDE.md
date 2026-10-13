@@ -12,7 +12,7 @@ it in the order of section 9 of the design. mekasim's behaviour, format and look
 not change for mekafit's sake (what Thomas asks for in mekasim itself, such as
 `checks` and `shape`, is another matter): the example baseline and schema tests
 guard that, and any change to
-`apps/web` or `packages/core` for mekafit's sake is checked by Thomas in mekasim's
+`apps/sim` or `packages/core` for mekafit's sake is checked by Thomas in mekasim's
 dev server before more is built on it.
 
 ## Checking the UI
@@ -39,7 +39,7 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 
 - pnpm workspaces: `packages/core` and `packages/fit` (pure TypeScript, no DOM),
   `packages/ui` (React parts and the look shared by the apps; no model, no app
-  store), `apps/web` (mekasim) and `apps/fit` (mekafit).
+  store), `apps/sim` (mekasim) and `apps/fit` (mekafit).
 - Core runs as TypeScript directly in Node, so no `enum` or parameter properties,
   and relative imports carry the `.ts` extension.
 - Logic that does not need a browser belongs in plain modules with unit tests

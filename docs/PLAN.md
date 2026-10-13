@@ -68,7 +68,7 @@ packages/core   (pure TypeScript, no DOM, runs in browser, worker and node)
   compile/      document -> SolverModel (param evaluation, component expansion)
   solver/       constraints, position/velocity/acceleration, diagnostics, inverse dynamics
   analysis/     cycle sampling, traces, measures, sweeps
-apps/web        (React SPA)
+apps/sim        (React SPA)
   state/        document store, undo/redo, session state
   viewport/     Three.js scene, 2D and 3D cameras, picking, gizmos
   tools/        sketch, joint, dimension, underlay, measure

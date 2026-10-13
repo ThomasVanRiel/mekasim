@@ -45,10 +45,10 @@ packages/fit/src
     stats.ts      pass rate with Wilson interval, per-parameter rates, telling parameters
   cli.ts          `pnpm fit:solve` and `pnpm fit:study`, studies in worker_threads
 packages/ui/src
-  theme.ts, theme.css, fonts     from apps/web (§2.1)
+  theme.ts, theme.css, fonts     from apps/sim (§2.1)
   Fold.tsx, Splitter.tsx, Choice.tsx
-  plot/           Chart.tsx, charts.ts, geometry.ts from apps/web
-  io/             share.ts, download.ts from apps/web
+  plot/           Chart.tsx, charts.ts, geometry.ts from apps/sim
+  io/             share.ts, download.ts from apps/sim
   sheet/          SVG sheet: pan, zoom, grid, labels, dimensions (new; used by mekafit)
 apps/fit/src
   store.ts        model text, solved run, playback, study results, shown run
@@ -68,7 +68,7 @@ Package names: `@mekasim/core` (as now), `@mekasim/fit`, `@mekasim/ui`, and the 
 
 ### 2.1 packages/ui
 
-Moved from `apps/web/src` unchanged except for import paths, because none of them
+Moved from `apps/sim/src` unchanged except for import paths, because none of them
 reads mekasim's store:
 
 `theme.ts`, the colour tokens and font imports of `index.css` (as `theme.css`),
@@ -80,7 +80,7 @@ reads mekasim's store:
 store (`layout.ts`, with mekasim's panel names and its `mekasim.layout` key in the
 browser's storage). In `packages/ui` it takes what it read as props: `size` (a
 number, or undefined for the default) and `onResize(size | undefined)`, and no
-longer names a panel. `clamp` moves with it. `layout.ts` stays in `apps/web`, and
+longer names a panel. `clamp` moves with it. `layout.ts` stays in `apps/sim`, and
 so does a `panels/Splitter.tsx` of a few lines that takes `panel` as before, reads
 and writes `useLayout`, and renders the shared one; mekasim's use of it does not
 change. mekafit has a layout store of its own, with its own panels and key.
@@ -89,14 +89,14 @@ Also moved, beyond what was first listed: `viewport/scene.ts`, the description o
 the drawing (outlines, pins, slots, wheels, cams, traces, the pose at a step), which
 needs only the core, so that mekafit's sheet draws a mekasim model from the same
 description as mekasim's Three.js view; and the rules for the page itself (body,
-focus ring, the scrubber) into `theme.css`, so that `apps/web`'s `index.css` only
+focus ring, the scrubber) into `theme.css`, so that `apps/sim`'s `index.css` only
 imports.
 
 `packages/ui` depends on `@mekasim/core` (the charts are built from its results) and
 on `zustand` (`theme.ts` keeps the chosen theme in a small store of its own). It
 holds no model and no session state.
 
-`apps/web` imports them from `@mekasim/ui`. Its `index.css` keeps what is mekasim's
+`apps/sim` imports them from `@mekasim/ui`. Its `index.css` keeps what is mekasim's
 own and imports `@mekasim/ui/theme.css`. Tailwind v4 only finds classes in files it
 scans, so both apps' CSS adds `@source` for `packages/ui/src`.
 
@@ -160,7 +160,7 @@ nothing, so nothing new becomes valid in a mekasim model.
 
 ### 2.4 apps/fit skeleton
 
-Vite and React as in `apps/web`, with the same Biome, TypeScript and Tailwind
+Vite and React as in `apps/sim`, with the same Biome, TypeScript and Tailwind
 settings. Opens a model (file, share link or the last one kept in the browser),
 solves it with `@mekasim/fit`, draws bodies on the SVG sheet (the plate outlines
 mekasim draws, until shapes exist), plays and scrubs. A mekasim model opens as it is.

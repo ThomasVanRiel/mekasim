@@ -71,13 +71,13 @@ packages/core   mekasim's core, unchanged except for extension points (DESIGN.md
 packages/fit    shapes, distance, contact solver, springs, locks, studies (pure TypeScript, no DOM)
 packages/ui     theme and fonts, folds, splitters, choice and field controls, charts,
                 the SVG sheet, share links and downloads (React, no app store)
-apps/web        mekasim, now importing its theme and controls from packages/ui
+apps/sim        mekasim, now importing its theme and controls from packages/ui
 apps/fit        mekafit
 ```
 
 `packages/fit` and `packages/ui` each depend on `packages/core`; `apps/fit` on all
-three; `apps/web` on `packages/core` and `packages/ui`. Nothing in `packages/core`,
-`packages/ui` or `apps/web` depends on `packages/fit`.
+three; `apps/sim` on `packages/core` and `packages/ui`. Nothing in `packages/core`,
+`packages/ui` or `apps/sim` depends on `packages/fit`.
 
 ## 4. The pipeline
 

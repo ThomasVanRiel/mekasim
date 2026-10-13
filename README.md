@@ -87,7 +87,7 @@ dimensions instead of point positions.
 ## Develop
 
 ```
-pnpm build       # production build of both apps, into apps/web/dist and apps/fit/dist
+pnpm build       # production build of both apps, into apps/sim/dist and apps/fit/dist
 pnpm test        # unit tests
 pnpm typecheck
 pnpm lint        # Biome; `pnpm format` applies fixes
@@ -120,7 +120,7 @@ packages/ui/src
   sheet/      a flat SVG drawing sheet: pan, zoom, grid, names, dimensions
 packages/fit/src   mekafit's side of the pipeline (see docs/mekafit)
 apps/fit/src       mekafit, a second app for parts that touch (see docs/mekafit)
-apps/web/src
+apps/sim/src
   store.ts    model text, solved result, playback state
   viewport/   the drawing: three.js rendering, labels,
               hit-testing, drawing tools
