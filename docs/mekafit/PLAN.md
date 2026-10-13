@@ -1,9 +1,9 @@
 # mekafit — plan
 
-mekafit is a second app in the mekasim repository. mekafit shares mekasim's solver,
-expressions and units, and its look, and adds what mekasim deliberately leaves out:
-real part shapes, clearance between them, parts that push each other, and studies
-that run a mechanism from many starting positions.
+mekafit is a second app in the mekasim repository. It shares mekasim's solver,
+expressions and units, its part shapes and its look, and adds what mekasim leaves
+out: clearance between the shapes, parts that push each other, and studies that run
+a mechanism from many starting positions.
 
 The technical design is in [DESIGN.md](DESIGN.md); the file format in
 [FORMAT.md](FORMAT.md). "mekafit" is a working name.
