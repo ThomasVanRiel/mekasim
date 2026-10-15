@@ -12,8 +12,9 @@ A second app in this repository, mekafit, is for mechanisms that work by parts
 touching. It measures the gaps between the outlines of the parts, and solves models
 in which listed parts push each other, with springs, joint stops, locks, and a
 driver that carries a body and lets it go: a door latch, a ratchet, a knuckle
-coupler and a push-to-open catch are among its [examples](examples/fit). Studies
-over many starting positions are still to come. It shares the core and the
+coupler and a push-to-open catch are among its [examples](examples/fit). A study
+solves a model many times over ranges of its parameters and shows where its checks
+fail, in the app or with `pnpm fit:study`. It shares the core and the
 interface parts; its format is in [docs/mekafit/FORMAT.md](docs/mekafit/FORMAT.md),
 and [docs/mekafit/PLAN.md](docs/mekafit/PLAN.md) says where it stands.
 
@@ -157,8 +158,9 @@ packages/fit/src   mekafit's side of the pipeline (see docs/mekafit/DESIGN.md)
               the stages of a move, forces
   measures.ts force, torque, latched, final, first
   simulate.ts the whole pipeline in one call, as core's
-apps/fit/src       mekafit: the sheet, the Run panel, the Contacts and the Springs
-                   and locks folds
+  study/      studies: seeded draws, one run, the pass rates, workers, the command line
+apps/fit/src       mekafit: the sheet, the Run and Study tabs, the Contacts, Springs
+                   and locks, and Studies folds; study/ runs studies in workers
 apps/sim/src
   store.ts    model text, solved result, playback state
   viewport/   the drawing: three.js rendering, labels,

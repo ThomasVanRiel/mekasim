@@ -54,20 +54,25 @@ packages/fit/src
     springs.ts    spring energy, gradient and Hessian
     stages.ts     a move's pose over its stages, and the constraint that holds it there
     quasistatic.ts the contact step, the stage-driven run, and the forces at each sample
+  study/
+    plan.ts       `studies:` read and checked against the parameters; values written and shown
+    random.ts     seeded generator (splitmix32 seeding xoshiro128**), normal quantiles
+    sample.ts     random, spread (Latin hypercube), grid
+    run.ts        one run: draw -> edited text -> simulate -> passed, failed or not solved
+    stats.ts      pass rate with Wilson interval, per-parameter rates, telling parameters
+    report.ts     the command line's summary and CSV
+    worker.ts     what a worker does with each message, in a browser and in Node alike
+    node.ts, node-worker.ts  runs in worker_threads
+  cli.ts          `pnpm fit:study`
   (to come)
   copy.ts         the `copy` component, expanded in core's `prepare` hook
-  study/
-    random.ts     seeded generator (splitmix32 seeding xoshiro128**)
-    sample.ts     random, spread (Latin hypercube), grid
-    run.ts        one run: draw -> edited text -> simulate -> pass/fail
-    stats.ts      pass rate with Wilson interval, per-parameter rates, telling parameters
-  cli.ts          `pnpm fit:solve` and `pnpm fit:study`, studies in worker_threads
+  cli.ts          `pnpm fit:solve`
 packages/ui/src
   theme.ts, theme.css          colours, fonts and the page's base styles
   names.ts                     names from the model as words
   Fold.tsx, Splitter.tsx, Choice.tsx, Tabs.tsx
   editor/         the YAML source editor, taking its text and messages as properties
-  plot/           Chart.tsx, charts.ts, geometry.ts
+  plot/           Chart.tsx, charts.ts, geometry.ts, Scatter.tsx and scatter.ts
   io/             share.ts, download.ts
   scene.ts        what is drawn of a model, for mekasim's Three.js view and the sheet alike
   sheet/          SVG sheet: pan, zoom, grid, labels, dimensions
@@ -85,14 +90,17 @@ apps/fit/src
                   markers; Tools.tsx: the Select and Contact tools
   panels/         Header, Source (tabs Source and Geometry, messages), Run,
                   Contacts with its finder, SpringsLocks
-  (to come)       Inspector, Studies, Parameters, StudyResults,
-                  io/project.ts (folder or `.zip`), study/ (worker, runner, scatter)
+  panels/         also Parameters, Studies, StudyResults (the Study tab), Replaying
+  study/          worker.ts and pool.ts (the module workers), store.ts (runs, results,
+                  replay), key.ts and saved.ts (results kept in IndexedDB), replay.ts,
+                  view.ts (the Study tab's wording and scatter)
+  (to come)       Inspector, io/project.ts (folder or `.zip`)
 ```
 
 Package names: `@mekasim/core`, `@mekasim/fit`, `@mekasim/ui`, and the apps
 `@mekasim/sim-web` and `@mekasim/fit-web`. Root scripts: `dev`, `build` (both apps),
-`dev:sim`, `dev:fit`, `build:sim`, `build:fit`; `fit:solve` and `fit:study` are to
-come. `pnpm test`, `typecheck` and `lint` cover every package.
+`dev:sim`, `dev:fit`, `build:sim`, `build:fit`, `fit:study`; `fit:solve` is to come.
+`pnpm test`, `typecheck` and `lint` cover every package.
 
 ## 2. Phase 0: the split
 
@@ -563,6 +571,13 @@ not driven is dropped in a contact run, where springs and contacts hold such par
    be 0, a signal must not be 0 at any sample), through the same code, so a run
    shown on the sheet has the checks its outcome was counted from.
 
+As built, a study's `pass` is written into the text in place of `checks` once, before
+any run, so the same code tests it. A run is "unsolved" when its result has an error
+other than a jam between parts, stops or locks; a jam is the mechanism's doing, so
+the run is judged by its conditions, and the jam's message is kept with it. The
+plan of a study (`study/plan.ts`) is read in `simulate`'s last step, so the editor
+shows a problem in a study at its place without stopping the model's own run.
+
 ```ts
 interface RunResult {
   index: number;
@@ -718,7 +733,7 @@ inequality.ts and contacts.ts → springs.ts → quasistatic.ts for `to` stages,
 `first` → Springs and locks fold → examples (sprung lever, door latch, ratchet,
 coupler, push latch).
 
-**Phase 4.** random.ts and sample.ts → run.ts → stats.ts → `pnpm fit:study` → workers
-and store → Studies fold → Study tab and scatter → replay → before and after.
+**Phase 4.** Done: random.ts and sample.ts → run.ts → stats.ts → `pnpm fit:study` →
+workers and store → Studies fold → Study tab and scatter → replay → before and after.
 
 **Phase 5.** Planned separately once phase 4 is in use; PLAN.md's risks explain why.

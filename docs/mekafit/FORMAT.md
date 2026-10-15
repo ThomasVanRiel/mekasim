@@ -17,14 +17,13 @@ its heading (see [PLAN.md](PLAN.md)), with "built" where it is.
 
 **Built:** the first line `mekafit: 1`; `contacts:`; `stops` on a joint;
 `springs:` with the units of force, torque and stiffness; `latches:`; the `move`
-driver with all its stages; and the measures `force`, `torque`, `latched`, `final`
-and `first`. A model with springs, stops, locks or a `move` driver is solved by the
+driver with all its stages; the measures `force`, `torque`, `latched`, `final`
+and `first`; and `studies:`. A model with springs, stops, locks or a `move` driver is solved by the
 contact step, in which listed contacts push and springs settle; any other is solved
 as mekasim solves it, with its contacts only checked. The models in
 [`examples/fit/`](../../examples/fit) use all of it and run as they are.
 
-**Not built:** `studies:` (phase 4), and of the shapes below SVG drawings, `plate`
-and the `copy` component. `friction` is phase 5.
+**Not built:** of the shapes below, SVG drawings, `plate` and the `copy` component. `friction` is phase 5.
 
 **mekasim's own by now**, and described in [../mekasim/FORMAT.md](../mekasim/FORMAT.md):
 shapes written out as `path` or taken from a DXF drawing with `geometry:`, `from`,
@@ -371,7 +370,7 @@ The app shows a force in N and a torque in N·mm, or in N·m where the model's l
 is not millimetres. How hard a stop or a lock is held has no measure; the Springs
 and locks fold shows it.
 
-## Studies (phase 4)
+## Studies (phase 4, built)
 
 ```yaml
 studies:
@@ -410,3 +409,25 @@ A parameter's range is one of:
 A run that cannot be solved is not a failure of the mechanism: it is counted apart
 as "could not be solved" with the message, so a gap in the solver is not mistaken
 for a gap in the design.
+
+As built:
+
+- `runs` is 100 and `seed` 1 when left out. A grid takes every combination and
+  ignores `runs`; a parameter listed by name in a grid takes 5 steps from its `min`
+  to its `max`.
+- A parameter varied by name needs `min` and `max`. Every range keeps within the
+  parameter's bounds, and a normal one is cut off at them.
+- Each run's values are written into `params` in the model's units, as a slider
+  writes them, and the model is solved as it is.
+- A run in which parts jam is solved: the jam is what the mechanism does, and the
+  conditions say whether it passed. A model that cannot be put together, a step
+  that does not settle, or a condition that cannot be worked out is "could not be
+  solved".
+- `pass` replaces `checks` for the study's runs; the model's checks are then not
+  tested.
+- `pnpm fit:study <model> <study> [--runs N] [--csv out.csv]` runs a study from the
+  command line, in worker threads, and prints what it came to.
+
+The knuckle coupler in [`examples/fit/`](../../examples/fit) has a study,
+`coupling`, over the left knuckle's starting angle and the right coupler's sideways
+offset.

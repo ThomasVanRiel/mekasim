@@ -8,7 +8,7 @@ a mechanism from many starting positions.
 The technical design is in [DESIGN.md](DESIGN.md); the file format in
 [FORMAT.md](FORMAT.md). "mekafit" is a working name.
 
-## Where it stands (2026-10-13)
+## Where it stands (2026-10-15)
 
 **Phase 0, the split, is built.** mekafit's own Netlify site is up at
 <https://mekafit.netlify.app/>, built from `apps/fit` with its own `netlify.toml`.
@@ -153,10 +153,56 @@ on the view no longer pastes, and the strandbeest's ground plate in the STL.
 **Also passed (2026-10-15):** the pace of a let-go body: the push latch's drawer
 and the ratchet's wheel come back over a number of steps.
 
+**Phase 4, studies, is built; its browser check is to come.** In `packages/fit/src/study`:
+`studies:` read and checked against the parameters, each problem at its place
+(`plan.ts`); seeded draws by `random`, `spread` and `grid` (`random.ts`,
+`sample.ts`); one run written into the text, solved and judged by the checks or the
+study's `pass` (`run.ts`); the pass rate with its Wilson range, the rate over each
+range and the two parameters that matter most (`stats.ts`); and `pnpm fit:study`,
+which runs them in worker threads and prints the summary (`cli.ts`, `node.ts`).
+In the app: module workers, one fewer than the machine's threads, fed batches of
+eight; a Studies fold with Run and Stop; a Study tab beside Run with the pass rate,
+the scatter, what was not met (click to filter), the runs not solved and the rate
+over each range; clicking a run shows it on the sheet and in the Run tab, with
+"Back to the model" and "Use these values"; results kept in IndexedDB per model,
+drawings and study, and the last results kept as "before" when the model changes.
+
+The knuckle coupler has a study, `coupling`, over the left knuckle's starting angle
+(0 to 45 deg) and the right coupler's sideways offset (-8 to 8 mm). Its 500 runs
+take 22 s with `pnpm fit:study` on 15 threads here; 41% pass. It fails where the
+knuckle starts nearly shut, and towards a large offset either way.
+
+Where phase 4 as built differs from what was planned:
+
+- **The coupling study** varies two values, not four: the left knuckle's starting
+  angle and the sideways offset. The coupler's angle would need its rail turned,
+  and the right knuckle starts shut and locked, as the example is drawn.
+- **A jam is a result**, judged by the conditions, not a run that could not be
+  solved: in the coupler a jam is what failing looks like.
+- **Threads here scale poorly**: eight processes each run 3 times slower than one
+  alone in this sandbox, so a study on Thomas's own machine may well be quicker.
+
+**Waiting for Thomas: a look at studies in mekafit's dev server** (open the
+"Knuckle coupler" example):
+
+1. The Studies fold at the bottom of the side panel: "Coupling", its two ranges,
+   and Run. Run switches the panel under the sheet to its Study tab; the runs
+   come in a few times a second, and Stop keeps what has run.
+2. The Study tab: the pass rate and its range, the scatter (blue dots passed, red
+   crosses failed), Across and Up, "Not met" (clicking a condition leaves the
+   other runs faint) and the bars of the rate over each range.
+3. Clicking a run in the scatter: it plays on the sheet with a box at the top left
+   saying which run and how it went; "Back to the model" returns, and "Use these
+   values" writes them into `params`. The run is ringed in the scatter.
+4. After a change to the model, the tab says its results are from an earlier
+   version; run again, and the old failures show as faint dashed crosses with
+   "Before:" and their rate. Reloading the page shows the last results again.
+5. In mekasim, nothing should have changed.
+
 **Open, for Thomas to say:**
 
-1. Whether phase 4, studies, comes next (DESIGN.md §6 and §9), or first what phase
-   1 still lacks (the list above).
+1. What comes after phase 4: phase 5 (friction and tolerance) is to be planned once
+   studies are in use; or first what phase 1 still lacks (the list above).
 2. Whether stops, locks and pins get measures of their force, and under what names.
 
 **Phase 2 was built in this order** (mekafit's parts are in `packages/fit` and
