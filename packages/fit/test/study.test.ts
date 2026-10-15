@@ -1,3 +1,8 @@
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { simulate } from "../src/index.ts";
 import type { StudyPlan } from "../src/study/plan.ts";
@@ -331,5 +336,34 @@ describe("what a study comes to", () => {
       (30 * Math.PI) / 180,
     ]);
     expect(summary.failures).toEqual([{ condition: "pressed_flat", count: summary.failed }]);
+  });
+});
+
+describe("pnpm fit:study", () => {
+  it("runs a three-run study in worker threads and writes its runs", () => {
+    const folder = mkdtempSync(join(tmpdir(), "mekafit-study-"));
+    const model = join(folder, "lever.mekafit.yaml");
+    const csv = join(folder, "runs.csv");
+    writeFileSync(model, withStudy("  s: { vary: [low] }\n"));
+    const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+    const out = execFileSync(
+      process.execPath,
+      [cli, "study", model, "s", "--runs", "3", "--csv", csv],
+      {
+        encoding: "utf8",
+      },
+    );
+    expect(out).toContain('study "s", 3 runs');
+    const rows = readFileSync(csv, "utf8").trim().split("\n");
+    expect(rows[0]).toBe("run,low (mm),outcome,not met,message");
+    expect(rows).toHaveLength(4);
+    const study = prepareStudy(withStudy("  s: { vary: [low] }\n"), "s", undefined, 3);
+    if ("error" in study) throw new Error(study.error);
+    for (const [i, row] of rows.slice(1).entries()) {
+      const { outcome } = runStudy(study, i);
+      expect(row.split(",")[2]).toBe(outcome);
+    }
+    expect(out).toMatch(/Passed [0-3] of 3/);
+    rmSync(folder, { recursive: true });
   });
 });

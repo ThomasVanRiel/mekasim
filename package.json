@@ -19,7 +19,8 @@
     "format": "biome check --write .",
     "solve": "node packages/core/src/cli.ts",
     "schema": "node packages/core/scripts/write-schema.ts",
-    "baseline": "node packages/core/scripts/write-baseline.ts"
+    "baseline": "node packages/core/scripts/write-baseline.ts",
+    "fit:study": "node packages/fit/src/cli.ts study"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

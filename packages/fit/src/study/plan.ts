@@ -16,7 +16,7 @@ import {
   type UnitDef,
 } from "@mekasim/core";
 import type * as z from "zod";
-import { FORCE_UNITS } from "../registry.ts";
+import { FORCE_UNITS, shownUnit } from "../registry.ts";
 import type { Range, Study } from "../schema.ts";
 
 type StudyEntry = z.infer<typeof Study>;
@@ -77,6 +77,13 @@ export function writtenValue(value: number, dim: Dim, units: Compiled["units"]):
   const factor = unit === units.length || unit === units.angle ? docFactor(dim, units) : 1;
   const shown = Number((value / factor).toPrecision(12));
   return unit ? `${shown} ${unit}` : shown;
+}
+
+/** A value as it is shown: in the document's units, forces in newtons. */
+export function shownValue(value: number, dim: Dim, units: Compiled["units"], digits = 4): string {
+  const unit = shownUnit(dim, units);
+  if (!unit) return formatQuantity(value, dim, units, digits);
+  return `${Number((value / unit.factor).toPrecision(digits))} ${unit.label}`;
 }
 
 /**

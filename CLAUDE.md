@@ -44,6 +44,8 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 - `pnpm build` — production build of both apps (`pnpm build:sim`, `pnpm build:fit`)
 - `pnpm test`, `pnpm typecheck`, `pnpm lint` (`pnpm format` applies fixes)
 - `pnpm solve <model.mekasim.yaml>` — run the solver from the command line
+- `pnpm fit:study <model.mekafit.yaml> <study> [--runs N] [--csv out.csv]` — run one of a
+  mekafit model's studies in worker threads and print what it came to
 - `pnpm schema` — regenerate the JSON Schema after changing the format
 - `pnpm baseline` — rewrite what the examples solve to (`packages/core/test/baseline.json`),
   only after a change that is meant to move their numbers; read the diff

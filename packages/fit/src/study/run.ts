@@ -33,16 +33,19 @@ export interface PreparedStudy {
 }
 
 /**
- * Read a model and pick one of its studies. A model that does not solve, or a study that is
+ * Read a model and pick one of its studies, with `runs` in place of its own number of runs
+ * when given (a grid keeps its count). A model that does not solve, or a study that is
  * missing or has a problem, gives the reason instead.
  */
 export function prepareStudy(
   text: string,
   name: string,
   files?: Files,
+  runs?: number,
 ): PreparedStudy | { error: string } {
   const simulation = simulate(text, files);
-  const plan = simulation.studies.get(name);
+  const found = simulation.studies.get(name);
+  const plan = found && runs !== undefined && found.sample !== "grid" ? { ...found, runs } : found;
   if (!plan) {
     const problem = simulation.diagnostics.find(({ severity }) => severity === "error");
     if (problem) return { error: problem.message };
