@@ -10,10 +10,14 @@ meta:
 
 params:
   open: 45 deg
+  # How far the left knuckle stands open at the start, and how far the right coupler
+  # comes in to the side of the left one's middle; the study varies both.
+  start: { value: 45 deg, min: 0 deg, max: 45 deg }
+  side: { value: 0 mm, min: -8 mm, max: 8 mm }
 
 bodies:
   ground:
-    points: { O: [0, 0], along: [100, 0], pin: [-22, 20] }
+    points: { O: [0, side], along: [100, side], pin: [-22, 20] }
     # The head of the left coupler, with the lug that carries its knuckle.
     shape:
       path: "M -70 -30 H -30 V 10 H -14 V 30 H -70 Z"
@@ -41,10 +45,10 @@ joints:
   pin_b: { type: revolute, connect: [head_b.pin, knuckle_b.pin], stops: [0, open] }
 
 pose:
-  knuckle_a: [-22, 20, open]
+  knuckle_a: [-22, 20, start]
   # The right coupler is the left one turned half round, 40 mm off.
-  head_b: [40, 0, 180 deg]
-  knuckle_b: [62, -20, 180 deg]
+  head_b: [40, side, 180 deg]
+  knuckle_b: [62, side - 20, 180 deg]
 
 latches:
   lock_a: { joint: pin_a, at: 2 deg, drops: down }
@@ -54,7 +58,7 @@ drivers:
   shunt:
     move: head_b
     stages:
-      - { to: [-2, 0, 180 deg], time: 2 s }
+      - { to: [-2, side, 180 deg], time: 2 s }
       - { pull: [150 N, 0], time: 1 s }
 
 contacts:
@@ -71,6 +75,11 @@ checks:
   locked: final(latched(lock_a)) > 0 and final(latched(lock_b)) > 0
   coupled: final(x(head_b.O)) > 2 mm and final(x(head_b.O)) < 8 mm
   never_through: min(gap(knuckle_a, knuckle_b)) > -0.001 mm
+
+studies:
+  coupling:
+    runs: 100
+    vary: [start, side]
 
 plots:
   knuckle: angle(knuckle_a)

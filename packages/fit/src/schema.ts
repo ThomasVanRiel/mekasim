@@ -101,6 +101,54 @@ export const Latch = z.strictObject({
     ),
 });
 
+/** How one parameter is varied over the runs of a study. */
+export const Range = z.union(
+  [
+    z.strictObject({
+      from: Expr.describe("The least value"),
+      to: Expr.describe("The most value"),
+      steps: z
+        .int()
+        .min(2)
+        .max(1000)
+        .optional()
+        .describe("For `sample: grid`: how many values, evenly from `from` to `to`"),
+    }),
+    z.strictObject({
+      mean: Expr.describe("The value most runs lie near"),
+      spread: Expr.describe(
+        "The standard deviation; the values are cut off at the parameter's bounds",
+      ),
+    }),
+    z.strictObject({ pick: z.array(Expr).min(1).describe("Values, each as likely") }),
+  ],
+  { error: "A range is `from` and `to`, `mean` and `spread`, or `pick` with a list of values" },
+);
+
+/** A study: the model solved many times with some parameters varied, each run tested. */
+export const Study = z.strictObject({
+  runs: z.int().min(1).max(100000).optional().describe("How many runs; default 100"),
+  seed: z
+    .int()
+    .optional()
+    .describe("Starting number for the random draws; the same seed gives the same runs"),
+  sample: z
+    .enum(["random", "spread", "grid"])
+    .optional()
+    .describe(
+      "random; spread (default), covering the ranges evenly; grid, every combination of `steps` values",
+    ),
+  vary: z
+    .union([z.array(Id).min(1), z.record(Id, Range)])
+    .describe(
+      "The parameters to vary: a list, each over its own min to max, or a map with a range for each",
+    ),
+  pass: z
+    .record(Id, z.string())
+    .optional()
+    .describe("Conditions for this study alone, written as checks are, tested instead of `checks`"),
+});
+
 /** mekasim's own driver, which turns a joint. */
 const Motor = Document.shape.drivers.unwrap().valueType;
 
@@ -115,6 +163,7 @@ export const FitDocument = documentSchema({
     contacts: z.record(Id, Contact).optional(),
     latches: z.record(Id, Latch).optional(),
     springs: z.record(Id, Spring).optional(),
+    studies: z.record(Id, Study).optional(),
     // The move driver is mekafit's alone, so the whole section is given again with it in.
     drivers: z
       .record(

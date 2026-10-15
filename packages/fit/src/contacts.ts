@@ -15,6 +15,7 @@ import type { CompiledLock, CompiledStop } from "./solver/inequality.ts";
 import type { Jam, Loads } from "./solver/quasistatic.ts";
 import type { CompiledSpring } from "./solver/springs.ts";
 import type { CompiledMove } from "./solver/stages.ts";
+import type { StudyPlan } from "./study/plan.ts";
 
 type ContactEntry = z.infer<typeof Contact>;
 type ContactDocument = Document & { contacts?: Record<string, ContactEntry> };
@@ -67,6 +68,8 @@ export interface FitSimulation extends Simulation {
   latched: Record<string, Float64Array>;
   /** What the parts carry at each sample; absent where the contact step did not run. */
   loads?: Loads;
+  /** The model's studies, read and checked, by name. */
+  studies: Map<string, StudyPlan>;
 }
 
 /** Overlaps no deeper than one thousandth of a millimetre are drawing noise. */

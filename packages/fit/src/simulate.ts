@@ -22,6 +22,7 @@ import {
 import { FIT_REGISTRY } from "./registry.ts";
 import { FitDocument } from "./schema.ts";
 import { type FitCycle, type Jam, solveQuasistatic } from "./solver/quasistatic.ts";
+import { compileStudies, type StudyPlan } from "./study/plan.ts";
 
 /**
  * A model with springs, stops, locks or a `move` driver is solved by the contact step; any other
@@ -113,9 +114,25 @@ function finish(text: string, simulation: SweepRun["simulation"]): FitSimulation
         "Every force here is zero: nothing in the model pushes. Forces come from a spring or from a pull",
     });
   }
+  // Studies are read once the model is, against its parameters; a problem in one leaves the run as it is.
+  const studies = new Map<string, StudyPlan>();
+  if (simulation.compiled && simulation.doc) {
+    const found = compileStudies(simulation.compiled, simulation.doc, (diagnostic) => {
+      if (diagnostic.path) diagnostic.position = locate(diagnostic.path);
+      simulation.diagnostics.push(diagnostic);
+    });
+    for (const [name, plan] of found) studies.set(name, plan);
+  }
   const latched = (simulation.cycle as FitCycle | undefined)?.latched ?? {};
   const loads = (simulation.cycle as FitCycle | undefined)?.loads;
-  return Object.assign(simulation, { contacts, jam, free, latched, loads }) as FitSimulation;
+  return Object.assign(simulation, {
+    contacts,
+    jam,
+    free,
+    latched,
+    loads,
+    studies,
+  }) as FitSimulation;
 }
 
 function list(ids: string[]): string {
