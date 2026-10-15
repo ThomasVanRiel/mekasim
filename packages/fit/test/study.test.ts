@@ -3,6 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parsePath, shapeOf, shapesToDxf } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import { simulate } from "../src/index.ts";
 import type { StudyPlan } from "../src/study/plan.ts";
@@ -364,6 +365,23 @@ describe("pnpm fit:study", () => {
       expect(row.split(",")[2]).toBe(outcome);
     }
     expect(out).toMatch(/Passed [0-3] of 3/);
+    rmSync(folder, { recursive: true });
+  });
+
+  it("reads the drawings a mekafit model names from beside it", () => {
+    const folder = mkdtempSync(join(tmpdir(), "mekafit-study-"));
+    const model = join(folder, "lever.mekafit.yaml");
+    const bar = shapeOf(parsePath("M 0 0 H 0.01 V 0.01 H 0 Z"), 1e-9);
+    writeFileSync(join(folder, "bar.dxf"), shapesToDxf([{ layer: "BAR", shape: bar }], "mm"));
+    const drawn = withStudy("  s: { vary: [low] }\n")
+      .replace("mekafit: 1\n", "mekafit: 1\ngeometry:\n  bar: { file: bar.dxf }\n")
+      .replace('shape: { path: "M 0 0 H 10 V 10 H 0 Z" }', "shape: { from: bar, layer: BAR }");
+    writeFileSync(model, drawn);
+    const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+    const out = execFileSync(process.execPath, [cli, "study", model, "s", "--runs", "2"], {
+      encoding: "utf8",
+    });
+    expect(out).toMatch(/Passed [0-2] of 2/);
     rmSync(folder, { recursive: true });
   });
 });

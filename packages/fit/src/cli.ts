@@ -2,6 +2,7 @@
 //   node packages/fit/src/cli.ts study <model.mekafit.yaml> <study> [--runs N] [--csv out.csv]
 import { readFileSync, writeFileSync } from "node:fs";
 import { drawingsBeside } from "@mekasim/core/disk";
+import { FitDocument } from "./schema.ts";
 import { runInThreads } from "./study/node.ts";
 import { studyCsv, studyReport } from "./study/report.ts";
 import { prepareStudy } from "./study/run.ts";
@@ -32,7 +33,7 @@ async function study(args: string[]): Promise<number> {
     return 2;
   }
   const text = readFileSync(file, "utf8");
-  const files = drawingsBeside(file, text);
+  const files = drawingsBeside(file, text, FitDocument);
   const prepared = prepareStudy(text, name, files, runs);
   if ("error" in prepared) {
     console.error(`${file}: ${prepared.error}`);
