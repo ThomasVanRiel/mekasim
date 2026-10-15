@@ -6,11 +6,15 @@
 # turned half round about the drawing's own origin, which the hooked faces are drawn
 # round. They start swung open and are driven in along x until the two origins
 # meet; each is to be swung shut onto its peg, where its sprung pin drops in.
-# Each base can give way sideways against a spring.
+# Each base can give way sideways against a spring. A spring holds each coupler
+# open; the sprung pin rides on its face, and once the pin's tip finds the coupler's
+# 9 mm hole it pulls the coupler shut onto its peg and drops in. It is pulled out
+# again to open the coupler.
 #
 # Guessed, to be put right: how far open each starts, how far and how stiffly a
-# base gives way sideways, and that the peg is a 12 mm pin. Nothing in the drawings
-# stops a coupler from opening further.
+# base gives way sideways, that the peg is a 12 mm pin, the spring that holds a
+# coupler open, and the pin's pull. Nothing in the drawings stops a coupler from
+# opening further.
 mekafit: 1
 meta:
   name: Coupler trial
@@ -21,7 +25,12 @@ params:
   open_a: 60 deg    # how far each coupler starts swung off its peg
   open_b: 60 deg
   drop: 1 deg       # how near its peg a coupler is when its pin drops in
-  dy: 0 mm          # how far the coming one runs to the side
+  # The pin's pointed tip finds the hole once the hole's 4.5 mm radius, 47.5 mm from
+  # the pivot, reaches it, and pulls the coupler in with the pin's spring force.
+  catch: 10 deg    # how far from its peg a coupler is when the pin's tip finds its hole
+  pin: 10 N         # how hard the pin's tip presses the hole's edge sideways
+  hold: 0.05 N*m/rad  # the spring that holds a coupler open
+  dy: -8 mm          # how far the coming one runs to the side
   play: 50 mm        # how far each base can give way sideways, either way
 
 geometry:
@@ -34,11 +43,11 @@ bodies:
     points: { O: [0, 0], up: [0, 100], low: [0, -100] }
   base_a:
     points: { O: [0, 0], pin: [-10, 40], peg: [38.879, 50.528] }
-    shape: { from: base, layer: VISIBLE }
+    shape: { from: base, layer: VISIBLE, path: M 140 85 L 80 85 L -12.6477957 69.6726766 A 21.4803637 21.4803637 0 0 1 -30.5500444 46.7214665 A 21.4803637 21.4803637 0 0 1 -9.14181452 27 L 5 27 A 38 38 0 0 0 43 -11 L 43 -44.2720779 A 12 12 0 0 0 39.4852814 -52.7573593 L 14.0710678 -78.1715729 A 4 4 0 0 1 13.2039768 -82.5307337 A 4 4 0 0 1 16.8994949 -85 L 140 -85 Z M 44.8790794 50.5278487 A 6 6 0 0 0 35.8790794 45.3316963 A 6 6 0 0 0 35.8790794 55.7240011 A 6 6 0 0 0 44.8790794 50.5278487 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z M 120.5 75 A 4.5 4.5 0 0 0 113.75 71.1028857 A 4.5 4.5 0 0 0 113.75 78.8971143 A 4.5 4.5 0 0 0 120.5 75 Z M 120.5 -75 A 4.5 4.5 0 0 0 113.75 -78.8971143 A 4.5 4.5 0 0 0 113.75 -71.1028857 A 4.5 4.5 0 0 0 120.5 -75 Z }
   coupler_a:
     points: { pin: [0, 0] }
     layer: 1
-    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0] }
+    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0], path: M 44.257437 5.2636356 A 43.0830545 43.0830545 0 0 1 43.2347282 8.49283044 A 43.0830545 43.0830545 0 0 1 36.1462453 21.0439477 A 8 8 0 0 1 29.9366889 24 L -5.71572875 24 A 20 20 0 0 1 -19.8578644 18.1421356 L -24.1421356 13.8578644 A 20 20 0 0 1 -30 -0.284271247 L -30 -29 A 35 35 0 0 1 4.64405827 -63.99819 A 10 10 0 0 1 13.8507318 -50.5797986 L 6.14926824 -29.4202014 A 10 10 0 0 0 15.5461944 -16 L 42.3325381 -16 A 44.4079682 44.4079682 0 0 0 48.5245025 -21.8765494 L 71.2185013 -48 L 81.5843122 -48 A 10 10 0 0 1 90.6492358 -42.2222222 A 100 100 0 0 1 95.9733752 28.0911242 A 10 10 0 0 1 83.5669252 34.8793493 L 53.7384656 26.148647 A 2 2 0 0 1 52.3928571 23.6277586 A 57.3277686 57.3277686 0 0 0 54.8595384 11.0116979 A 57.3277686 57.3277686 0 0 0 55.0462342 6.35305029 A 2 2 0 0 0 53.2096037 4.3609775 L 46.3497327 3.79875299 A 2 2 0 0 0 44.257437 5.2636356 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z M -4.29385242 -46.8404029 A 4.5 4.5 0 0 0 -11.0438524 -50.7375172 A 4.5 4.5 0 0 0 -11.0438524 -42.9432885 A 4.5 4.5 0 0 0 -4.29385242 -46.8404029 Z }
   peg_a:
     points: { O: [0, 0] }
     layer: 1
@@ -48,11 +57,11 @@ bodies:
     points: { O: [0, 0], up: [0, 100], low: [0, -100] }
   base_b:
     points: { O: [0, 0], pin: [-10, 40], peg: [38.879, 50.528] }
-    shape: { from: base, layer: VISIBLE }
+    shape: { from: base, layer: VISIBLE, path: M 140 85 L 80 85 L -12.6477957 69.6726766 A 21.4803637 21.4803637 0 0 1 -30.5500444 46.7214665 A 21.4803637 21.4803637 0 0 1 -9.14181452 27 L 5 27 A 38 38 0 0 0 43 -11 L 43 -44.2720779 A 12 12 0 0 0 39.4852814 -52.7573593 L 14.0710678 -78.1715729 A 4 4 0 0 1 13.2039768 -82.5307337 A 4 4 0 0 1 16.8994949 -85 L 140 -85 Z M 44.8790794 50.5278487 A 6 6 0 0 0 35.8790794 45.3316963 A 6 6 0 0 0 35.8790794 55.7240011 A 6 6 0 0 0 44.8790794 50.5278487 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z M 120.5 75 A 4.5 4.5 0 0 0 113.75 71.1028857 A 4.5 4.5 0 0 0 113.75 78.8971143 A 4.5 4.5 0 0 0 120.5 75 Z M 120.5 -75 A 4.5 4.5 0 0 0 113.75 -78.8971143 A 4.5 4.5 0 0 0 113.75 -71.1028857 A 4.5 4.5 0 0 0 120.5 -75 Z }
   coupler_b:
     points: { pin: [0, 0] }
     layer: 1
-    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0] }
+    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0], path: M 44.257437 5.2636356 A 43.0830545 43.0830545 0 0 1 43.2347282 8.49283044 A 43.0830545 43.0830545 0 0 1 36.1462453 21.0439477 A 8 8 0 0 1 29.9366889 24 L -5.71572875 24 A 20 20 0 0 1 -19.8578644 18.1421356 L -24.1421356 13.8578644 A 20 20 0 0 1 -30 -0.284271247 L -30 -29 A 35 35 0 0 1 4.64405827 -63.99819 A 10 10 0 0 1 13.8507318 -50.5797986 L 6.14926824 -29.4202014 A 10 10 0 0 0 15.5461944 -16 L 42.3325381 -16 A 44.4079682 44.4079682 0 0 0 48.5245025 -21.8765494 L 71.2185013 -48 L 81.5843122 -48 A 10 10 0 0 1 90.6492358 -42.2222222 A 100 100 0 0 1 95.9733752 28.0911242 A 10 10 0 0 1 83.5669252 34.8793493 L 53.7384656 26.148647 A 2 2 0 0 1 52.3928571 23.6277586 A 57.3277686 57.3277686 0 0 0 54.8595384 11.0116979 A 57.3277686 57.3277686 0 0 0 55.0462342 6.35305029 A 2 2 0 0 0 53.2096037 4.3609775 L 46.3497327 3.79875299 A 2 2 0 0 0 44.257437 5.2636356 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z M -4.29385242 -46.8404029 A 4.5 4.5 0 0 0 -11.0438524 -50.7375172 A 4.5 4.5 0 0 0 -11.0438524 -42.9432885 A 4.5 4.5 0 0 0 -4.29385242 -46.8404029 Z }
   peg_b:
     points: { O: [0, 0] }
     layer: 1
@@ -69,10 +78,12 @@ joints:
 springs:
   centre_a: { connect: [ground.low, base_a.O], stiffness: 0.5 N/mm, length: 100 mm }
   centre_b: { connect: [car_b.low, base_b.O], stiffness: 0.5 N/mm, length: 100 mm }
+  open_a: { joint: pin_a, stiffness: hold, rest: -open_a }
+  open_b: { joint: pin_b, stiffness: hold, rest: -open_b }
 
 latches:
-  lock_a: { joint: pin_a, at: -drop, drops: up }
-  lock_b: { joint: pin_b, at: -drop, drops: up }
+  lock_a: { joint: pin_a, at: -drop, drops: up, catch: catch - drop, pull: pin * 47.5 mm }
+  lock_b: { joint: pin_b, at: -drop, drops: up, catch: catch - drop, pull: pin * 47.5 mm }
 
 pose:
   car_b: [-start, dy, 180 deg]
@@ -104,6 +115,7 @@ measures:
   aside_a: y(base_a.O)
   aside_b: y(base_b.O) - dy
   hardest: max(force(couplers))
+  closing: max(force(shunt))   # the hardest the coming one has to be pushed
   jaw_room: min(gap(coupler_b, base_a))
   jaw_room_end: final(gap(coupler_b, base_a))
 
@@ -118,7 +130,7 @@ studies:
   coupling:
     runs: 500
     vary:
-      dy: { from: -1 mm, to: 8 mm }
+      dy: { from: -8 mm, to: 2 mm }
       open_a: { from: 0 deg, to: 85 deg }
       open_b: { from: 0 deg, to: 85 deg }
 
@@ -127,4 +139,5 @@ plots:
   between: x(base_b.O)
   aside: [y(base_a.O), y(base_b.O) - dy]
   pressed: [force(couplers), force(jaw_a), force(jaw_b)]
+  push: force(shunt)
   jaw: ["gap(coupler_b, base_a)", "gap(coupler_a, base_b)"]

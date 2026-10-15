@@ -115,9 +115,11 @@ describe("mekafit's examples", () => {
       drawingsBeside(fileURLToPath(new URL(file, DIRECTORY)), text, FitDocument),
     );
     const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
-    // Each starts 60 degrees off its peg and ends on it, the two bases' origins together.
-    expect(value("left_a")).toBeCloseTo(0, 4);
-    expect(value("left_b")).toBeCloseTo(0, 4);
+    // Each starts 60 degrees off its peg and is pulled shut by its pin, which then holds it
+    // against the spring that would open it, 1 degree off its peg; the bases' origins together.
+    const drop = -Math.PI / 180;
+    expect(value("left_a")).toBeCloseTo(drop, 4);
+    expect(value("left_b")).toBeCloseTo(drop, 4);
     expect(value("apart")).toBeCloseTo(0, 8);
     expect(Array.from(result.latched.lock_a as Float64Array).at(-1)).toBe(1);
     expect(Array.from(result.latched.lock_b as Float64Array).at(-1)).toBe(1);
