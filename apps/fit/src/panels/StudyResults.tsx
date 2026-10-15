@@ -1,9 +1,14 @@
 import { type Bin, shownValue, summarize } from "@mekasim/fit";
 import { label, Scatter } from "@mekasim/ui";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store.ts";
 import { useStudies } from "../study/store.ts";
 import {
+  applying,
+  binRange,
+  filteredSummary,
+  filterText,
+  keeps,
   progressText,
   rateText,
   runText,
@@ -14,29 +19,105 @@ import {
 
 const select = "rounded-sm border border-rule bg-sheet px-1.5 py-0.5 text-sm";
 
-/** The pass rate in each part of a parameter's range, as a row of small bars. */
-function Bars({ bins, show }: { bins: Bin[]; show(bin: Bin): string }) {
+/** Whether a bin lies within a filter's range. */
+function inside(bin: Bin, range: [number, number] | undefined): boolean {
+  if (!range) return false;
+  const slack = 1e-9 * (Math.abs(range[1] - range[0]) + Math.abs(range[0]) + Math.abs(range[1]));
+  return bin.from >= range[0] - slack && bin.to <= range[1] + slack;
+}
+
+/**
+ * The pass rate in each part of a parameter's range, as a row of small bars. Dragging
+ * across them, or pressing one and Shift-pressing another, keeps only the runs in that
+ * part; pressing the one bin kept again lets them all back.
+ */
+function Strip({
+  name,
+  bins,
+  range,
+  show,
+  onFilter,
+}: {
+  name: string;
+  bins: Bin[];
+  range?: [number, number];
+  show(bin: Bin): string;
+  onFilter(range: [number, number] | undefined): void;
+}) {
+  const [drag, setDrag] = useState<{ anchor: number; last: number }>();
+  const anchor = useRef<number>(undefined);
+
+  function binAt(event: { clientX: number; currentTarget: Element }): number {
+    const box = event.currentTarget.getBoundingClientRect();
+    const share = (event.clientX - box.left) / Math.max(box.width, 1);
+    return Math.min(bins.length - 1, Math.max(0, Math.floor(share * bins.length)));
+  }
+
+  function pick(first: number, last: number): void {
+    const chosen = binRange(bins, first, last);
+    const same = range && first === last && chosen[0] === range[0] && chosen[1] === range[1];
+    onFilter(same ? undefined : chosen);
+  }
+
+  const lit = (i: number): boolean =>
+    drag
+      ? i >= Math.min(drag.anchor, drag.last) && i <= Math.max(drag.anchor, drag.last)
+      : inside(bins[i] as Bin, range);
+
   return (
-    <div className="flex h-8 items-end gap-px">
-      {bins.map((bin) => {
+    <fieldset
+      aria-label={`${label(name)}: drag across to keep only the runs in that part`}
+      className="flex h-8 cursor-col-resize touch-none items-end gap-px"
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        const at = binAt(event);
+        const from = event.shiftKey && anchor.current !== undefined ? anchor.current : at;
+        setDrag({ anchor: from, last: at });
+      }}
+      onPointerMove={(event) => {
+        if (drag) setDrag({ ...drag, last: binAt(event) });
+      }}
+      onPointerUp={() => {
+        if (!drag) return;
+        anchor.current = drag.anchor;
+        pick(drag.anchor, drag.last);
+        setDrag(undefined);
+      }}
+      onPointerCancel={() => setDrag(undefined)}
+    >
+      {bins.map((bin, i) => {
         const total = bin.passed + bin.failed;
         const share = total > 0 ? bin.passed / total : 0;
+        const dim = (range !== undefined || drag !== undefined) && !lit(i);
         return (
-          <div
+          <button
+            type="button"
             key={`${bin.from}`}
-            className="relative h-full flex-1 bg-paper"
+            aria-pressed={inside(bin, range)}
+            className={`relative h-full flex-1 bg-paper outline-offset-1 ${
+              lit(i) ? "outline outline-brass" : ""
+            } ${dim ? "opacity-40" : ""}`}
             title={`${show(bin)}: ${total > 0 ? `${bin.passed} of ${total} passed` : "no runs"}`}
+            // The pointer is handled by the strip; the keyboard by each bar.
+            onPointerDown={(event) => event.preventDefault()}
+            onClick={(event) => {
+              if (event.detail !== 0) return;
+              const from = event.shiftKey && anchor.current !== undefined ? anchor.current : i;
+              anchor.current = from;
+              pick(from, i);
+            }}
           >
             {total > 0 && (
-              <div
+              <span
                 className="absolute inset-x-0 bottom-0 bg-dye"
                 style={{ height: `${share * 100}%` }}
               />
             )}
-          </div>
+          </button>
         );
       })}
-    </div>
+    </fieldset>
   );
 }
 
@@ -52,11 +133,25 @@ export function StudyResults() {
     (state) => state.selected !== undefined && state.keys[state.selected] === runs?.key,
   );
   const notice = useStudies((state) => state.notice);
-  const { select: pick, show } = useStudies.getState();
+  const filters = useStudies((state) =>
+    state.selected ? state.filters[state.selected] : undefined,
+  );
+  const { select: pick, show, setFilter, clearFilters } = useStudies.getState();
   const [axes, setAxes] = useState<{ study?: string; x?: string; y?: string }>({});
   const [only, setOnly] = useState<string>();
 
-  const summary = useMemo(() => (runs ? summarize(runs.plan, runs.results) : undefined), [runs]);
+  const overall = useMemo(() => (runs ? summarize(runs.plan, runs.results) : undefined), [runs]);
+  const kept = useMemo(() => (runs ? applying(runs.plan, filters ?? {}) : {}), [runs, filters]);
+  const filtering = Object.keys(kept).length > 0;
+  const keptCount = useMemo(
+    () => runs?.results.filter((result) => keeps(result, kept)).length ?? 0,
+    [runs, kept],
+  );
+  // What the runs the filters keep come to; with no filter, all of them.
+  const summary = useMemo(
+    () => (runs && filtering ? filteredSummary(runs.plan, runs.results, kept) : overall),
+    [runs, filtering, kept, overall],
+  );
   const earlier = useMemo(
     () => (before ? summarize(before.plan, before.results) : undefined),
     [before],
@@ -66,13 +161,13 @@ export function StudyResults() {
   const x =
     axes.study === selected && axes.x && names.includes(axes.x)
       ? axes.x
-      : (summary?.telling[0] ?? names[0]);
+      : (overall?.telling[0] ?? names[0]);
   const yChosen = axes.study === selected && axes.y && names.includes(axes.y) ? axes.y : undefined;
   const y =
-    yChosen ?? summary?.telling.find((name) => name !== x) ?? names.find((name) => name !== x);
+    yChosen ?? overall?.telling.find((name) => name !== x) ?? names.find((name) => name !== x);
   const view = useMemo(
-    () => (runs && units ? scatterView(runs, units, x, y, before, only) : undefined),
-    [runs, units, x, y, before, only],
+    () => (runs && units ? scatterView(runs, units, x, y, before, only, kept) : undefined),
+    [runs, units, x, y, before, only, kept],
   );
   useEffect(() => {
     if (only && !summary?.failures.some(({ condition }) => condition === only)) setOnly(undefined);
@@ -105,6 +200,9 @@ export function StudyResults() {
             <span className="font-semibold tabular-nums">{rateText(summary)}</span>
             <span className="text-ink-soft text-sm tabular-nums">{progressText(runs)}</span>
             {earlier && <span className="text-sm tabular-nums">Before: {shortRate(earlier)}</span>}
+            {filtering && overall && (
+              <span className="text-sm tabular-nums">All runs: {shortRate(overall)}</span>
+            )}
           </>
         ) : (
           <span className="text-ink-soft text-sm">
@@ -119,6 +217,21 @@ export function StudyResults() {
         </p>
       )}
       {notice && <p className="mt-1 text-red text-sm">{notice}</p>}
+      {runs && units && filtering && selected && (
+        <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm">
+          <span>
+            Only the runs with {filterText(runs.plan, kept, units)}: {keptCount} of{" "}
+            {runs.results.length}.
+          </span>
+          <button
+            type="button"
+            className="rounded-sm border border-rule bg-sheet px-2 py-0.5 hover:border-ink-soft"
+            onClick={() => clearFilters(selected)}
+          >
+            Show all runs
+          </button>
+        </p>
+      )}
 
       {runs && summary && units && view && (
         <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(14rem,18rem)] gap-4">
@@ -214,23 +327,28 @@ export function StudyResults() {
               <>
                 <h3 className="font-semibold">Could not be solved</h3>
                 <ul className="mb-2">
-                  {unsolvedGroups(runs.results).map(({ message, indices }) => (
-                    <li key={message} className="py-0.5">
-                      {message}{" "}
-                      <span className="text-ink-soft">
-                        ({indices.length === 1 ? "run" : "runs"}{" "}
-                        {indices
-                          .slice(0, 6)
-                          .map((index) => index + 1)
-                          .join(", ")}
-                        {indices.length > 6 ? ", …" : ""})
-                      </span>
-                    </li>
-                  ))}
+                  {unsolvedGroups(runs.results.filter((result) => keeps(result, kept))).map(
+                    ({ message, indices }) => (
+                      <li key={message} className="py-0.5">
+                        {message}{" "}
+                        <span className="text-ink-soft">
+                          ({indices.length === 1 ? "run" : "runs"}{" "}
+                          {indices
+                            .slice(0, 6)
+                            .map((index) => index + 1)
+                            .join(", ")}
+                          {indices.length > 6 ? ", …" : ""})
+                        </span>
+                      </li>
+                    ),
+                  )}
                 </ul>
               </>
             )}
             <h3 className="font-semibold">Passed over each range</h3>
+            <p className="mb-1 text-ink-soft">
+              Drag across a strip to keep only the runs in that part of its range.
+            </p>
             {summary.parameters.map((rates) => {
               const varied = runs.plan.varied.find(({ name }) => name === rates.name);
               if (!varied) return null;
@@ -247,11 +365,14 @@ export function StudyResults() {
                       </span>
                     )}
                   </div>
-                  <Bars
+                  <Strip
+                    name={rates.name}
                     bins={rates.bins}
+                    range={kept[rates.name]}
                     show={(bin) =>
                       bin.from === bin.to ? show(bin.from) : `${show(bin.from)} to ${show(bin.to)}`
                     }
+                    onFilter={(range) => selected && setFilter(selected, rates.name, range)}
                   />
                 </div>
               );

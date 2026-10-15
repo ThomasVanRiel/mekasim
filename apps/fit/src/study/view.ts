@@ -6,6 +6,7 @@ import {
   type StudySummary,
   shownUnit,
   shownValue,
+  summarize,
   type Varied,
 } from "@mekasim/fit";
 import { jitter, label, type ScatterPoint } from "@mekasim/ui";
@@ -151,6 +152,77 @@ function axisOf(plan: StudyPlan, name: string | undefined, units: Units): Axis {
   return { label: title, value: (r) => shown(r.values[varied.name] as number) };
 }
 
+/** Ranges of some of the varied parameters, in SI, by name: only runs within all are kept. */
+export type Filters = Record<string, [from: number, to: number]>;
+
+/** Whether a value lies in a range, allowing for the rounding of its ends. */
+function within(value: number, [from, to]: [number, number]): boolean {
+  const slack = 1e-9 * (Math.abs(to - from) + Math.abs(from) + Math.abs(to));
+  return value >= from - slack && value <= to + slack;
+}
+
+/** Whether a run lies within every filter but the one on `except`. */
+export function keeps(result: RunResult, filters: Filters, except?: string): boolean {
+  return Object.entries(filters).every(
+    ([name, range]) =>
+      name === except || result.values[name] === undefined || within(result.values[name], range),
+  );
+}
+
+/** The filters that apply to a study: those on parameters it varies. */
+export function applying(plan: StudyPlan, filters: Filters): Filters {
+  return Object.fromEntries(
+    Object.entries(filters).filter(([name]) => plan.varied.some((each) => each.name === name)),
+  );
+}
+
+/**
+ * What the runs a filter keeps come to. Each parameter's bins count the runs that the
+ * filters on the others keep, so that its own filter can still be seen against them all.
+ */
+export function filteredSummary(
+  plan: StudyPlan,
+  results: RunResult[],
+  filters: Filters,
+): StudySummary & { kept: number } {
+  const kept = results.filter((result) => keeps(result, filters));
+  const summary = summarize(plan, kept, results);
+  const parameters = summary.parameters.map((rates) =>
+    filters[rates.name] === undefined
+      ? rates
+      : (summarize(
+          plan,
+          results.filter((result) => keeps(result, filters, rates.name)),
+          results,
+        ).parameters.find(({ name }) => name === rates.name) ?? rates),
+  );
+  return { ...summary, parameters, kept: kept.length };
+}
+
+/** The range from one bin to another, either way round. */
+export function binRange(
+  bins: { from: number; to: number }[],
+  first: number,
+  last: number,
+): [number, number] {
+  const ends = [bins[first], bins[last]].filter((bin) => bin !== undefined);
+  return [Math.min(...ends.map(({ from }) => from)), Math.max(...ends.map(({ to }) => to))];
+}
+
+/** The filters in words, such as "Dy from 0 mm to 4.8 mm, Open a 85 deg". */
+export function filterText(plan: StudyPlan, filters: Filters, units: Units): string {
+  return plan.varied
+    .filter(({ name }) => filters[name] !== undefined)
+    .map(({ name, dim }) => {
+      const [from, to] = filters[name] as [number, number];
+      const show = (value: number): string => shownValue(value, dim, units);
+      return from === to
+        ? `${label(name)} ${show(from)}`
+        : `${label(name)} from ${show(from)} to ${show(to)}`;
+    })
+    .join(", ");
+}
+
 export interface ScatterView {
   points: ScatterPoint[];
   xLabel: string;
@@ -162,7 +234,8 @@ export interface ScatterView {
 /**
  * The runs over two parameters: this study's runs, and the failures of the runs before
  * where they varied the same two. With `only` a condition, the runs that did not fail it
- * are faint.
+ * are faint, as are the runs the filters leave out; earlier ones they leave out are not
+ * drawn.
  */
 export function scatterView(
   now: Runs,
@@ -171,6 +244,7 @@ export function scatterView(
   y: string | undefined,
   before?: Runs,
   only?: string,
+  filters: Filters = {},
 ): ScatterView {
   const xAxis = axisOf(now.plan, x, units);
   const yAxis = axisOf(now.plan, y, units);
@@ -179,13 +253,13 @@ export function scatterView(
     x: xAxis.value(result),
     y: yAxis.value(result),
     kind: result.outcome,
-    faint: only !== undefined && !result.failed.includes(only),
+    faint: (only !== undefined && !result.failed.includes(only)) || !keeps(result, filters),
   }));
   const varies = (plan: StudyPlan, name?: string): boolean =>
     name === undefined || plan.varied.some((each) => each.name === name);
   if (before && varies(before.plan, x) && varies(before.plan, y)) {
     for (const result of before.results) {
-      if (result.outcome !== "failed") continue;
+      if (result.outcome !== "failed" || !keeps(result, filters)) continue;
       if (x !== undefined && result.values[x] === undefined) continue;
       if (y !== undefined && result.values[y] === undefined) continue;
       points.push({

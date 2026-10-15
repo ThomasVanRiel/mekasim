@@ -5,6 +5,7 @@ import { studyKey } from "./key.ts";
 import { startPool, workerCount } from "./pool.ts";
 import { replayRun } from "./replay.ts";
 import { type KeptResults, savedResults, saveResults } from "./saved.ts";
+import type { Filters } from "./view.ts";
 
 /** A study's runs as far as they have gone. */
 export interface StudyResults extends KeptResults {
@@ -28,6 +29,11 @@ interface StudiesState {
   keys: Record<string, string>;
   /** Why the shown run could not be solved again, if it could not. */
   notice?: string;
+  /** For each study, the ranges its runs are filtered to. */
+  filters: Record<string, Filters>;
+  /** Filter a study's runs to a range of one parameter, or stop filtering on it. */
+  setFilter(study: string, name: string, range: [number, number] | undefined): void;
+  clearFilters(study: string): void;
   /** Which tab of the panel under the sheet is open. */
   tab: "run" | "study";
   setTab(tab: "run" | "study"): void;
@@ -65,6 +71,14 @@ export const useStudies = create<StudiesState>((set, get) => {
     keys: {},
     tab: "run",
     setTab: (tab) => set({ tab }),
+    filters: {},
+    setFilter(study, name, range) {
+      const { [name]: _, ...rest } = get().filters[study] ?? {};
+      set({ filters: { ...get().filters, [study]: range ? { ...rest, [name]: range } : rest } });
+    },
+    clearFilters(study) {
+      set({ filters: { ...get().filters, [study]: {} } });
+    },
     select: (study) => set({ selected: study }),
     run(study) {
       get().stop();

@@ -164,7 +164,9 @@ which runs them in worker threads and prints the summary (`cli.ts`, `node.ts`).
 In the app: module workers, one fewer than the machine's threads, fed batches of
 eight; a Studies fold with Run and Stop; a Study tab beside Run with the pass rate,
 the scatter, what was not met (click to filter), the runs not solved and the rate
-over each range; clicking a run shows it on the sheet and in the Run tab, with
+over each range, whose strips filter the runs to a part of a range (each strip
+counted over the runs the other filters keep); clicking a run shows it on the
+sheet and in the Run tab, with
 "Back to the model" and "Use these values"; results kept in IndexedDB per model,
 drawings and study, and the last results kept as "before" when the model changes.
 
@@ -204,6 +206,12 @@ Where phase 4 as built differs from what was planned:
 2. The Study tab: the pass rate and its range, the scatter (blue dots passed, red
    crosses failed), Across and Up, "Not met" (clicking a condition leaves the
    other runs faint) and the bars of the rate over each range.
+   Dragging across a parameter's strip keeps only the runs in that part of its
+   range: the scatter leaves the others faint, the pass rate, "Not met" and the
+   other strips count the runs kept, "All runs" gives the rate of them all, and
+   "Show all runs" lets them back. Pressing the one bar kept again does too; Shift
+   with a press extends a range. On the coupler trial: `dy` from 0 to 5 mm, with
+   `open_a` across and `open_b` up, should show the passing corner above 60 deg.
 3. Clicking a run in the scatter: it plays on the sheet with a box at the top left
    saying which run and how it went; "Back to the model" returns, and "Use these
    values" writes them into `params`. The run is ringed in the scatter.

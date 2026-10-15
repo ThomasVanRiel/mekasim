@@ -73,18 +73,21 @@ function extent(plan: StudyPlan, p: number, results: RunResult[]): [number, numb
   return low <= high ? [low, high] : [range.mean, range.mean];
 }
 
-/** The pass rate in parts of each parameter's range: ten bins, or one per picked value. */
-function rates(plan: StudyPlan, solved: RunResult[]): ParameterRates[] {
+/**
+ * The pass rate in parts of each parameter's range: ten bins, or one per picked value.
+ * The bins of a normal range reach as far as `reach`, the runs it spans.
+ */
+function rates(plan: StudyPlan, solved: RunResult[], reach: RunResult[]): ParameterRates[] {
   return plan.varied.map(({ name, range }, p) => {
     let bins: Bin[];
     let binOf: (value: number) => number;
-    const ends = extent(plan, p, solved);
+    const ends = extent(plan, p, reach);
     const steps = range.kind === "even" ? range.steps : undefined;
     if (range.kind === "pick" || steps || !ends) {
       // A few values only, as picked or as a grid takes them: a bin for each.
       const values =
         range.kind === "pick"
-          ? [...new Set(range.values)]
+          ? [...new Set(range.values)].sort((a, b) => a - b)
           : range.kind === "even" && steps
             ? Array.from({ length: steps }, (_, k) => gridValue(range.from, range.to, steps, k))
             : [];
@@ -116,11 +119,23 @@ function rates(plan: StudyPlan, solved: RunResult[]): ParameterRates[] {
   });
 }
 
-/** What a study's runs come to: pass rate, rates over each range, and the failures. */
-export function summarize(plan: StudyPlan, results: RunResult[]): StudySummary {
+/**
+ * What a study's runs come to: pass rate, rates over each range, and the failures.
+ * `all` are every run of the study, when `results` are some of them: the bins over a
+ * normal range are then the same for both.
+ */
+export function summarize(
+  plan: StudyPlan,
+  results: RunResult[],
+  all: RunResult[] = results,
+): StudySummary {
   const solved = results.filter(({ outcome }) => outcome !== "unsolved");
   const passed = solved.filter(({ outcome }) => outcome === "passed").length;
-  const parameters = rates(plan, solved);
+  const parameters = rates(
+    plan,
+    solved,
+    all.filter(({ outcome }) => outcome !== "unsolved"),
+  );
   const telling = [...parameters]
     .sort((a, b) => b.difference - a.difference)
     .slice(0, 2)

@@ -2,6 +2,12 @@ import type { RunResult, StudyPlan } from "@mekasim/fit";
 import { summarize } from "@mekasim/fit";
 import { describe, expect, it } from "vitest";
 import {
+  applying,
+  binRange,
+  type Filters,
+  filteredSummary,
+  filterText,
+  keeps,
   progressText,
   type Runs,
   rangeText,
@@ -147,5 +153,58 @@ describe("the scatter of a study", () => {
         ({ kind }) => kind === "before",
       ),
     ).toBe(false);
+  });
+});
+
+describe("filtering a study's runs", () => {
+  const SIDE: Filters = { side: [-0.0001, 0.008] };
+
+  it("keeps the runs within every range", () => {
+    expect(RESULTS.filter((result) => keeps(result, SIDE)).map(({ index }) => index)).toEqual([
+      1, 2, 3,
+    ]);
+    expect(
+      RESULTS.filter((result) => keeps(result, { ...SIDE, open: [0, 0] })).map(
+        ({ index }) => index,
+      ),
+    ).toEqual([2]);
+    expect(keeps(RESULTS[0] as RunResult, SIDE, "side")).toBe(true);
+    expect(applying(PLAN, { ...SIDE, gone: [0, 1] })).toEqual(SIDE);
+  });
+
+  it("sums up the runs kept, and each strip over the runs the other filters keep", () => {
+    const filters: Filters = { open: [0, 0] };
+    const summary = filteredSummary(PLAN, RESULTS, filters);
+    expect(summary.kept).toBe(2);
+    expect([summary.passed, summary.failed, summary.unsolved]).toEqual([1, 1, 0]);
+    const [side, open] = summary.parameters;
+    // Its own strip still has both picked values, with the runs of each.
+    expect(open?.bins.map(({ passed, failed }) => passed + failed)).toEqual([2, 1]);
+    // The other's strip counts only the runs at 0 deg.
+    expect(side?.bins.reduce((sum, { passed, failed }) => sum + passed + failed, 0)).toBe(2);
+    expect(summary.failures).toEqual([
+      { condition: "closed", count: 1 },
+      { condition: "coupled", count: 1 },
+    ]);
+  });
+
+  it("takes a range from bin to bin either way, and tells it", () => {
+    const bins = [
+      { from: 0, to: 1 },
+      { from: 1, to: 2 },
+      { from: 2, to: 3 },
+    ];
+    expect(binRange(bins, 2, 0)).toEqual([0, 3]);
+    expect(binRange(bins, 1, 1)).toEqual([1, 2]);
+    expect(filterText(PLAN, { open: [70 * DEG, 70 * DEG], side: [0, 0.004] }, UNITS)).toBe(
+      "Side from 0 mm to 4 mm, Open 70 deg",
+    );
+  });
+
+  it("leaves the runs left out faint, and the earlier ones left out undrawn", () => {
+    const before: Runs = { ...RUNS, results: [result(0, -0.005, 0, "failed", ["coupled"])] };
+    const view = scatterView(RUNS, UNITS, "side", "open", before, undefined, SIDE);
+    expect(view.points.map(({ faint }) => faint)).toEqual([true, false, false, false]);
+    expect(view.points.some(({ kind }) => kind === "before")).toBe(false);
   });
 });
