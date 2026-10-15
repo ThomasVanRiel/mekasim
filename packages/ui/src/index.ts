@@ -13,6 +13,8 @@ export { type Limits, ParameterSlider, sliderValue } from "./ParameterSlider.tsx
 export { Chart } from "./plot/Chart.tsx";
 export * from "./plot/charts.ts";
 export * from "./plot/geometry.ts";
+export { Scatter } from "./plot/Scatter.tsx";
+export * from "./plot/scatter.ts";
 export { Splitter } from "./Splitter.tsx";
 export {
   type Anchor,
