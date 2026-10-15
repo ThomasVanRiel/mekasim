@@ -1,6 +1,8 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { drawingsBeside } from "@mekasim/core/disk";
 import { describe, expect, it } from "vitest";
-import { simulate } from "../src/index.ts";
+import { FitDocument, simulate } from "../src/index.ts";
 
 const DIRECTORY = new URL("../../../examples/fit/", import.meta.url);
 const files = readdirSync(DIRECTORY).filter((file) => file.endsWith(".mekafit.yaml"));
@@ -9,7 +11,11 @@ const read = (file: string): string => readFileSync(new URL(file, DIRECTORY), "u
 describe("mekafit's examples", () => {
   for (const file of files) {
     it(`solves ${file}`, () => {
-      const result = simulate(read(file));
+      const text = read(file);
+      const result = simulate(
+        text,
+        drawingsBeside(fileURLToPath(new URL(file, DIRECTORY)), text, FitDocument),
+      );
       expect(result.diagnostics).toEqual([]);
       expect(result.cycle?.count).toBeGreaterThan(1);
       expect(result.checks.every(({ holds }) => holds)).toBe(true);
@@ -89,14 +95,37 @@ describe("mekafit's examples", () => {
 
   it("jams the couplers when both knuckles are shut, and names them", () => {
     const shut = read("knuckle-coupler.mekafit.yaml")
-      .replace("knuckle_a: [-22, 20, open]", "knuckle_a: [-22, 20, 0]")
+      .replace("start: { value: 45 deg,", "start: { value: 0 deg,")
       .replace(
         "lock_a: { joint: pin_a, at: 2 deg, drops: down }",
         "lock_a: { joint: pin_a, at: 2 deg, drops: down, engaged: true }",
       );
+    expect(shut).toContain("start: { value: 0 deg,");
+    expect(shut).toContain("drops: down, engaged: true }\n  lock_b");
     const errors = simulate(shut).diagnostics.filter(({ severity }) => severity === "error");
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(/^Jams at [\d.]+ s: .*"knuckle_a" against "knuckle_b"/);
+  });
+
+  it("has Thomas's coupler from its drawings, both swung shut onto their pegs and locked", () => {
+    const file = "coupler-trial.mekafit.yaml";
+    const text = read(file);
+    const result = simulate(
+      text,
+      drawingsBeside(fileURLToPath(new URL(file, DIRECTORY)), text, FitDocument),
+    );
+    const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
+    // Each starts 60 degrees off its peg and ends on it, the two bases' origins together.
+    expect(value("left_a")).toBeCloseTo(0, 4);
+    expect(value("left_b")).toBeCloseTo(0, 4);
+    expect(value("apart")).toBeCloseTo(0, 8);
+    expect(Array.from(result.latched.lock_a as Float64Array).at(-1)).toBe(1);
+    expect(Array.from(result.latched.lock_b as Float64Array).at(-1)).toBe(1);
+    expect(result.studies.get("coupling")?.varied.map(({ name }) => name)).toEqual([
+      "dy",
+      "open_a",
+      "open_b",
+    ]);
   });
 
   it("has a push latch that stays in after one push and comes out after the next", () => {

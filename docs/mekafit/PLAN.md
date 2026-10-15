@@ -125,6 +125,7 @@ The examples in `examples/fit/`, each solved by a test and in the app's picker:
 | `ratchet` | A wheel turned against a spring; a sprung pawl rides up each tooth and drops behind it, and holds the wheel when it is let go |
 | `knuckle-coupler` | Two much simplified couplers: the nose of one swings the other's open knuckle shut, its lock drops, and a pull of 150 N is held |
 | `push-latch` | Thomas's push-to-open catch: a pin in a track round a heart; one push and the drawer stays in, the next and it comes out |
+| `coupler-trial` | Thomas's coupler, from his drawings `coupler.dxf` and `coupler-base.dxf`: two couplers swung shut onto their pegs and locked as one is driven into the other; its study `coupling` varies the sideways offset and how far each starts open |
 
 Where phase 3 as built differs from what was planned:
 
@@ -172,18 +173,30 @@ The knuckle coupler has a study, `coupling`, over the left knuckle's starting an
 take 22 s with `pnpm fit:study` on 15 threads here; 41% pass. It fails where the
 knuckle starts nearly shut, and towards a large offset either way.
 
+Thomas's own coupler (`coupler-trial`, from his drawings) has the study the phase
+asks for, but for the angle: the sideways offset `dy` (-8 to 8 mm) and how far each
+coupler starts open (0 to 85 deg). A run takes about 1.2 s alone; 500 took 4 min
+here on 15 threads. 12% pass (9% to 15%), none fail to solve. It passes every time
+with `dy` from 0 to 5 mm and both more than 60 deg open; coming in below the middle
+line (`dy` below 0) the couplers come home about 6 deg short of shut and do not
+lock, 2 of 250 pass; starting less than about 25 deg open, or beyond the bases'
+5 mm of play, it jams. Whether the 6 deg is the design or the guessed side spring,
+play and peg is for Thomas to judge.
+
 Where phase 4 as built differs from what was planned:
 
-- **The coupling study** varies two values, not four: the left knuckle's starting
-  angle and the sideways offset. The coupler's angle would need its rail turned,
-  and the right knuckle starts shut and locked, as the example is drawn.
+- **The coupling study** on Thomas's coupler varies three values, not four: the
+  coupler's angle is not a parameter of the trial yet. The simplified knuckle
+  coupler's study varies two.
+- **Its 500 runs take longer than a minute**: 4 min here; on Thomas's machine,
+  with threads that are not shared, perhaps one to two.
 - **A jam is a result**, judged by the conditions, not a run that could not be
   solved: in the coupler a jam is what failing looks like.
 - **Threads here scale poorly**: eight processes each run 3 times slower than one
   alone in this sandbox, so a study on Thomas's own machine may well be quicker.
 
 **Waiting for Thomas: a look at studies in mekafit's dev server** (open the
-"Knuckle coupler" example):
+"Knuckle coupler" example, whose 100 runs are quick, then "Coupler trial"):
 
 1. The Studies fold at the bottom of the side panel: "Coupling", its two ranges,
    and Run. Run switches the panel under the sheet to its Study tab; the runs

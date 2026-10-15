@@ -428,6 +428,6 @@ As built:
 - `pnpm fit:study <model> <study> [--runs N] [--csv out.csv]` runs a study from the
   command line, in worker threads, and prints what it came to.
 
-The knuckle coupler in [`examples/fit/`](../../examples/fit) has a study,
-`coupling`, over the left knuckle's starting angle and the right coupler's sideways
-offset.
+`coupler-trial` in [`examples/fit/`](../../examples/fit), Thomas's coupler from
+its drawings, has a study, `coupling`, over the sideways offset and how far each
+coupler starts open; the simplified `knuckle-coupler` has a smaller one.

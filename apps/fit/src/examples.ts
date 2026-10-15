@@ -1,4 +1,5 @@
 import { drawingFiles } from "@mekasim/core";
+import { FitDocument } from "@mekasim/fit";
 
 const models = import.meta.glob<string>("../../../examples/fit/*.mekafit.yaml", {
   query: "?raw",
@@ -28,7 +29,7 @@ export interface Example {
 export const EXAMPLES: Example[] = Object.entries(models).map(([path, text]) => {
   const id = (path.split("/").pop() as string).replace(".mekafit.yaml", "");
   const name = /^\s*name:\s*(.+)$/m.exec(text)?.[1] ?? id;
-  const named = drawingFiles(text).flatMap((file): [string, string][] => {
+  const named = drawingFiles(text, FitDocument).flatMap((file): [string, string][] => {
     const drawing = drawingText.get(file);
     return drawing === undefined ? [] : [[file, drawing]];
   });

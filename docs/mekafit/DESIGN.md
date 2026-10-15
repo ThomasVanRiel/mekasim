@@ -696,8 +696,9 @@ fit:study`; each replay gives its stored outcome.
 to 250 ms a run, the coupler about 150 ms for its 186 samples.
 
 **Examples.** mekafit's examples go in `examples/fit/` and are solved by a test like
-`examples.test.ts`, all built: `knuckle-coupler.mekafit.yaml` (simplified, drawn for
-the purpose, not Thomas's design), `ratchet.mekafit.yaml`, `door-latch.mekafit.yaml`,
+`examples.test.ts`, all built: `coupler-trial.mekafit.yaml` (Thomas's coupler from
+his drawings, with its coupling study), `knuckle-coupler.mekafit.yaml` (simplified,
+drawn for the purpose), `ratchet.mekafit.yaml`, `door-latch.mekafit.yaml`,
 `sprung-lever.mekafit.yaml`, `clearance-check.mekafit.yaml` (motor-driven, gaps only),
 `push-latch.mekafit.yaml` (Thomas's idea: a push-to-open catch as in a drawer, a
 pin riding in a heart-shaped slot, which rests in one of two places and goes from
