@@ -22,7 +22,7 @@ params:
   open_b: 60 deg
   drop: 1 deg       # how near its peg a coupler is when its pin drops in
   dy: 0 mm          # how far the coming one runs to the side
-  play: 5 mm        # how far each base can give way sideways, either way
+  play: 50 mm        # how far each base can give way sideways, either way
 
 geometry:
   coupler: { file: coupler.dxf, unit: mm }
@@ -118,7 +118,7 @@ studies:
   coupling:
     runs: 500
     vary:
-      dy: { from: -8 mm, to: 8 mm }
+      dy: { from: -1 mm, to: 8 mm }
       open_a: { from: 0 deg, to: 85 deg }
       open_b: { from: 0 deg, to: 85 deg }
 
