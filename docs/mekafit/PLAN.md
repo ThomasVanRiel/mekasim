@@ -150,8 +150,8 @@ picker with its motion and plots, the Springs and locks fold, the lock markers, 
 that the page no longer scrolls behind its panels; in mekasim, that a middle click
 on the view no longer pastes, and the strandbeest's ground plate in the STL.
 
-**Waiting for Thomas:** a look at the pace of a let-go body, the last change: the
-push latch's drawer and the ratchet's wheel coming back over a number of steps.
+**Also passed (2026-10-15):** the pace of a let-go body: the push latch's drawer
+and the ratchet's wheel come back over a number of steps.
 
 **Open, for Thomas to say:**
 
