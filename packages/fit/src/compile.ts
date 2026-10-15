@@ -248,6 +248,20 @@ export function compileStops(compiled: Compiled, source: Document, report: Repor
     const path = ["latches", id];
     attempt(() => {
       const { value, dim, bodies } = limited(latch.joint, [...path, "joint"], "a lock");
+      if ((latch.catch === undefined) !== (latch.pull === undefined)) {
+        throw fail(
+          "A lock that pulls its joint in needs both `catch`, how far short of `at` it starts, and `pull`, how hard",
+          [...path, latch.pull === undefined ? "pull" : "catch"],
+        );
+      }
+      let caught: CompiledLock["catch"];
+      if (latch.catch !== undefined && latch.pull !== undefined) {
+        const within = scalar(latch.catch, dim, [...path, "catch"]);
+        const pull = scalar(latch.pull, dim === ANGLE ? TORQUE : FORCE, [...path, "pull"]);
+        if (!(within > 0)) throw fail("This must be more than zero", [...path, "catch"]);
+        if (!(pull > 0)) throw fail("This must be more than zero", [...path, "pull"]);
+        caught = { within, pull };
+      }
       locks.push({
         id,
         joint: latch.joint,
@@ -255,6 +269,7 @@ export function compileStops(compiled: Compiled, source: Document, report: Repor
         at: scalar(latch.at, dim, [...path, "at"]),
         drops: latch.drops,
         engaged: latch.engaged,
+        ...(caught ? { catch: caught } : {}),
         bodies,
       });
     });

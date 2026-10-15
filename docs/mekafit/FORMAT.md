@@ -301,6 +301,13 @@ filled while it is in.
 | `at` | Where it drops in |
 | `drops` | `down`: it drops in as the value falls below `at`, and then holds it below. `up`: the other way round |
 | `engaged` | Whether it is in at the start. Left out, it is in where the joint starts beyond `at` the way it drops, as a sprung pin would be, and out otherwise. `false` keeps it out until the joint next passes `at` |
+| `catch` | How far short of `at` it starts pulling the joint in, as a sprung pin with a pointed tip draws the hole under it once it finds the hole's edge. Given with `pull` |
+| `pull` | How hard it pulls the joint in meanwhile: a torque, such as `0.4 N*m`, for a turning joint, a force for one that slides |
+
+A lock with a `catch` pulls its joint the last of the way in, evenly, from `catch`
+short of `at` until it is in; then it holds as any lock does. A pin 47.5 mm from a
+coupler's pivot with a 4.5 mm hole to find, pressing its edge sideways with 10 N,
+is `catch: 5.4 deg, pull: 10 N * 47.5 mm`.
 
 ## Moving a body (phase 3, built)
 

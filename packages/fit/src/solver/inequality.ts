@@ -52,6 +52,11 @@ export interface CompiledLock {
   drops: "down" | "up";
   /** Whether it is in at the start. Not said, it is in where the joint starts beyond `at`. */
   engaged?: boolean;
+  /**
+   * How it pulls the joint in before it drops: from `within` short of `at`, with `pull`,
+   * a torque in N·m for a turning joint or a force in N for one that slides.
+   */
+  catch?: { within: number; pull: number };
   bodies: [string, string];
 }
 

@@ -235,6 +235,36 @@ ${latch}
     );
   });
 
+  it("pulls its joint in when it comes within its catch, and then holds it", () => {
+    // Pulled out to 90 mm, the ram is 5 mm short of a lock at 95 mm that catches from
+    // 10 mm short with 15 N: more than the spring's 10 N there, so it is drawn in.
+    const result = simulate(
+      sprung("  catch: { joint: guide, at: 95 mm, drops: up, catch: 10 mm, pull: 15 N }"),
+    );
+    expect(result.diagnostics).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    const x = (k: number) => cycle.q[3 * k] as number;
+    expect(Math.max(...Array.from({ length: cycle.count }, (_, k) => x(k)))).toBeGreaterThan(
+      0.095 - 1e-9,
+    );
+    expect(result.latched.catch?.[cycle.count - 1]).toBe(1);
+    // Let go, the spring brings it back as far as the lock.
+    expect(x(cycle.count - 1)).toBeCloseTo(0.095, 8);
+  });
+
+  it("leaves its joint be when it stays outside its catch", () => {
+    const result = simulate(
+      sprung("  catch: { joint: guide, at: 95 mm, drops: up, catch: 3 mm, pull: 15 N }"),
+    );
+    expect(result.diagnostics).toEqual([]);
+    const cycle = result.cycle as NonNullable<typeof result.cycle>;
+    expect(cycle.q[3 * cycle.t.indexOf(1)]).toBeCloseTo(0.09, 8);
+    expect(cycle.q[3 * (cycle.count - 1)]).toBeCloseTo(0.04, 7);
+    expect(Array.from(result.latched.catch as Float64Array).every((value) => value === 0)).toBe(
+      true,
+    );
+  });
+
   it("is in from the start where the joint starts beyond it, unless it is said to be out", () => {
     // The ram starts at 40 mm, below a lock at 50 mm that drops going down.
     const begun = simulate(sprung("  catch: { joint: guide, at: 50 mm, drops: down }"));
@@ -272,5 +302,20 @@ ${latch}
     expect(
       errors(sprung("  catch: { joint: guide, at: 60 mm, drops: sideways }")).length,
     ).toBeGreaterThan(0);
+    expect(errors(sprung("  catch: { joint: guide, at: 60 mm, drops: up, catch: 5 mm }"))).toEqual([
+      {
+        message:
+          "A lock that pulls its joint in needs both `catch`, how far short of `at` it starts, and `pull`, how hard",
+        path: ["latches", "catch", "pull"],
+      },
+    ]);
+    expect(
+      errors(sprung("  catch: { joint: guide, at: 60 mm, drops: up, catch: 5 mm, pull: 2 N*m }")),
+    ).toEqual([
+      {
+        message: "Expected a quantity in m·kg/s², got a quantity in m²·kg/s²",
+        path: ["latches", "catch", "pull"],
+      },
+    ]);
   });
 });

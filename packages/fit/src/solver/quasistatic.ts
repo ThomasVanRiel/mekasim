@@ -16,6 +16,7 @@ import {
   TOLERANCE,
 } from "@mekasim/core";
 import type { FitCompiled } from "../contacts.ts";
+import { catchTerms } from "./catches.ts";
 import {
   contactInequalities,
   type Inequality,
@@ -195,6 +196,8 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
 
   /** The locks that are in, as the run goes. */
   const engaged = new Set(compiled.locks.filter((lock) => lock.engaged).map((lock) => lock.id));
+  /** Whether any lock draws its joint in before it drops. */
+  const catching = compiled.locks.some((lock) => lock.catch !== undefined);
 
   // How far the whole model reaches, for the pace of a body that is let go.
   let span = size;
@@ -286,6 +289,9 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         hessian.data[i * width + i] += eps * weight[i];
         slope[i] += eps * weight[i] * (q[i] - previous[i]);
       }
+      // So is the pin of a lock that is drawing its joint in.
+      const caught = catchTerms(compiled.locks, engaged, q).gradient;
+      for (let i = 0; i < width; i++) slope[i] += caught[i] as number;
       // A pull is energy that falls as the body goes its way.
       for (const { stage, at } of pulls) {
         slope[at] -= stage.force[0];
@@ -369,7 +375,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       // expects of it, the step is halved.
       const near =
         phi.every((value) => Math.abs(value) < NEARLY) && rows.every((row) => row.value > -NEARLY);
-      if (near && (compiled.springs.length > 0 || pulls.length > 0)) {
+      if (near && (compiled.springs.length > 0 || pulls.length > 0 || catching)) {
         let along = 0;
         let curved = 0;
         for (let i = 0; i < width; i++) {
@@ -386,7 +392,12 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
           let pulled = 0;
           for (const { stage, at } of pulls)
             pulled += stage.force[0] * trial[at] + stage.force[1] * trial[at + 1];
-          return springTerms(compiled.springs, trial).energy + (eps / 2) * held - pulled;
+          return (
+            springTerms(compiled.springs, trial).energy +
+            catchTerms(compiled.locks, engaged, trial).energy +
+            (eps / 2) * held -
+            pulled
+          );
         };
         const now = energy(0);
         for (let halved = 0; halved < 40; halved++) {
@@ -424,6 +435,8 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
   function carried(t: number, q: Float64Array): Carried {
     const now = modelAt(t);
     const { gradient: asked } = springTerms(compiled.springs, q);
+    const caught = catchTerms(compiled.locks, engaged, q).gradient;
+    for (let i = 0; i < width; i++) asked[i] += caught[i] as number;
     const drivers: Carried["drivers"] = new Map();
     for (const move of moves) {
       const stage = stageAt(move, t)?.stage;

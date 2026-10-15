@@ -99,6 +99,12 @@ export const Latch = z.strictObject({
     .describe(
       "Whether it is in at the start; left out, it is in where the joint starts beyond its place",
     ),
+  catch: Expr.optional().describe(
+    "How far short of `at` its pin starts pulling the joint in, as a sprung pin with a pointed tip does",
+  ),
+  pull: Expr.optional().describe(
+    "How hard it pulls the joint in meanwhile: a torque for a turning joint, a force for a sliding one",
+  ),
 });
 
 /** How one parameter is varied over the runs of a study. */
