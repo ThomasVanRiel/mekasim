@@ -9,7 +9,7 @@ import {
   summarize,
   type Varied,
 } from "@mekasim/fit";
-import { jitter, label, type ScatterPoint } from "@mekasim/ui";
+import { jitter, label, type PassSample, type ScatterPoint } from "@mekasim/ui";
 
 /** What a study's runs have come to so far, as kept with them. */
 export interface Runs {
@@ -277,6 +277,54 @@ export function scatterView(
     xRange: xAxis.range,
     yRange: yAxis.range,
   };
+}
+
+/** The conditions a study's runs were judged by, in the order they first come up. */
+export function conditionsOf(results: RunResult[]): string[] {
+  const seen = new Set<string>();
+  for (const { numbers, failed } of results) {
+    for (const condition of [...Object.keys(numbers), ...failed]) seen.add(condition);
+  }
+  return [...seen];
+}
+
+/**
+ * The runs as the shading over the scatter takes them: where each lies, and whether it met
+ * every one of the `counted` conditions. Runs that could not be solved, and those the
+ * filters leave out, are not counted.
+ */
+export function passSamples(
+  now: Runs,
+  units: Units,
+  x: string | undefined,
+  y: string | undefined,
+  counted: string[],
+  filters: Filters = {},
+): PassSample[] {
+  const xAxis = axisOf(now.plan, x, units);
+  const yAxis = axisOf(now.plan, y, units);
+  return now.results
+    .filter((result) => result.outcome !== "unsolved" && keeps(result, filters))
+    .map((result) => ({
+      x: xAxis.value(result),
+      y: yAxis.value(result),
+      passed: !result.failed.some((condition) => counted.includes(condition)),
+    }));
+}
+
+/** What the shading is averaged over: the varied parameters on neither axis, in words. */
+export function averagedText(
+  plan: StudyPlan,
+  x: string | undefined,
+  y: string | undefined,
+): string | undefined {
+  const others = plan.varied
+    .map(({ name }) => name)
+    .filter((name) => name !== x && name !== y)
+    .map(label);
+  if (others.length === 0) return undefined;
+  const last = others.pop() as string;
+  return others.length > 0 ? `${others.join(", ")} and ${last}` : last;
 }
 
 /** The runs that could not be solved, by what was said of them. */

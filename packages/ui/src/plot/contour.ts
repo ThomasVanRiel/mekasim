@@ -174,3 +174,20 @@ export function contour(field: PassField, level: number, minWeight = 0): Contour
   for (const [edge, ends] of links) if (ends.length > 0) walk(edge);
   return lines;
 }
+
+/** About how many runs a share must rest on to be shaded at full strength. */
+export const ENOUGH_RUNS = 8;
+
+/**
+ * How a place is shaded for its share passed: in the colour of passing or of failing, the
+ * stronger the further the share is from even, and fainter where few runs lie near.
+ */
+export function shade(
+  share: number,
+  weight: number,
+  strongest = 0.4,
+): { passed: boolean; opacity: number } {
+  if (Number.isNaN(share)) return { passed: false, opacity: 0 };
+  const sure = Math.min(1, weight / ENOUGH_RUNS);
+  return { passed: share >= 0.5, opacity: strongest * Math.abs(2 * share - 1) * sure };
+}

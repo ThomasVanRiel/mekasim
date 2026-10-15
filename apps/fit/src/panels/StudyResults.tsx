@@ -5,10 +5,13 @@ import { useStore } from "../store.ts";
 import { useStudies } from "../study/store.ts";
 import {
   applying,
+  averagedText,
   binRange,
+  conditionsOf,
   filteredSummary,
   filterText,
   keeps,
+  passSamples,
   progressText,
   rateText,
   runText,
@@ -139,6 +142,9 @@ export function StudyResults() {
   const { select: pick, show, setFilter, clearFilters } = useStudies.getState();
   const [axes, setAxes] = useState<{ study?: string; x?: string; y?: string }>({});
   const [only, setOnly] = useState<string>();
+  const [shaded, setShaded] = useState(false);
+  // The conditions the shading counts a run as passing by; all of them until some are left out.
+  const [left, setLeft] = useState<string[]>([]);
 
   const overall = useMemo(() => (runs ? summarize(runs.plan, runs.results) : undefined), [runs]);
   const kept = useMemo(() => (runs ? applying(runs.plan, filters ?? {}) : {}), [runs, filters]);
@@ -169,6 +175,16 @@ export function StudyResults() {
     () => (runs && units ? scatterView(runs, units, x, y, before, only, kept) : undefined),
     [runs, units, x, y, before, only, kept],
   );
+  const conditions = useMemo(() => (runs ? conditionsOf(runs.results) : []), [runs]);
+  const counted = useMemo(
+    () => conditions.filter((condition) => !left.includes(condition)),
+    [conditions, left],
+  );
+  const samples = useMemo(
+    () => (runs && units && shaded ? passSamples(runs, units, x, y, counted, kept) : undefined),
+    [runs, units, shaded, x, y, counted, kept],
+  );
+  const averaged = runs ? averagedText(runs.plan, x, y) : undefined;
   useEffect(() => {
     if (only && !summary?.failures.some(({ condition }) => condition === only)) setOnly(undefined);
   }, [only, summary]);
@@ -275,6 +291,35 @@ export function StudyResults() {
                 {summary.unsolved > 0 && <> ▫ could not be solved</>}
                 {before && <> · faint dashed crosses failed before</>}
               </span>
+              <label className="flex items-baseline gap-1">
+                <input
+                  type="checkbox"
+                  checked={shaded}
+                  onChange={(event) => setShaded(event.target.checked)}
+                />
+                Shade where runs passed
+              </label>
+              {shaded && conditions.length > 1 && (
+                <span className="flex flex-wrap items-baseline gap-2">
+                  counting
+                  {conditions.map((condition) => (
+                    <label key={condition} className="flex items-baseline gap-1">
+                      <input
+                        type="checkbox"
+                        checked={!left.includes(condition)}
+                        onChange={(event) =>
+                          setLeft(
+                            event.target.checked
+                              ? left.filter((each) => each !== condition)
+                              : [...left, condition],
+                          )
+                        }
+                      />
+                      {label(condition)}
+                    </label>
+                  ))}
+                </span>
+              )}
             </div>
             <Scatter
               points={view.points}
@@ -283,12 +328,25 @@ export function StudyResults() {
               xRange={view.xRange}
               yRange={view.yRange}
               chosen={replay && replay.study === selected ? replay.index : undefined}
+              shading={samples}
               describe={(point) => {
                 const result = runs.results.find(({ index }) => index === point.key);
                 return result ? runText(result, runs.plan, units) : `Run ${point.key + 1}`;
               }}
               onPick={(point) => selected && show(selected, point.key)}
             />
+            {shaded && (
+              <p className="text-ink-soft text-sm">
+                {counted.length === 0
+                  ? "No condition is counted, so every run passes. "
+                  : `Shaded blue where most runs nearby ${
+                      counted.length < conditions.length
+                        ? `met ${counted.map(label).join(" and ")}`
+                        : "passed"
+                    }, red where most did not; fainter where few runs lie. The line is where half did, the dashed ones a fifth and four fifths. `}
+                {averaged && `Averaged over ${averaged}.`}
+              </p>
+            )}
             {current && (
               <p className="text-ink-soft text-sm">Click a run to see it on the drawing.</p>
             )}

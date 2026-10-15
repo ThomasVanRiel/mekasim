@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { contour, ENOUGH_RUNS, type PassSample, passField, shade } from "./contour.ts";
 import { formatNumber } from "./geometry.ts";
 import { nearestPoint, type ScatterPoint, scatterLayout } from "./scatter.ts";
 
@@ -68,9 +69,111 @@ function Mark({
   );
 }
 
+/** Squares along each axis of the shading. */
+const CELLS = 40;
+/** The shares the lines are drawn at: the one where half passed strongly, the others faintly. */
+const LEVELS = [
+  { level: 0.5, width: 1.5, dash: undefined, opacity: 0.9 },
+  { level: 0.2, width: 1, dash: "3 3", opacity: 0.5 },
+  { level: 0.8, width: 1, dash: "3 3", opacity: 0.5 },
+];
+
+/**
+ * The share of runs passed around each place, as shading in the colour of passing or
+ * failing, with lines where a fifth, half and four fifths of them passed.
+ */
+function Shading({
+  samples,
+  xRange,
+  yRange,
+  toX,
+  toY,
+}: {
+  samples: PassSample[];
+  xRange: [number, number];
+  yRange: [number, number];
+  toX(value: number): number;
+  toY(value: number): number;
+}) {
+  const [xLow, xHigh] = xRange;
+  const [yLow, yHigh] = yRange;
+  const field = useMemo(
+    () => passField(samples, [xLow, xHigh], [yLow, yHigh], { cells: CELLS }),
+    [samples, xLow, xHigh, yLow, yHigh],
+  );
+  const lines = useMemo(
+    () =>
+      LEVELS.map((style) => ({
+        ...style,
+        d: contour(field, style.level, ENOUGH_RUNS / 2)
+          .map(
+            (line) =>
+              `M${line.map(([x, y]) => `${toX(x).toFixed(1)} ${toY(y).toFixed(1)}`).join("L")}`,
+          )
+          .join(""),
+      })),
+    [field, toX, toY],
+  );
+  const { xs, ys } = field;
+  // Each square is centred on its place of the grid. Its edges are whole pixels shared with
+  // its neighbours: squares that overlapped would show their edges twice as dark.
+  const edges = (values: number[], to: (value: number) => number): number[] =>
+    values
+      .map((value, k) => (k === 0 ? value : (values[k - 1] + value) / 2))
+      .concat(values[values.length - 1])
+      .map((value) => Math.round(to(value)));
+  const xEdges = edges(xs, toX);
+  const yEdges = edges(ys, toY);
+  const span = (ends: number[], k: number): [number, number] => {
+    const [a, b] = [ends[k], ends[k + 1]];
+    return [Math.min(a, b), Math.max(a, b)];
+  };
+  const cells = [];
+  for (let j = 0; j < ys.length; j++) {
+    const [top, bottom] = span(yEdges, j);
+    for (let i = 0; i < xs.length; i++) {
+      const { passed, opacity } = shade(
+        field.share[j * xs.length + i],
+        field.weight[j * xs.length + i],
+      );
+      const [left, right] = span(xEdges, i);
+      if (opacity < 0.01 || right === left || bottom === top) continue;
+      cells.push(
+        <rect
+          key={`${i} ${j}`}
+          x={left}
+          y={top}
+          width={right - left}
+          height={bottom - top}
+          fill={passed ? "var(--color-dye)" : "var(--color-red)"}
+          opacity={opacity}
+        />,
+      );
+    }
+  }
+  return (
+    <g pointerEvents="none">
+      <g shapeRendering="crispEdges">{cells}</g>
+      {lines.map(({ level, width, dash, opacity, d }) => (
+        <path
+          key={level}
+          d={d}
+          fill="none"
+          stroke="var(--color-ink)"
+          strokeWidth={width}
+          strokeDasharray={dash}
+          strokeLinejoin="round"
+          opacity={opacity}
+        />
+      ))}
+    </g>
+  );
+}
+
 /**
  * The runs of a study over two of its parameters. Pointing names the run under the
- * pointer; pressing picks it.
+ * pointer; pressing picks it. With `shading`, the share of those runs passed around each
+ * place is shaded under them.
  */
 export function Scatter({
   points,
@@ -79,6 +182,7 @@ export function Scatter({
   xRange,
   yRange,
   chosen,
+  shading,
   describe,
   onPick,
 }: {
@@ -89,11 +193,14 @@ export function Scatter({
   yRange?: [number, number];
   /** The run being shown, ringed. */
   chosen?: number;
+  /** The runs to shade the share passed by, in the axes' values. */
+  shading?: PassSample[];
   /** What to say about a run under the pointer. */
   describe(point: ScatterPoint): string;
   onPick(point: ScatterPoint): void;
 }) {
   const frame = useRef<HTMLDivElement>(null);
+  const clip = useId();
   const [width, setWidth] = useState(600);
   const [hover, setHover] = useState<ScatterPoint>();
 
@@ -182,6 +289,27 @@ export function Scatter({
           height={box.bottom - box.top}
           fill="var(--color-paper)"
         />
+        {shading && (
+          <>
+            <clipPath id={clip}>
+              <rect
+                x={box.left}
+                y={box.top}
+                width={box.right - box.left}
+                height={box.bottom - box.top}
+              />
+            </clipPath>
+            <g clipPath={`url(#${clip})`}>
+              <Shading
+                samples={shading}
+                xRange={[x.min, x.max]}
+                yRange={[y.min, y.max]}
+                toX={toX}
+                toY={toY}
+              />
+            </g>
+          </>
+        )}
         {x.ticks.map((tick) => (
           <g key={`x${tick}`}>
             <line

@@ -3,11 +3,14 @@ import { summarize } from "@mekasim/fit";
 import { describe, expect, it } from "vitest";
 import {
   applying,
+  averagedText,
   binRange,
+  conditionsOf,
   type Filters,
   filteredSummary,
   filterText,
   keeps,
+  passSamples,
   progressText,
   type Runs,
   rangeText,
@@ -206,5 +209,38 @@ describe("filtering a study's runs", () => {
     const view = scatterView(RUNS, UNITS, "side", "open", before, undefined, SIDE);
     expect(view.points.map(({ faint }) => faint)).toEqual([true, false, false, false]);
     expect(view.points.some(({ kind }) => kind === "before")).toBe(false);
+  });
+});
+
+describe("shading where a study's runs passed", () => {
+  it("lists the conditions the runs were judged by", () => {
+    expect(conditionsOf(RESULTS)).toEqual(["coupled", "closed"]);
+    const judged = [{ ...(RESULTS[0] as RunResult), numbers: { home: 1, locked: 1 } }];
+    expect(conditionsOf(judged)).toEqual(["home", "locked"]);
+  });
+
+  it("counts a run as passed where it met every condition counted, leaving out unsolved ones", () => {
+    const passes = (counted: string[]) =>
+      passSamples(RUNS, UNITS, "side", "open", counted).map(({ passed }) => passed);
+    expect(passes(["coupled", "closed"])).toEqual([true, false, false]);
+    expect(passes(["closed"])).toEqual([true, true, false]);
+    expect(passes([])).toEqual([true, true, true]);
+    const [first] = passSamples(RUNS, UNITS, "side", "open", []);
+    expect(first?.x).toBeCloseTo(-4, 9);
+  });
+
+  it("leaves out the runs the filters leave out", () => {
+    const kept = passSamples(RUNS, UNITS, "side", "open", ["coupled"], { side: [0, 0.008] });
+    expect(kept).toHaveLength(2);
+  });
+
+  it("says what it is averaged over", () => {
+    expect(averagedText(PLAN, "side", "open")).toBeUndefined();
+    expect(averagedText(PLAN, "side", undefined)).toBe("Open");
+    const three = {
+      ...PLAN,
+      varied: [...PLAN.varied, { ...(PLAN.varied[0] as StudyPlan["varied"][number]), name: "dy" }],
+    };
+    expect(averagedText(three, "side", undefined)).toBe("Open and Dy");
   });
 });

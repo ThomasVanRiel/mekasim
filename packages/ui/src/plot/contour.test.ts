@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { contour, defaultWidth, type PassField, type PassSample, passField } from "./contour.ts";
+import {
+  contour,
+  defaultWidth,
+  ENOUGH_RUNS,
+  type PassField,
+  type PassSample,
+  passField,
+  shade,
+} from "./contour.ts";
 
 /** Runs spread evenly over the unit square, the same each time. */
 function spread(count: number, passes: (x: number, y: number) => boolean): PassSample[] {
@@ -89,5 +97,13 @@ describe("the share passed over a study's scatter", () => {
     // the other two corners; a middle below it cuts off these two.
     expect(corners(contour(field([1, 0, 0, 1]), 0.4))).toEqual(["0,0.6 0.4,1", "0.6,0 1,0.4"]);
     expect(corners(contour(field([1, 0, 0, 1]), 0.6))).toEqual(["0,0.4 0.4,0", "0.6,1 1,0.6"]);
+  });
+
+  it("shades by how far the share is from even, fainter where few runs lie", () => {
+    expect(shade(1, ENOUGH_RUNS, 0.4)).toEqual({ passed: true, opacity: 0.4 });
+    expect(shade(0, 100, 0.4)).toEqual({ passed: false, opacity: 0.4 });
+    expect(shade(0.5, 100).opacity).toBe(0);
+    expect(shade(0.75, ENOUGH_RUNS / 2, 0.4).opacity).toBeCloseTo(0.1, 9);
+    expect(shade(Number.NaN, 0).opacity).toBe(0);
   });
 });
