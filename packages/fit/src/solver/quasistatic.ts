@@ -82,6 +82,12 @@ const MAX_SETTLING = 400;
 const MAX_SPLITS = 6;
 /** A one-sided row may be this far past its limit and still count as met, in metres. */
 const PENETRATION = 1e-9;
+/**
+ * Where a sample's steps run out before the parts come to rest, they may be this far
+ * into each other and still be taken as they are, in metres: the next sample takes them
+ * on from there and out of each other.
+ */
+const UNSETTLED_PENETRATION = 1e-6;
 /** A step below this fraction of the model's size is no step. */
 const SETTLED = 1e-10;
 /** Joints and contacts this near to met leave the step to the springs, in metres. */
@@ -250,7 +256,6 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       });
     let limited: string[] = [];
     let stepped = Number.POSITIVE_INFINITY;
-    let onItsWay = false;
     for (let iteration = 0; ; iteration++) {
       const phi = residual(now, q, t);
       const rows = [
@@ -267,12 +272,14 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
         rows: rows.filter((row) => row.kind !== "limit" && row.value < TOUCHING),
         open: openSources(now.constraints, phi),
       });
-      // Parts that a spring is still carrying along, as far as they may go in a sample
-      // each time, have not failed to settle: they are on their way, and the next
-      // sample takes them on from here.
+      // Parts that have not come to rest in so many steps have not jammed while the
+      // joints hold and nothing is (more than a hair) into anything else: a spring may
+      // still be carrying them along, or they may be going back and forth where two
+      // corners meet. The next sample takes them on from here. Only where no step can
+      // be found do they jam.
       if (iteration >= iterations) {
-        const sound = closed && rows.every((row) => row.value > -PENETRATION);
-        return sound && onItsWay ? { ok: true, q, limited } : failed();
+        const sound = closed && rows.every((row) => row.value > -UNSETTLED_PENETRATION);
+        return sound ? { ok: true, q, limited } : failed();
       }
 
       // The joints leave some directions free; the step that closes them is core's own.
@@ -368,7 +375,6 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       // A step is laid out for the parts as they touch now. One that carries a body
       // further than it may go in a sample is cut short, so that it meets what is in its way.
       const far = travel((i) => dq[i]);
-      onItsWay = far > 1;
       let scale = 1 / Math.max(1, far);
       // And for the springs as they pull now. A spring's pull turns as its ends move,
       // which the step does not know; where the energy does not follow what the step
