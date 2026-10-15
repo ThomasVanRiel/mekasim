@@ -71,3 +71,37 @@ export {
   type Stage,
   type ToStage,
 } from "./solver/stages.ts";
+export {
+  compileStudies,
+  DEFAULT_RUNS,
+  gridValue,
+  type Sampling,
+  type StudyPlan,
+  type StudyRange,
+  shownValue,
+  type Varied,
+  writtenValue,
+} from "./study/plan.ts";
+export { normalQuantile, type Random, random, xoshiro128 } from "./study/random.ts";
+export { studyCsv, studyReport } from "./study/report.ts";
+export {
+  judge,
+  type Outcome,
+  type PreparedStudy,
+  prepareStudy,
+  type RunResult,
+  runStudy,
+  runText,
+  studyOf,
+} from "./study/run.ts";
+export { drawRun, runValues } from "./study/sample.ts";
+export {
+  BINS,
+  type Bin,
+  type ParameterRates,
+  type Share,
+  type StudySummary,
+  summarize,
+  wilson,
+} from "./study/stats.ts";
+export { BATCH, batches, type FromWorker, studyWorker, type ToWorker } from "./study/worker.ts";

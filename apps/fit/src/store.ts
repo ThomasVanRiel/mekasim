@@ -1,11 +1,13 @@
-import { type Edit, editText, type Files } from "@mekasim/core";
+import { type Dim, type Edit, editText, type Files } from "@mekasim/core";
 import {
   addContacts,
   asFitText,
   type ContactResult,
   type FitSimulation,
   keepOutlines,
+  type RunResult,
   simulate,
+  writtenValue,
 } from "@mekasim/fit";
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
@@ -46,12 +48,39 @@ interface Solved {
   contact?: ContactResult;
 }
 
-function solve(text: string, files: Files, before?: Solved): Solved {
+function solve(
+  text: string,
+  files: Files,
+  before?: Solved & { replay?: Replay },
+): Solved & { replay: undefined } {
   const simulation = simulate(text, files);
   const scene = buildScene(simulation);
+  // A run of a study being shown gives way to the model as it now is.
+  const last = before?.replay?.back ?? before;
   return scene
-    ? { simulation, shown: simulation, scene, contact: undefined }
-    : { simulation, shown: before?.shown, scene: before?.scene, contact: undefined };
+    ? { simulation, shown: simulation, scene, contact: undefined, replay: undefined }
+    : {
+        simulation,
+        shown: last?.shown,
+        scene: last?.scene,
+        contact: undefined,
+        replay: undefined,
+      };
+}
+
+/** A run of a study shown on the sheet in place of the model, which is left as it is. */
+export interface Replay {
+  study: string;
+  index: number;
+  /** The varied values, in SI. */
+  values: Record<string, number>;
+  outcome: RunResult["outcome"];
+  failed: string[];
+  message?: string;
+  /** Whether solving it again gave what the study had counted; anything else is a bug. */
+  matches: boolean;
+  /** What the sheet showed before, to go back to. */
+  back: Pick<Solved, "shown" | "scene">;
 }
 
 interface State extends Solved {
@@ -91,8 +120,16 @@ interface State extends Solved {
   pickContact(body: string): void;
   /** Write a new value for a parameter into the source, keeping its bounds. */
   setParam(name: string, value: number | string): void;
+  /** Write new values, in SI, for several parameters into the source at once. */
+  setValues(values: [name: string, value: number, dim: Dim][]): void;
   /** Add selected contact pairs to the source. Returns how many were new. */
   addContactPairs(pairs: [string, string][]): number;
+  /** The study run shown in place of the model, if one is. */
+  replay?: Replay;
+  /** Show a solved run of a study on the sheet and in the Run tab. */
+  showReplay(simulation: FitSimulation, replay: Omit<Replay, "back">): void;
+  /** Show the model again. */
+  backToModel(): void;
 }
 
 function keep(text: string, files: Files): void {
@@ -189,6 +226,17 @@ export const useStore = create<State>((set, get) => {
       const path = typeof entry === "object" ? ["params", name, "value"] : ["params", name];
       get().setText(editText(get().text, [{ op: "set", path, value }]));
     },
+    setValues(values) {
+      const { doc, compiled } = get().simulation;
+      if (!doc || !compiled) return;
+      const edits: Edit[] = values.flatMap(([name, value, dim]) => {
+        const entry = doc.params?.[name];
+        if (entry === undefined) return [];
+        const path = typeof entry === "object" ? ["params", name, "value"] : ["params", name];
+        return [{ op: "set", path, value: writtenValue(value, dim, compiled.units) }];
+      });
+      if (edits.length > 0) get().setText(editText(get().text, edits));
+    },
     addContactPairs(pairs) {
       const doc = get().simulation.doc;
       if (!doc) {
@@ -198,6 +246,25 @@ export const useStore = create<State>((set, get) => {
       const edits: Edit[] = addContacts(doc, pairs);
       if (edits.length > 0) get().setText(editText(asFitText(get().text), edits));
       return edits.length;
+    },
+    showReplay(simulation, replay) {
+      const scene = buildScene(simulation);
+      if (!scene) return;
+      const back = get().replay?.back ?? { shown: get().shown, scene: get().scene };
+      set({
+        shown: simulation,
+        scene,
+        contact: undefined,
+        replay: { ...replay, back },
+        step: 0,
+        playing: true,
+      });
+    },
+    backToModel() {
+      const replay = get().replay;
+      if (!replay) return;
+      const count = replay.back.scene?.cycle.count ?? 1;
+      set({ ...replay.back, replay: undefined, step: Math.min(get().step, count - 1) });
     },
   };
 });

@@ -1,4 +1,4 @@
-import { gridCount, type StudyPlan, type StudyRange } from "./plan.ts";
+import { gridCount, gridValue, type StudyPlan, type StudyRange } from "./plan.ts";
 import { normalQuantile, type Random, random } from "./random.ts";
 
 /** The streams a study draws from, so that no two uses of the seed give the same numbers. */
@@ -49,12 +49,9 @@ function valueAt(range: StudyRange, u: number, draw: Random): number {
 }
 
 /** The value of a range at step `k` of a grid. */
-function gridValue(range: StudyRange, k: number): number {
+function stepValue(range: StudyRange, k: number): number {
   if (range.kind === "pick") return range.values[k] as number;
-  if (range.kind === "even") {
-    const steps = range.steps ?? 1;
-    return steps === 1 ? range.from : range.from + ((range.to - range.from) * k) / (steps - 1);
-  }
+  if (range.kind === "even") return gridValue(range.from, range.to, range.steps ?? 1, k);
   return range.mean;
 }
 
@@ -75,7 +72,7 @@ export function drawRun(plan: StudyPlan, index: number): number[] {
         ks[p] = rest % count;
         rest = Math.floor(rest / count);
       }
-      return plan.varied.map(({ range }, p) => gridValue(range, ks[p] as number));
+      return plan.varied.map(({ range }, p) => stepValue(range, ks[p] as number));
     }
     case "random":
       return plan.varied.map(({ range }) => valueAt(range, share(draw), draw));

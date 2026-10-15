@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { simulate } from "../src/index.ts";
 import type { StudyPlan } from "../src/study/plan.ts";
 import { normalQuantile, random, xoshiro128 } from "../src/study/random.ts";
-import { prepareStudy, runStudy, runText } from "../src/study/run.ts";
+import { prepareStudy, type RunResult, runStudy, runText } from "../src/study/run.ts";
 import { drawRun } from "../src/study/sample.ts";
 import { summarize, wilson } from "../src/study/stats.ts";
 
@@ -365,5 +365,35 @@ describe("pnpm fit:study", () => {
     }
     expect(out).toMatch(/Passed [0-3] of 3/);
     rmSync(folder, { recursive: true });
+  });
+});
+
+describe("a grid's summary", () => {
+  it("has a bin for each value the grid takes", () => {
+    const read = plan(`  s:
+    sample: grid
+    vary:
+      low: { from: 2 mm, to: 6 mm, steps: 3 }
+`);
+    const results = Array.from({ length: read.runs }, (_, index) => ({
+      index,
+      values: { low: drawRun(read, index)[0] as number },
+      outcome: index < 2 ? "passed" : "failed",
+      failed: index < 2 ? [] : ["pressed_flat"],
+      numbers: {},
+      ms: 1,
+    })) as RunResult[];
+    const [low] = summarize(read, results).parameters;
+    expect(
+      low?.bins.map(({ from, passed, failed }) => [
+        Number((from * 1000).toFixed(9)),
+        passed,
+        failed,
+      ]),
+    ).toEqual([
+      [2, 1, 0],
+      [4, 1, 0],
+      [6, 0, 1],
+    ]);
   });
 });

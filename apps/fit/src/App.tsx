@@ -7,9 +7,11 @@ import { useLayout } from "./layout.ts";
 import { Contacts } from "./panels/Contacts.tsx";
 import { Header } from "./panels/Header.tsx";
 import { Parameters } from "./panels/Parameters.tsx";
+import { Replaying } from "./panels/Replaying.tsx";
 import { Run } from "./panels/Run.tsx";
 import { Source } from "./panels/Source.tsx";
 import { SpringsLocks } from "./panels/SpringsLocks.tsx";
+import { Studies } from "./panels/Studies.tsx";
 import { advance, stepped } from "./playback.ts";
 import { Drawing, Names } from "./sheet/Drawing.tsx";
 import { Tools } from "./sheet/Tools.tsx";
@@ -119,7 +121,7 @@ export function App() {
   const tool = useStore((s) => s.tool);
   const contactDraft = useStore((s) => s.contactDraft);
   const opened = useStore((s) => s.opened);
-  const stale = useStore((s) => s.simulation !== s.shown);
+  const stale = useStore((s) => s.simulation !== s.shown && !s.replay);
   const source = useLayout((s) => s.source);
   const side = useLayout((s) => s.side);
   const resize = useLayout((s) => s.resize);
@@ -179,6 +181,7 @@ export function App() {
             </Sheet>
           ) : null}
           <Tools />
+          <Replaying />
           {stale && (
             <p
               role="status"
@@ -205,6 +208,7 @@ export function App() {
         <Parameters />
         <Contacts />
         <SpringsLocks />
+        <Studies />
       </aside>
     </div>
   );

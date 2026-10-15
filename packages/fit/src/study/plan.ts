@@ -247,6 +247,11 @@ export function compileStudies(
   return plans;
 }
 
+/** Value `k` of `steps` evenly from `from` to `to`, as a grid takes them. */
+export function gridValue(from: number, to: number, steps: number, k: number): number {
+  return steps === 1 ? from : from + ((to - from) * k) / (steps - 1);
+}
+
 /** How many values a range takes in a grid. */
 export function gridCount(range: StudyRange): number {
   if (range.kind === "pick") return range.values.length;

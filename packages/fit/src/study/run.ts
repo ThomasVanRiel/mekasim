@@ -43,7 +43,17 @@ export function prepareStudy(
   files?: Files,
   runs?: number,
 ): PreparedStudy | { error: string } {
-  const simulation = simulate(text, files);
+  return studyOf(text, simulate(text, files), name, files, runs);
+}
+
+/** `prepareStudy` for a model already solved: `simulation` is what `text` solves to. */
+export function studyOf(
+  text: string,
+  simulation: FitSimulation,
+  name: string,
+  files?: Files,
+  runs?: number,
+): PreparedStudy | { error: string } {
   const found = simulation.studies.get(name);
   const plan = found && runs !== undefined && found.sample !== "grid" ? { ...found, runs } : found;
   if (!plan) {

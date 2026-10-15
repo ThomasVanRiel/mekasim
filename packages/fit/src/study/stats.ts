@@ -1,4 +1,4 @@
-import type { StudyPlan } from "./plan.ts";
+import { gridValue, type StudyPlan } from "./plan.ts";
 import type { RunResult } from "./run.ts";
 
 /** A share with its 95% range. */
@@ -79,8 +79,15 @@ function rates(plan: StudyPlan, solved: RunResult[]): ParameterRates[] {
     let bins: Bin[];
     let binOf: (value: number) => number;
     const ends = extent(plan, p, solved);
-    if (range.kind === "pick" || !ends) {
-      const values = range.kind === "pick" ? [...new Set(range.values)] : [];
+    const steps = range.kind === "even" ? range.steps : undefined;
+    if (range.kind === "pick" || steps || !ends) {
+      // A few values only, as picked or as a grid takes them: a bin for each.
+      const values =
+        range.kind === "pick"
+          ? [...new Set(range.values)]
+          : range.kind === "even" && steps
+            ? Array.from({ length: steps }, (_, k) => gridValue(range.from, range.to, steps, k))
+            : [];
       bins = values.map((value) => ({ from: value, to: value, passed: 0, failed: 0 }));
       binOf = (value) => values.indexOf(value);
     } else {
