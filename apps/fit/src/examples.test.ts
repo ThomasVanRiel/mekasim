@@ -18,6 +18,6 @@ describe("mekafit's example picker", () => {
 
   it("brings the drawings an example names along with it", () => {
     const coupler = EXAMPLES.find(({ id }) => id === "coupler-trial");
-    expect([...(coupler?.files.keys() ?? [])].sort()).toEqual(["coupler-base.dxf", "coupler.dxf"]);
+    expect([...(coupler?.files.keys() ?? [])].sort()).toEqual(["anvil.dxf", "knuckle.dxf"]);
   });
 });

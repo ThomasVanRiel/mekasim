@@ -1,20 +1,19 @@
-# A trial of coupler.dxf on coupler-base.dxf, both kept beside this model: the
-# coupling only. Both are drawn in the same place: the coupler turns on the base's
-# 12 mm hole at (-10, 40),
-# and the base's other 12 mm hole carries a peg that sits in the coupler's curved
-# slot and stops it where it is drawn. The second coupler and base are the first
-# turned half round about the drawing's own origin, which the hooked faces are drawn
-# round. They start swung open and are driven in along x until the two origins
-# meet; each is to be swung shut onto its peg, where its sprung pin drops in.
-# Each base can give way sideways against a spring. A spring holds each coupler
-# open; the sprung pin rides on its face, and once the pin's tip finds the coupler's
-# 9 mm hole it pulls the coupler shut onto its peg and drops in. It is pulled out
-# again to open the coupler.
+# A trial of knuckle.dxf on anvil.dxf, both kept beside this model: the coupling
+# only. Both are drawn in the same place: the knuckle turns on a 12 mm pin through
+# its hole and the anvil's at (-10, 40).
+# The second knuckle and anvil are the first turned half round about the drawing's
+# own origin, which the hooked faces are drawn round. They start swung open and are
+# driven in along x until the two origins meet; each is to be swung shut, where its
+# sprung pin drops in.
+# Each anvil can give way sideways against a spring. A spring holds each knuckle
+# open; the sprung pin rides on its face, and once the pin's tip finds its hole it
+# pulls the knuckle shut and drops in. It is pulled out again to open the knuckle.
 #
-# Guessed, to be put right: how far open each starts, how far and how stiffly a
-# base gives way sideways, that the peg is a 12 mm pin, the spring that holds a
-# coupler open, and the pin's pull. Nothing in the drawings stops a coupler from
-# opening further.
+# Guessed, to be put right: how far open each starts, how far and how stiffly an
+# anvil gives way sideways, the spring that holds a knuckle open, where the pin is
+# and how hard it pulls, and that a knuckle stops where it is drawn shut. The
+# drawings have no hole for the pin and nothing that stops a knuckle shutting
+# further, or opening further.
 mekafit: 1
 meta:
   name: Coupler trial
@@ -22,58 +21,48 @@ meta:
 
 params:
   start: 150 mm     # how far apart the two bases start
-  open_a: 60 deg    # how far each coupler starts swung off its peg
-  open_b: 60 deg
-  drop: 1 deg       # how near its peg a coupler is when its pin drops in
-  # The pin's pointed tip finds the hole once the hole's 4.5 mm radius, 47.5 mm from
-  # the pivot, reaches it, and pulls the coupler in with the pin's spring force.
-  catch: 10 deg    # how far from its peg a coupler is when the pin's tip finds its hole
+  open_a: 70 deg    # how far each knuckle starts swung open
+  open_b: 85 deg
+  drop: 1 deg       # how near shut a knuckle is when its pin drops in
+  # The pin's pointed tip finds the hole once the hole's edge reaches it, and pulls
+  # the knuckle in with the pin's spring force, taken as acting 47.5 mm from the pivot.
+  catch: 10 deg    # how far from shut a knuckle is when the pin's tip finds its hole
   pin: 10 N         # how hard the pin's tip presses the hole's edge sideways
-  hold: 0.05 N*m/rad  # the spring that holds a coupler open
-  dy: -8 mm          # how far the coming one runs to the side
-  play: 50 mm        # how far each base can give way sideways, either way
+  hold: 0.05 N*m/rad  # the spring that holds a knuckle open
+  dy: 0 mm           # how far the coming one runs to the side
+  play: 50 mm        # how far each anvil can give way sideways, either way
 
 geometry:
-  coupler: { file: coupler.dxf, unit: mm }
-  base: { file: coupler-base.dxf, unit: mm }
+  knuckle: { file: knuckle.dxf, unit: mm }
+  anvil: { file: anvil.dxf, unit: mm }
 
 bodies:
   ground:
     hidden: true
     points: { O: [0, 0], up: [0, 100], low: [0, -100] }
   base_a:
-    points: { O: [0, 0], pin: [-10, 40], peg: [38.879, 50.528] }
-    shape: { from: base, layer: VISIBLE, path: M 140 85 L 80 85 L -12.6477957 69.6726766 A 21.4803637 21.4803637 0 0 1 -30.5500444 46.7214665 A 21.4803637 21.4803637 0 0 1 -9.14181452 27 L 5 27 A 38 38 0 0 0 43 -11 L 43 -44.2720779 A 12 12 0 0 0 39.4852814 -52.7573593 L 14.0710678 -78.1715729 A 4 4 0 0 1 13.2039768 -82.5307337 A 4 4 0 0 1 16.8994949 -85 L 140 -85 Z M 44.8790794 50.5278487 A 6 6 0 0 0 35.8790794 45.3316963 A 6 6 0 0 0 35.8790794 55.7240011 A 6 6 0 0 0 44.8790794 50.5278487 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z M 120.5 75 A 4.5 4.5 0 0 0 113.75 71.1028857 A 4.5 4.5 0 0 0 113.75 78.8971143 A 4.5 4.5 0 0 0 120.5 75 Z M 120.5 -75 A 4.5 4.5 0 0 0 113.75 -78.8971143 A 4.5 4.5 0 0 0 113.75 -71.1028857 A 4.5 4.5 0 0 0 120.5 -75 Z }
+    points: { O: [0, 0], pin: [-10, 40] }
+    shape: { from: anvil, layer: "0", path: M 44.5491996 -11.0082566 L 44.5491996 -34 A 34 34 0 0 0 36.5947107 -55.8547787 L 20.6791111 -74.8222516 A 20 20 0 0 1 16 -87.6780038 L 16 -120 L 146.246455 -120 L 146.246455 120 L -15 120 L -15 68.2842712 A 30 30 0 0 0 -21.6666667 49.4280904 A 15 15 0 0 1 -21.262028 30.0920877 A 15 15 0 0 1 -2.13515703 27.2272068 A 39 39 0 0 0 44.5491996 -11.0082566 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z }
   coupler_a:
     points: { pin: [0, 0] }
     layer: 1
-    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0], path: M 44.257437 5.2636356 A 43.0830545 43.0830545 0 0 1 43.2347282 8.49283044 A 43.0830545 43.0830545 0 0 1 36.1462453 21.0439477 A 8 8 0 0 1 29.9366889 24 L -5.71572875 24 A 20 20 0 0 1 -19.8578644 18.1421356 L -24.1421356 13.8578644 A 20 20 0 0 1 -30 -0.284271247 L -30 -29 A 35 35 0 0 1 4.64405827 -63.99819 A 10 10 0 0 1 13.8507318 -50.5797986 L 6.14926824 -29.4202014 A 10 10 0 0 0 15.5461944 -16 L 42.3325381 -16 A 44.4079682 44.4079682 0 0 0 48.5245025 -21.8765494 L 71.2185013 -48 L 81.5843122 -48 A 10 10 0 0 1 90.6492358 -42.2222222 A 100 100 0 0 1 95.9733752 28.0911242 A 10 10 0 0 1 83.5669252 34.8793493 L 53.7384656 26.148647 A 2 2 0 0 1 52.3928571 23.6277586 A 57.3277686 57.3277686 0 0 0 54.8595384 11.0116979 A 57.3277686 57.3277686 0 0 0 55.0462342 6.35305029 A 2 2 0 0 0 53.2096037 4.3609775 L 46.3497327 3.79875299 A 2 2 0 0 0 44.257437 5.2636356 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z M -4.29385242 -46.8404029 A 4.5 4.5 0 0 0 -11.0438524 -50.7375172 A 4.5 4.5 0 0 0 -11.0438524 -42.9432885 A 4.5 4.5 0 0 0 -4.29385242 -46.8404029 Z }
-  peg_a:
-    points: { O: [0, 0] }
-    layer: 1
-    shape: { path: "M -6 0 A 6 6 0 1 1 6 0 A 6 6 0 1 1 -6 0 Z" }
+    shape: { from: knuckle, layer: "0", place: [-10, 40, 0], path: M 72.1110255 -50 A 5 5 0 0 1 76.3528505 -47.6470588 A 90 90 0 0 1 75.583935 48.8576378 A 5 5 0 0 1 68.4282081 50.1754954 L 44.5576033 32.6721958 A 5 5 0 0 1 43.2098986 26.0958564 A 45.6539273 45.6539273 0 0 0 49.0390918 9.75538176 L 43.5661194 8.66663943 A 5 5 0 0 0 39.4196013 9.70468699 A 63.0227899 63.0227899 0 0 1 -0.549199595 24 A 30 30 0 0 1 -30.5491996 -6 L -30.5491996 -28.9917434 A 35 35 0 0 1 4.4508004 -63.9917434 A 10 10 0 0 1 13.8477266 -50.571542 L 6.15227339 -29.428458 A 10 10 0 0 0 15.5491996 -16.0082566 A 45 45 0 0 0 58.1804784 -46.6008257 A 5 5 0 0 1 62.9172872 -50 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z }
   car_b:
     hidden: true
     points: { O: [0, 0], up: [0, 100], low: [0, -100] }
   base_b:
-    points: { O: [0, 0], pin: [-10, 40], peg: [38.879, 50.528] }
-    shape: { from: base, layer: VISIBLE, path: M 140 85 L 80 85 L -12.6477957 69.6726766 A 21.4803637 21.4803637 0 0 1 -30.5500444 46.7214665 A 21.4803637 21.4803637 0 0 1 -9.14181452 27 L 5 27 A 38 38 0 0 0 43 -11 L 43 -44.2720779 A 12 12 0 0 0 39.4852814 -52.7573593 L 14.0710678 -78.1715729 A 4 4 0 0 1 13.2039768 -82.5307337 A 4 4 0 0 1 16.8994949 -85 L 140 -85 Z M 44.8790794 50.5278487 A 6 6 0 0 0 35.8790794 45.3316963 A 6 6 0 0 0 35.8790794 55.7240011 A 6 6 0 0 0 44.8790794 50.5278487 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z M 120.5 75 A 4.5 4.5 0 0 0 113.75 71.1028857 A 4.5 4.5 0 0 0 113.75 78.8971143 A 4.5 4.5 0 0 0 120.5 75 Z M 120.5 -75 A 4.5 4.5 0 0 0 113.75 -78.8971143 A 4.5 4.5 0 0 0 113.75 -71.1028857 A 4.5 4.5 0 0 0 120.5 -75 Z }
+    points: { O: [0, 0], pin: [-10, 40] }
+    shape: { from: anvil, layer: "0", path: M 44.5491996 -11.0082566 L 44.5491996 -34 A 34 34 0 0 0 36.5947107 -55.8547787 L 20.6791111 -74.8222516 A 20 20 0 0 1 16 -87.6780038 L 16 -120 L 146.246455 -120 L 146.246455 120 L -15 120 L -15 68.2842712 A 30 30 0 0 0 -21.6666667 49.4280904 A 15 15 0 0 1 -21.262028 30.0920877 A 15 15 0 0 1 -2.13515703 27.2272068 A 39 39 0 0 0 44.5491996 -11.0082566 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z }
   coupler_b:
     points: { pin: [0, 0] }
     layer: 1
-    shape: { from: coupler, layer: VISIBLE, place: [-10, 40, 0], path: M 44.257437 5.2636356 A 43.0830545 43.0830545 0 0 1 43.2347282 8.49283044 A 43.0830545 43.0830545 0 0 1 36.1462453 21.0439477 A 8 8 0 0 1 29.9366889 24 L -5.71572875 24 A 20 20 0 0 1 -19.8578644 18.1421356 L -24.1421356 13.8578644 A 20 20 0 0 1 -30 -0.284271247 L -30 -29 A 35 35 0 0 1 4.64405827 -63.99819 A 10 10 0 0 1 13.8507318 -50.5797986 L 6.14926824 -29.4202014 A 10 10 0 0 0 15.5461944 -16 L 42.3325381 -16 A 44.4079682 44.4079682 0 0 0 48.5245025 -21.8765494 L 71.2185013 -48 L 81.5843122 -48 A 10 10 0 0 1 90.6492358 -42.2222222 A 100 100 0 0 1 95.9733752 28.0911242 A 10 10 0 0 1 83.5669252 34.8793493 L 53.7384656 26.148647 A 2 2 0 0 1 52.3928571 23.6277586 A 57.3277686 57.3277686 0 0 0 54.8595384 11.0116979 A 57.3277686 57.3277686 0 0 0 55.0462342 6.35305029 A 2 2 0 0 0 53.2096037 4.3609775 L 46.3497327 3.79875299 A 2 2 0 0 0 44.257437 5.2636356 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z M -4.29385242 -46.8404029 A 4.5 4.5 0 0 0 -11.0438524 -50.7375172 A 4.5 4.5 0 0 0 -11.0438524 -42.9432885 A 4.5 4.5 0 0 0 -4.29385242 -46.8404029 Z }
-  peg_b:
-    points: { O: [0, 0] }
-    layer: 1
-    shape: { path: "M -6 0 A 6 6 0 1 1 6 0 A 6 6 0 1 1 -6 0 Z" }
+    shape: { from: knuckle, layer: "0", place: [-10, 40, 0], path: M 72.1110255 -50 A 5 5 0 0 1 76.3528505 -47.6470588 A 90 90 0 0 1 75.583935 48.8576378 A 5 5 0 0 1 68.4282081 50.1754954 L 44.5576033 32.6721958 A 5 5 0 0 1 43.2098986 26.0958564 A 45.6539273 45.6539273 0 0 0 49.0390918 9.75538176 L 43.5661194 8.66663943 A 5 5 0 0 0 39.4196013 9.70468699 A 63.0227899 63.0227899 0 0 1 -0.549199595 24 A 30 30 0 0 1 -30.5491996 -6 L -30.5491996 -28.9917434 A 35 35 0 0 1 4.4508004 -63.9917434 A 10 10 0 0 1 13.8477266 -50.571542 L 6.15227339 -29.428458 A 10 10 0 0 0 15.5491996 -16.0082566 A 45 45 0 0 0 58.1804784 -46.6008257 A 5 5 0 0 1 62.9172872 -50 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z }
 
 joints:
   side_a: { type: slider, axis: [ground.O, ground.up], point: base_a.O, stops: [-play, play] }
   side_b: { type: slider, axis: [car_b.O, car_b.up], point: base_b.O, stops: [-play, play] }
-  pin_a: { type: revolute, connect: [base_a.pin, coupler_a.pin] }
-  pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin] }
-  fix_a: { type: weld, connect: [base_a.peg, peg_a.O] }
-  fix_b: { type: weld, connect: [base_b.peg, peg_b.O] }
+  pin_a: { type: revolute, connect: [base_a.pin, coupler_a.pin], stops: [null, 0 deg] }
+  pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin], stops: [null, 0 deg] }
 
 springs:
   centre_a: { connect: [ground.low, base_a.O], stiffness: 0.5 N/mm, length: 100 mm }
@@ -88,10 +77,8 @@ latches:
 pose:
   car_b: [-start, dy, 180 deg]
   coupler_a: [-10, 40, -open_a]
-  peg_a: [38.879, 50.528, 0]
   base_b: [-start, dy, 180 deg]
   coupler_b: [-start + 10, dy - 40, 180 deg - open_b]
-  peg_b: [-start - 38.879, dy - 50.528, 180 deg]
 
 drivers:
   shunt:
@@ -103,8 +90,6 @@ contacts:
   couplers: { between: [coupler_a, coupler_b] }
   jaw_a: { between: [coupler_b, base_a] }
   jaw_b: { between: [coupler_a, base_b] }
-  seat_a: { between: [coupler_a, peg_a] }
-  seat_b: { between: [coupler_b, peg_b] }
 
 cycle: { steps: 150 }
 
@@ -124,7 +109,7 @@ checks:
   locked: final(latched(lock_a)) > 0 and final(latched(lock_b)) > 0
   never_through: min(gap(coupler_a, coupler_b)) > -0.001 mm
 
-# Many trials at once: the coming coupler off to the side, and each starting more or
+# Many trials at once: the coming knuckle off to the side, and each starting more or
 # less open.
 studies:
   coupling:

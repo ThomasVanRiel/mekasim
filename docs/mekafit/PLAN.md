@@ -125,7 +125,7 @@ The examples in `examples/fit/`, each solved by a test and in the app's picker:
 | `ratchet` | A wheel turned against a spring; a sprung pawl rides up each tooth and drops behind it, and holds the wheel when it is let go |
 | `knuckle-coupler` | Two much simplified couplers: the nose of one swings the other's open knuckle shut, its lock drops, and a pull of 150 N is held |
 | `push-latch` | Thomas's push-to-open catch: a pin in a track round a heart; one push and the drawer stays in, the next and it comes out |
-| `coupler-trial` | Thomas's coupler, from his drawings `coupler.dxf` and `coupler-base.dxf`: two couplers swung shut onto their pegs and locked as one is driven into the other; its study `coupling` varies the sideways offset and how far each starts open |
+| `coupler-trial` | Thomas's coupler, from his drawings `knuckle.dxf` and `anvil.dxf`: two knuckles swung shut and locked as one is driven into the other; its study `coupling` varies the sideways offset and how far each starts open |
 
 Where phase 3 as built differs from what was planned:
 

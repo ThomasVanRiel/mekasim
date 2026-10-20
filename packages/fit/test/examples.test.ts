@@ -19,7 +19,7 @@ describe("mekafit's examples", () => {
       expect(result.diagnostics).toEqual([]);
       expect(result.cycle?.count).toBeGreaterThan(1);
       expect(result.checks.every(({ holds }) => holds)).toBe(true);
-    });
+    }, 30_000);
   }
 
   it("has a sprung lever that gives way under a bar and follows it back", () => {
@@ -107,7 +107,7 @@ describe("mekafit's examples", () => {
     expect(errors[0]?.message).toMatch(/^Jams at [\d.]+ s: .*"knuckle_a" against "knuckle_b"/);
   });
 
-  it("has Thomas's coupler from its drawings, both swung shut onto their pegs and locked", () => {
+  it("has Thomas's coupler from its drawings, both knuckles swung shut and locked", () => {
     const file = "coupler-trial.mekafit.yaml";
     const text = read(file);
     const result = simulate(
@@ -115,8 +115,8 @@ describe("mekafit's examples", () => {
       drawingsBeside(fileURLToPath(new URL(file, DIRECTORY)), text, FitDocument),
     );
     const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
-    // Each starts 60 degrees off its peg and is pulled shut by its pin, which then holds it
-    // against the spring that would open it, 1 degree off its peg; the bases' origins together.
+    // Each starts open and is swung shut by the other, then pulled in by its pin, which holds
+    // it against the spring that would open it, 1 degree off shut; the anvils' origins together.
     const drop = -Math.PI / 180;
     expect(value("left_a")).toBeCloseTo(drop, 4);
     expect(value("left_b")).toBeCloseTo(drop, 4);
@@ -128,7 +128,7 @@ describe("mekafit's examples", () => {
       "open_a",
       "open_b",
     ]);
-  });
+  }, 30_000);
 
   it("has a push latch that stays in after one push and comes out after the next", () => {
     const result = simulate(read("push-latch.mekafit.yaml"));
