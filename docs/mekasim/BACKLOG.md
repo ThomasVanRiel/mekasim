@@ -19,7 +19,39 @@ already in the solver.
 
 Ball joints, universal joints and linkages that leave the plane, with bodies
 positioned in three dimensions. The largest piece left: a new solver formulation,
-and a 3D view that can be drawn and selected in.
+and a 3D view that can be drawn and selected in. It is built in mekasim only;
+mekafit and mekacarve stay in the plane, since their gaps, sheet and cutting all
+work on outlines.
+
+The solve loop stays as it is: every joint already goes through one `Constraint`
+interface, and the least-squares step copes with free and redundant motion. The
+steps, each leaving the example baseline unchanged until a model uses something new:
+
+1. **The solver stops taking every coordinate for a planar body's.** Planar bodies
+   keep the front of `q`, three coordinates each, so everything that reads
+   `3 * body` stays right. Spatial bodies follow in blocks of their own. The
+   Jacobian's width, the mobility count, dragging and the jerk step go by the
+   whole of `q` and by a layout of the blocks, not by the number of bodies.
+2. **Spatial bodies and joints.** A spatial body is a position and a unit
+   quaternion (Euler parameters, as in Haug and Nikravesh), seven coordinates and
+   one equation that keeps the quaternion of unit length. Joints, with their
+   equations: spherical 3, universal 4, revolute about an `axis` 5, cylindrical 4,
+   prismatic 5, point on a plane 1, point on a line 2. Each Jacobian is checked
+   against finite differences. Freedoms that move nothing, such as the coupler of
+   an RSSR four-bar spinning about its own line, are found and named in the
+   diagnostics rather than counted as degrees of freedom. Done when the RSSR
+   four-bar solves through `pnpm solve`.
+3. **Planar groups placed in space.** A `planes:` section (an origin and a normal);
+   a planar body may sit on a plane and keeps its three coordinates, mapped into
+   the world where it meets a spatial body. Gears, belts and cams stay planar and
+   must share one plane.
+4. **Format and measures.** Points may be `[x, y, z]` and joints take an `axis`;
+   left out, they mean the plane as now, so `mekasim: 1` files stay valid. `z(p)`,
+   angles between axes, and a meaning (or another name) for `angle(body)` on a
+   spatial body.
+5. **The view.** Spatial bodies drawn as rods with ball and fork ends, picking in
+   3D, sketching on a chosen plane with the 2D tools; truly spatial parts written
+   in the source and the inspector first, a gizmo for placing points in 3D last.
 
 ## Ideas
 
