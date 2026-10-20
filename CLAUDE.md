@@ -10,9 +10,10 @@ the packages they share.
   touching: clearance, contact and studies over many starting positions. It is
   planned in `docs/mekafit/PLAN.md`, designed in `docs/mekafit/DESIGN.md`, and its
   format drafted in `docs/mekafit/FORMAT.md`.
-- **mekacarve** (a working name, not built yet) shapes a part by running a mekafit
-  study, cutting away where the parts get in each other's way. Its plan, with what
-  it may not cut and the order of its steps, is in `docs/mekacarve/PLAN.md`.
+- **mekacarve** (a working name; to be `packages/carve` and then its own app,
+  `apps/carve`) shapes a part by running a mekafit study, cutting away where the
+  parts get in each other's way. Its plan, with what it may not cut, where it
+  lives and the order of its steps, is in `docs/mekacarve/PLAN.md`.
 
 **To pick up the work, read the status at the top of `docs/mekafit/PLAN.md`:** it
 says what is built, what is not, and what comes next. Then work through mekafit in
