@@ -50,6 +50,9 @@ Everything that can be checked without a browser still must be: `pnpm lint`,
 - `pnpm solve <model.mekasim.yaml>` — run the solver from the command line
 - `pnpm fit:study <model.mekafit.yaml> <study> [--runs N] [--csv out.csv]` — run one of a
   mekafit model's studies in worker threads and print what it came to
+- `pnpm carve touches <model.mekafit.yaml> <study> [--runs N] [--cell mm] [--out folder]` —
+  run a study and write an SVG of each part with where its runs touched it, red where
+  they failed
 - `pnpm schema` — regenerate the JSON Schema after changing the format
 - `pnpm baseline` — rewrite what the examples solve to (`packages/core/test/baseline.json`),
   only after a change that is meant to move their numbers; read the diff

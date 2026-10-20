@@ -164,6 +164,11 @@ packages/fit/src   mekafit's side of the pipeline (see docs/mekafit/DESIGN.md)
   measures.ts force, torque, latched, final, first
   simulate.ts the whole pipeline in one call, as core's
   study/      studies: seeded draws, one run, the pass rates, workers, the command line
+packages/carve/src mekacarve (see docs/mekacarve/PLAN.md); begun
+  parts.ts    which bodies are one part: the same outline in their own frames
+  grid.ts, gather.ts   where a run touched each part, cell by cell, and how hard
+  worker.ts, node.ts   a study's runs in worker threads, gathering as they go
+  svg.ts, cli.ts       a picture of each part; `pnpm carve touches`
 apps/fit/src       mekafit: the sheet, the Run and Study tabs, the Contacts, Springs
                    and locks, and Studies folds; study/ runs studies in workers
 apps/sim/src

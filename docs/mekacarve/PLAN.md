@@ -11,13 +11,20 @@ mekafit (§5). "mekacarve" is a working name.
 
 ## Where it stands (2026-10-20)
 
-**Step 1 is built** (§4): each sample of a mekafit run keeps where its parts touch,
-on each part in its own frame, with the force there (`touches` beside `loads`), and
-a jam's rows say where they are. mekafit's sheet draws them, a dot at each place
+**Steps 1 and 2 are built** (§4). Each sample of a mekafit run keeps where its parts
+touch, on each part in its own frame, with the force there (`touches` beside
+`loads`), and a jam's rows say where they are. mekafit's sheet draws them, a dot at each place
 sized by how hard the parts press there.
 
-**Next is step 2**, gathering them over a study onto each part. It begins
-`packages/carve`.
+`packages/carve` gathers them over a study: `pnpm carve touches <model> <study>`
+runs the study in worker threads, counts on a grid of each part (0.25 mm cells)
+how many passing and failing runs touched each cell and how hard, and writes an
+SVG of each part: blue where passing runs touched it, red where failing ones did,
+a ring where a run jammed. Bodies with the same outline in their own frames are one
+part. On the pulled coupler, 48 runs: failing runs bear on the back of the
+knuckle's tail, passing ones inside its hook.
+
+**Next is step 3**, outline to grid and back.
 
 `examples/fit/coupler-pull.mekafit.yaml` is the model it is meant for first: the
 coupler trial with a pull after the coupling, and a check that it holds.
@@ -101,7 +108,7 @@ Each step is committed on its own once lint, typecheck, tests and build pass.
    all of a study's runs gathered onto each shaped body, those of failing runs
    apart from those of passing ones; from the command line (`pnpm carve`), as an
    SVG of each part: its outline, with where it was touched in failing runs in red
-   and in passing ones in ink.
+   and in passing ones in blue.
 3. **Outline to grid and back.** A shape made into cells, and cells made back into
    lines and arcs, rounded to a radius. A round trip of the coupler's knuckle must
    come back within a cell of where it was.

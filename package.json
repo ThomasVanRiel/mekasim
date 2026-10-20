@@ -20,7 +20,8 @@
     "solve": "node packages/core/src/cli.ts",
     "schema": "node packages/core/scripts/write-schema.ts",
     "baseline": "node packages/core/scripts/write-baseline.ts",
-    "fit:study": "node packages/fit/src/cli.ts study"
+    "fit:study": "node packages/fit/src/cli.ts study",
+    "carve": "node packages/carve/src/cli.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",
