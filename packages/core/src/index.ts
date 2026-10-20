@@ -201,6 +201,8 @@ export {
 } from "./solver/linalg.ts";
 export { analyzeMobility, type Mobility } from "./solver/mobility.ts";
 export {
+  type Block,
+  blocks,
   jacobian,
   type PositionResult,
   residual,

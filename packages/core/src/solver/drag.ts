@@ -13,7 +13,7 @@ function locate(q: Float64Array, p: BodyPoint): { x: number; y: number; bx: numb
   return { x: q[i] + bx, y: q[i + 1] + by, bx, by };
 }
 
-/** Largest rotation of any body in one step, so the mechanism cannot flip to another assembly. */
+/** Largest rotation of any planar body in one step, so the mechanism cannot flip to another assembly. */
 const MAX_TURN = 0.3;
 
 /**
@@ -63,7 +63,7 @@ export function dragTo(
     });
 
     let turn = 0;
-    for (let i = 2; i < n; i += 3) turn = Math.max(turn, Math.abs(step[i]));
+    for (let i = 2; i < 3 * model.bodies.length; i += 3) turn = Math.max(turn, Math.abs(step[i]));
     let scale = turn > MAX_TURN ? MAX_TURN / turn : 1;
 
     // The step is along a tangent; closing the joints again pulls it back onto the true path.

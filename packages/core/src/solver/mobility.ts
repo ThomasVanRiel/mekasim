@@ -1,5 +1,5 @@
 import { RANK_TOLERANCE, rankOf, svd } from "./linalg.ts";
-import { jacobian, rowCount, type SolverModel } from "./solve.ts";
+import { blocks, jacobian, rowCount, type SolverModel } from "./solve.ts";
 
 export interface Mobility {
   /** Coordinates of all moving bodies. */
@@ -24,7 +24,7 @@ export interface Mobility {
  * geometry, but it describes this position only: at a dead point the rank drops.
  */
 export function analyzeMobility(model: SolverModel, q: Float64Array): Mobility {
-  const n = 3 * model.bodies.length;
+  const n = q.length;
   const joints = model.constraints.filter((c) => !c.driver);
   const drivers = model.constraints.filter((c) => c.driver);
 
@@ -40,11 +40,11 @@ export function analyzeMobility(model: SolverModel, q: Float64Array): Mobility {
     const cutoff = Math.max(...full.s) * RANK_TOLERANCE;
     full.s.forEach((sigma, j) => {
       if (sigma > cutoff) return;
-      model.bodies.forEach((id, b) => {
-        for (let k = 0; k < 3; k++) {
-          if (Math.abs(full.v.data[(3 * b + k) * n + j]) > 1e-6) freeBodies.add(id);
+      for (const { id, at, size } of blocks(model)) {
+        for (let k = at; k < at + size; k++) {
+          if (Math.abs(full.v.data[k * n + j]) > 1e-6) freeBodies.add(id);
         }
-      });
+      }
     });
   }
 
