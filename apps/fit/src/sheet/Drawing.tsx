@@ -9,6 +9,7 @@ import {
   useColors,
 } from "@mekasim/ui";
 import { type ReactNode, useMemo } from "react";
+import type { TouchMark } from "../touches.ts";
 
 type Pose = [x: number, y: number, angle: number];
 
@@ -60,6 +61,7 @@ export function Drawing({
   tool = "select",
   contactDraft,
   locks = [],
+  touches = [],
   onBody,
 }: {
   scene: Scene;
@@ -68,6 +70,8 @@ export function Drawing({
   contactDraft?: string;
   /** The locks at this step, each on its joint: drawn as a small marker, filled when in. */
   locks?: { id: string; joint: string; in: boolean }[];
+  /** Where the parts touch at this step: a dot, larger the harder they press, hollow where they do not. */
+  touches?: TouchMark[];
   onBody?(body: string): void;
 }) {
   const colors: Palette = useColors();
@@ -81,6 +85,7 @@ export function Drawing({
     return found;
   }, [scene]);
   const poses = posesAt(scene, step);
+  const index = useMemo(() => new Map(scene.bodies.map((body) => [body.id, body.index])), [scene]);
   // Drawn from the back to the front, as the layers lie.
   const bodies = [...scene.bodies].sort((a, b) => a.z - b.z);
 
@@ -242,6 +247,25 @@ export function Drawing({
             >
               <title>{`${lock.id}: ${lock.in ? "in" : "out"}`}</title>
             </path>
+          </On>
+        );
+      })}
+      {touches.map((touch) => {
+        const body = touch.body === "ground" ? -1 : (index.get(touch.body) ?? -1);
+        const pressed = touch.share > 0;
+        return (
+          <On key={touch.key} poses={poses} body={body}>
+            <circle
+              cx={touch.u}
+              cy={touch.v}
+              r={scene.sizes.pin * (0.3 + 0.7 * Math.sqrt(touch.share))}
+              fill={pressed ? colors.dye : colors.paper}
+              fillOpacity={pressed ? 0.8 : 1}
+              stroke={colors.dye}
+              {...LINE}
+            >
+              <title>{touch.text}</title>
+            </circle>
           </On>
         );
       })}

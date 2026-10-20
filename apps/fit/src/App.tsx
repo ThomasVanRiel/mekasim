@@ -17,6 +17,7 @@ import { Drawing, Names } from "./sheet/Drawing.tsx";
 import { Tools } from "./sheet/Tools.tsx";
 import { locksAt } from "./springs.ts";
 import { useStore } from "./store.ts";
+import { touchesAt } from "./touches.ts";
 
 /** Moves the position in the run on with the clock while it plays. */
 function usePlayback(): void {
@@ -197,6 +198,7 @@ export function App() {
                 tool={tool}
                 contactDraft={contactDraft}
                 locks={locksAt(shown, step)}
+                touches={touchesAt(shown, step)}
                 onBody={(body) => useStore.getState().pickContact(body)}
               />
             </Sheet>
