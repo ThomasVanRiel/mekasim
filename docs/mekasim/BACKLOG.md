@@ -32,6 +32,17 @@ steps, each leaving the example baseline unchanged until a model uses something 
    `3 * body` stays right. Spatial bodies follow in blocks of their own. The
    Jacobian's width, the mobility count, dragging and the jerk step go by the
    whole of `q` and by a layout of the blocks, not by the number of bodies.
+   In `packages/core/src/solver/`: `jacobian` in `solve.ts` takes its width from
+   `q0.length`; `SolverModel` says planar bodies come first, and a `blocks(model)`
+   gives each body's `{ id, at, size }` for whatever needs the layout; the fastest
+   turn in `solveJerk` and the turn limit in `drag.ts` look at planar angles only;
+   `mobility.ts` counts `q.length` coordinates and finds free bodies through
+   `blocks`. Nothing else reads past the planar bodies, so compile, measures,
+   `packages/fit`, `packages/ui` and `apps/sim` are left as they are. A test builds
+   a solver model by hand with a few extra coordinates after the planar bodies, held
+   by a stand-in constraint, and checks that the Jacobian, mobility, jerk and
+   dragging still give the planar answers. The baseline must not move. This work is
+   done in a worktree, `../mekasim-spatial` on the branch `spatial`, not on `main`.
 2. **Spatial bodies and joints.** A spatial body is a position and a unit
    quaternion (Euler parameters, as in Haug and Nikravesh), seven coordinates and
    one equation that keeps the quaternion of unit length. Joints, with their
