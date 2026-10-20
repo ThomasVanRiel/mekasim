@@ -11,9 +11,9 @@
 #
 # Guessed, to be put right: how far open each starts, how far and how stiffly an
 # anvil gives way sideways, the spring that holds a knuckle open, where the pin is
-# and how hard it pulls, and that a knuckle stops where it is drawn shut. The
-# drawings have no hole for the pin and nothing that stops a knuckle shutting
-# further, or opening further.
+# and how hard it pulls, and that a knuckle stops where it is drawn shut. A knuckle
+# opens 65 deg at most. The drawings have no hole for the pin and nothing that stops
+# a knuckle shutting further, or opening further.
 mekafit: 1
 meta:
   name: Coupler trial
@@ -21,8 +21,9 @@ meta:
 
 params:
   start: 150 mm     # how far apart the two bases start
-  open_a: 70 deg    # how far each knuckle starts swung open
-  open_b: 85 deg
+  open_a: 60 deg    # how far each knuckle starts swung open, up to `widest`
+  open_b: 65 deg
+  widest: 65 deg    # how far a knuckle can swing open
   drop: 1 deg       # how near shut a knuckle is when its pin drops in
   # The pin's pointed tip finds the hole once the hole's edge reaches it, and pulls
   # the knuckle in with the pin's spring force, taken as acting 47.5 mm from the pivot.
@@ -62,8 +63,8 @@ bodies:
 joints:
   side_a: { type: slider, axis: [ground.O, ground.up], point: base_a.O, stops: [-play, play] }
   side_b: { type: slider, axis: [car_b.O, car_b.up], point: base_b.O, stops: [-play, play] }
-  pin_a: { type: revolute, connect: [base_a.pin, coupler_a.pin], stops: [null, 0 deg] }
-  pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin], stops: [null, 0 deg] }
+  pin_a: { type: revolute, connect: [base_a.pin, coupler_a.pin], stops: [-widest, 0 deg] }
+  pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin], stops: [-widest, 0 deg] }
 
 springs:
   centre_a: { connect: [ground.low, base_a.O], stiffness: side, length: 100 mm }
@@ -117,8 +118,8 @@ studies:
     runs: 500
     vary:
       dy: { from: -8 mm, to: 2 mm }
-      open_a: { from: 0 deg, to: 85 deg }
-      open_b: { from: 0 deg, to: 85 deg }
+      open_a: { from: 0 deg, to: 65 deg }
+      open_b: { from: 0 deg, to: 65 deg }
 
 plots:
   turned: [angle(coupler_a), angle(coupler_b) - 180 deg]
