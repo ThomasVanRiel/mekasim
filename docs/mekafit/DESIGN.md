@@ -94,6 +94,8 @@ apps/fit/src
   study/          worker.ts and pool.ts (the module workers), store.ts (runs, results,
                   replay), key.ts and saved.ts (results kept in IndexedDB), replay.ts,
                   view.ts (the Study tab's wording and scatter)
+  motion/         solver.ts and worker.ts: the model's motion solved in a module worker,
+                  for the newest text only, so that typing is not held up by a slow solve
   (to come)       Inspector, io/project.ts (folder or `.zip`)
 ```
 

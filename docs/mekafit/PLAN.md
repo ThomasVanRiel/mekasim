@@ -224,7 +224,12 @@ Where phase 4 as built differs from what was planned:
    that came home and the share that locked, and "Counted as passed" with Home and
    Locked ticked. Untick Locked: the pass rate reads "Met Home in …", and the
    scatter, the shading and the strips judge the runs by homing alone.
-6. In mekasim, nothing should have changed.
+6. Typing in the coupler trial's source does not stall: the text keeps up, the
+   sheet keeps showing the last solved motion, "Working out the motion…" shows at
+   its bottom left while it is worked out, and the new one replaces it a few
+   seconds after typing stops. A quick model such as the sprung lever updates as
+   before, without the note.
+7. In mekasim, nothing should have changed.
 
 **Open, for Thomas to say:**
 

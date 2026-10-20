@@ -82,7 +82,10 @@ export const useStudies = create<StudiesState>((set, get) => {
     select: (study) => set({ selected: study }),
     run(study) {
       get().stop();
-      const { text, files, simulation } = useStore.getState();
+      const {
+        solvedFrom: { text, files },
+        simulation,
+      } = useStore.getState();
       const plan = simulation.studies.get(study);
       if (!plan) return;
       const key = studyKey(text, files, study);
@@ -152,7 +155,11 @@ export const useStudies = create<StudiesState>((set, get) => {
       const shown = get().current[study];
       const counted = shown?.results.find((result) => result.index === index);
       if (!shown || !counted) return;
-      const { text, files, simulation, showReplay } = useStore.getState();
+      const {
+        solvedFrom: { text, files },
+        simulation,
+        showReplay,
+      } = useStore.getState();
       if (get().keys[study] !== shown.key) {
         set({
           notice:
@@ -192,7 +199,10 @@ export const useStudies = create<StudiesState>((set, get) => {
 
 /** Follow the model: the key of each of its studies, and results kept for them in this browser. */
 function follow(): void {
-  const { text, files, simulation } = useStore.getState();
+  const {
+    solvedFrom: { text, files },
+    simulation,
+  } = useStore.getState();
   const keys: Record<string, string> = {};
   for (const study of simulation.studies.keys()) keys[study] = studyKey(text, files, study);
   useStudies.setState({ keys });

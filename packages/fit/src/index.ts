@@ -32,7 +32,7 @@ export {
   TORSIONAL_STIFFNESS,
 } from "./registry.ts";
 export { FitDocument, FORMAT, FORMAT_VERSION } from "./schema.ts";
-export { keepOutlines, simulate, sweep } from "./simulate.ts";
+export { keepOutlines, simulate, solveMotion, sweep } from "./simulate.ts";
 export {
   type CompiledLock,
   type CompiledStop,

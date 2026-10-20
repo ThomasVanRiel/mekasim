@@ -1,6 +1,6 @@
 import { docFactor, LENGTH } from "@mekasim/core";
 import { decodeModel, exampleIn, Sheet, Splitter } from "@mekasim/ui";
-import { type CSSProperties, useEffect } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { gapsWithContact } from "./contacts.ts";
 import { EXAMPLES } from "./examples.ts";
 import { useLayout } from "./layout.ts";
@@ -78,6 +78,23 @@ function useKeys(): void {
   }, []);
 }
 
+/** How long a solve goes on before the sheet says it is under way: quick ones pass unremarked. */
+const SOLVING_NOTE_MS = 300;
+
+/** Whether `on` has been true for at least `ms`. */
+function useLate(on: boolean, ms: number): boolean {
+  const [late, setLate] = useState(false);
+  useEffect(() => {
+    if (!on) {
+      setLate(false);
+      return;
+    }
+    const timer = setTimeout(() => setLate(true), ms);
+    return () => clearTimeout(timer);
+  }, [on, ms]);
+  return on && late;
+}
+
 /** A model that arrives packed into the link replaces the one kept from the last visit. */
 function useLinkedModel(): void {
   const text = useStore((s) => s.text);
@@ -122,6 +139,10 @@ export function App() {
   const contactDraft = useStore((s) => s.contactDraft);
   const opened = useStore((s) => s.opened);
   const stale = useStore((s) => s.simulation !== s.shown && !s.replay);
+  const solving = useLate(
+    useStore((s) => s.solving),
+    SOLVING_NOTE_MS,
+  );
   const source = useLayout((s) => s.source);
   const side = useLayout((s) => s.side);
   const resize = useLayout((s) => s.resize);
@@ -182,15 +203,24 @@ export function App() {
           ) : null}
           <Tools />
           <Replaying />
-          {stale && (
+          {solving ? (
             <p
               role="status"
-              className="absolute bottom-3 left-3 max-w-[45%] border border-red bg-sheet px-3 py-1 text-sm"
+              className="absolute bottom-3 left-3 max-w-[45%] border border-rule bg-sheet px-3 py-1 text-ink-soft text-sm"
             >
-              {scene
-                ? "The source has errors. This is the last version that worked."
-                : "Nothing to draw yet. Fix the problems listed below the source."}
+              Working out the motion…
             </p>
+          ) : (
+            stale && (
+              <p
+                role="status"
+                className="absolute bottom-3 left-3 max-w-[45%] border border-red bg-sheet px-3 py-1 text-sm"
+              >
+                {scene
+                  ? "The source has errors. This is the last version that worked."
+                  : "Nothing to draw yet. Fix the problems listed below the source."}
+              </p>
+            )
           )}
         </div>
         <Run />

@@ -1,4 +1,4 @@
-import { type Dim, type Edit, editText, type Files } from "@mekasim/core";
+import { type Cycle, type Dim, type Edit, editText, type Files } from "@mekasim/core";
 import {
   addContacts,
   asFitText,
@@ -12,6 +12,7 @@ import {
 import { buildScene, type Scene, withDrawings, withUnit } from "@mekasim/ui";
 import { create } from "zustand";
 import { DEFAULT_EXAMPLE } from "./examples.ts";
+import { motionSolver } from "./motion/solver.ts";
 import { comfortableRate } from "./playback.ts";
 
 const STORAGE_KEY = "mekafit.text";
@@ -41,6 +42,8 @@ function keptFiles(): Files {
 
 interface Solved {
   simulation: FitSimulation;
+  /** The text and drawings `simulation` was solved from; the text may have moved on since. */
+  solvedFrom: { text: string; files: Files };
   /** The last version of the model that could be drawn, shown while the text has errors. */
   shown?: FitSimulation;
   scene?: Scene;
@@ -48,25 +51,60 @@ interface Solved {
   contact?: ContactResult;
 }
 
-function solve(
-  text: string,
-  files: Files,
+/** The model drawn: the new simulation, or the last that could be drawn where it cannot be. */
+function solved(
+  simulation: FitSimulation,
+  solvedFrom: Solved["solvedFrom"],
   before?: Solved & { replay?: Replay },
 ): Solved & { replay: undefined } {
-  const simulation = simulate(text, files);
   const scene = buildScene(simulation);
   // A run of a study being shown gives way to the model as it now is.
   const last = before?.replay?.back ?? before;
   return scene
-    ? { simulation, shown: simulation, scene, contact: undefined, replay: undefined }
+    ? { simulation, solvedFrom, shown: simulation, scene, contact: undefined, replay: undefined }
     : {
         simulation,
+        solvedFrom,
         shown: last?.shown,
         scene: last?.scene,
         contact: undefined,
         replay: undefined,
       };
 }
+
+/**
+ * The motion is solved in a worker, as it can take seconds, and the rest here once it is
+ * known. Where there are no workers (as in Node) all of it is solved here and at once.
+ */
+const motion =
+  typeof Worker === "undefined"
+    ? undefined
+    : motionSolver(
+        () => new Worker(new URL("./motion/worker.ts", import.meta.url), { type: "module" }),
+      );
+
+/** Solve the model, and call `done` with it unless newer text has been asked for meanwhile. */
+function solveModel(text: string, files: Files, done: (simulation: FitSimulation) => void): void {
+  if (!motion) {
+    done(simulate(text, files));
+    return;
+  }
+  // Where the worker failed, the model is solved here, which says what went wrong.
+  motion.solve(text, files, (answer) =>
+    done(simulate(text, files, "cycle" in answer ? answer.cycle : undefined)),
+  );
+}
+
+/** A model whose motion is still to come: its text read, nothing drawn and nothing said yet. */
+const NOT_YET: Cycle = {
+  steps: 0,
+  count: 0,
+  width: 0,
+  t: new Float64Array(),
+  q: new Float64Array(),
+  qd: new Float64Array(),
+  qdd: new Float64Array(),
+};
 
 /** A run of a study shown on the sheet in place of the model, which is left as it is. */
 export interface Replay {
@@ -85,6 +123,8 @@ export interface Replay {
 
 interface State extends Solved {
   text: string;
+  /** Whether a newer version of the text is being solved. */
+  solving: boolean;
   /** The drawings kept with the model, by the name the model knows each under. */
   files: Files;
   /** Counts the models opened, so that the sheet fits each of them anew. */
@@ -146,30 +186,44 @@ export const useStore = create<State>((set, get) => {
   const saved = kept();
   const text = saved ?? DEFAULT_EXAMPLE.text;
   const files = saved === null ? DEFAULT_EXAMPLE.files : keptFiles();
-  const first = solve(text, files);
+  /**
+   * Solve the text and drawings as they now are, and show the result once it comes,
+   * with whatever `then` changes besides.
+   */
+  function resolve(then?: (now: Solved) => Partial<State>): void {
+    const { text, files } = get();
+    set({ solving: true });
+    solveModel(text, files, (simulation) => {
+      const now = solved(simulation, { text, files }, get());
+      set({ ...now, solving: false, ...then?.(now) });
+    });
+  }
+
+  // Opened with its drawings, a model plays from its start and the sheet fits it anew.
+  const opening = (now: Solved): Partial<State> => ({
+    opened: get().opened + 1,
+    step: 0,
+    playing: true,
+    rate: comfortableRate(now.shown?.compiled?.period ?? 0),
+  });
+
+  queueMicrotask(() => resolve(opening));
   return {
-    ...first,
+    ...solved(simulate(text, files, NOT_YET), { text, files }),
     text,
     files,
+    solving: true,
     opened: 0,
     step: 0,
     playing: true,
-    rate: comfortableRate(first.shown?.compiled?.period ?? 0),
+    rate: 1,
     tool: "select",
     load(opened, files = new Map()) {
       // Opened with its drawings, a model takes their outlines into its text at once.
       const next = keepOutlines(opened, files);
       keep(next, files);
-      const solved = solve(next, files);
-      set({
-        ...solved,
-        text: next,
-        files,
-        opened: get().opened + 1,
-        step: 0,
-        playing: true,
-        rate: comfortableRate(solved.shown?.compiled?.period ?? 0),
-      });
+      set({ text: next, files });
+      resolve(opening);
     },
     attach(picked) {
       const { simulation } = get();
@@ -178,22 +232,23 @@ export const useStore = create<State>((set, get) => {
       // The outlines the drawings give are kept in the text, where a saved model has them.
       const text = keepOutlines(added.text, files);
       keep(text, files);
-      set({ ...solve(text, files, get()), text, files });
+      set({ text, files });
+      resolve();
     },
     replace(file, drawing) {
       const files = new Map([...get().files, [file, drawing]]);
       const text = keepOutlines(get().text, files);
       keep(text, files);
-      set({ ...solve(text, files, get()), text, files });
+      set({ text, files });
+      resolve();
     },
     setUnit(name, unit) {
       get().setText(keepOutlines(withUnit(get().text, name, unit), get().files));
     },
     setText(next) {
       keep(next, get().files);
-      const solved = solve(next, get().files, get());
-      const count = solved.scene?.cycle.count ?? 1;
-      set({ ...solved, text: next, step: Math.min(get().step, count - 1) });
+      set({ text: next });
+      resolve((now) => ({ step: Math.min(get().step, (now.scene?.cycle.count ?? 1) - 1) }));
     },
     setStep: (step) => set({ step }),
     setPlaying: (playing) => set({ playing }),

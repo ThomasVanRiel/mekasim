@@ -42,24 +42,33 @@ function solve(compiled: Compiled): Cycle {
 }
 
 /** How mekafit runs mekasim's pipeline: its own schema, and what the phases add to it. */
-function options(files?: Files): SimulateOptions {
+function options(files?: Files, solved?: Cycle): SimulateOptions {
   return {
     schema: FitDocument,
     files,
     registry: FIT_REGISTRY,
     prepare: prepareFit,
     extend: compileFit,
-    solve,
+    solve: solved ? () => solved : solve,
   };
 }
 
 /**
  * Everything from model text to results. `files` are the drawings kept beside the
  * model. A model with nothing mekafit adds goes down mekasim's own path and gives
- * mekasim's numbers.
+ * mekasim's numbers. `solved` is the motion of this same text and files, solved
+ * elsewhere (in a worker, say), taken in place of solving it again.
  */
-export function simulate(text: string, files?: Files): FitSimulation {
-  return finish(text, simulateModel(text, options(files)));
+export function simulate(text: string, files?: Files, solved?: Cycle): FitSimulation {
+  return finish(text, simulateModel(text, options(files, solved)));
+}
+
+/**
+ * Just the motion of a model, the slow part of `simulate`, as plain data that can be
+ * sent between threads and given back to `simulate`. Undefined where it cannot be solved.
+ */
+export function solveMotion(text: string, files?: Files): Cycle | undefined {
+  return simulateModel(text, options(files)).cycle;
 }
 
 /** Add mekafit's post-run messages, with their places in the source. */

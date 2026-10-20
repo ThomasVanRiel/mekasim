@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { drawingsBeside } from "@mekasim/core/disk";
 import { describe, expect, it } from "vitest";
-import { FitDocument, simulate } from "../src/index.ts";
+import { FitDocument, simulate, solveMotion } from "../src/index.ts";
 
 const DIRECTORY = new URL("../../../examples/fit/", import.meta.url);
 const files = readdirSync(DIRECTORY).filter((file) => file.endsWith(".mekafit.yaml"));
@@ -166,5 +166,35 @@ describe("mekafit's examples", () => {
     expect(tightest).toBeCloseTo(0.003, 12);
     expect(result.contacts[0]?.smallest.distance).toBeCloseTo(0.003, 12);
     expect(result.contacts[0]?.step).toBe(36);
+  });
+});
+
+describe("a model whose motion is solved elsewhere", () => {
+  it("comes to what it does solved in one go, its motion sent over as a copy", () => {
+    const text = read("push-latch.mekafit.yaml");
+    const whole = simulate(text);
+    const motion = structuredClone(solveMotion(text));
+    const again = simulate(text, undefined, motion);
+    expect(again.measures).toEqual(whole.measures);
+    expect(again.checks).toEqual(whole.checks);
+    expect(again.diagnostics).toEqual(whole.diagnostics);
+    expect(again.latched).toEqual(whole.latched);
+    expect(again.loads).toEqual(whole.loads);
+  });
+
+  it("is read and its studies found while its motion is still to come", () => {
+    const text = read("knuckle-coupler.mekafit.yaml");
+    const empty = new Float64Array();
+    const waiting = simulate(text, undefined, {
+      ...{ steps: 0, count: 0, width: 0 },
+      ...{ t: empty, q: empty, qd: empty, qdd: empty },
+    });
+    expect(waiting.diagnostics).toEqual([]);
+    expect(waiting.compiled).toBeDefined();
+    expect([...waiting.studies.keys()]).toEqual(["coupling"]);
+  });
+
+  it("is not solved where its text cannot be read", () => {
+    expect(solveMotion("mekafit: 1\nbodies: [")).toBeUndefined();
   });
 });
