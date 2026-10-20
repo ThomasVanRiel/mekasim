@@ -1,11 +1,11 @@
 import type { RunResult, StudyPlan } from "@mekasim/fit";
-import { summarize } from "@mekasim/fit";
+import { conditionsOf, judgedBy, summarize } from "@mekasim/fit";
 import { describe, expect, it } from "vitest";
 import {
   applying,
   averagedText,
   binRange,
-  conditionsOf,
+  eachText,
   type Filters,
   filteredSummary,
   filterText,
@@ -217,6 +217,23 @@ describe("shading where a study's runs passed", () => {
     expect(conditionsOf(RESULTS)).toEqual(["coupled", "closed"]);
     const judged = [{ ...(RESULTS[0] as RunResult), numbers: { home: 1, locked: 1 } }];
     expect(conditionsOf(judged)).toEqual(["home", "locked"]);
+  });
+
+  it("judges the runs by the conditions counted, and tells each condition alone", () => {
+    const closed = summarize(PLAN, judgedBy(RESULTS, ["closed"]));
+    expect(rateText(closed, ["closed"])).toBe("Met Closed in 2 of 3: 67%, 95% range 21% to 94%");
+    expect(rateText(summarize(PLAN, judgedBy(RESULTS, [])), [])).toBe(
+      "No condition is counted, so all 3 runs pass",
+    );
+    // What a run did not meet stays, for the list of what was not met.
+    expect(closed.failures).toEqual([
+      { condition: "coupled", count: 2 },
+      { condition: "closed", count: 1 },
+    ]);
+    expect(eachText(summarize(PLAN, RESULTS))).toBe(
+      "Coupled 33% (6% to 79%), Closed 67% (21% to 94%)",
+    );
+    expect(eachText(summarize(PLAN, RESULTS.slice(0, 2)))).toBeUndefined();
   });
 
   it("counts a run as passed where it met every condition counted, leaving out unsolved ones", () => {

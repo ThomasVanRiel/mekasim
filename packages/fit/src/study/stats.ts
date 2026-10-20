@@ -53,6 +53,8 @@ export interface StudySummary {
   telling: string[];
   /** Each condition that was not met, with in how many runs, largest first. */
   failures: { condition: string; count: number }[];
+  /** Each condition alone: in how many of the solved runs it was met, and that share. */
+  conditions: { condition: string; met: number; rate: Share }[];
 }
 
 export const BINS = 10;
@@ -147,6 +149,10 @@ export function summarize(
   const failures = [...counts]
     .map(([condition, count]) => ({ condition, count }))
     .sort((a, b) => b.count - a.count || a.condition.localeCompare(b.condition));
+  const conditions = conditionsOf(solved).map((condition) => {
+    const met = solved.length - (counts.get(condition) ?? 0);
+    return { condition, met, rate: wilson(met, solved.length) };
+  });
   return {
     done: results.length,
     passed,
@@ -156,5 +162,29 @@ export function summarize(
     parameters,
     telling,
     failures,
+    conditions,
   };
+}
+
+/** The conditions runs were judged by, in the order they first come up. */
+export function conditionsOf(results: RunResult[]): string[] {
+  const seen = new Set<string>();
+  for (const { numbers, failed } of results) {
+    for (const condition of [...Object.keys(numbers), ...failed]) seen.add(condition);
+  }
+  return [...seen];
+}
+
+/**
+ * The runs judged by some of their conditions only: a run that was solved passes when it
+ * met every one of `counted`, whatever came of the others. What it did not meet is kept.
+ */
+export function judgedBy(results: RunResult[], counted: readonly string[]): RunResult[] {
+  return results.map((result) => {
+    if (result.outcome === "unsolved") return result;
+    const outcome = result.failed.some((condition) => counted.includes(condition))
+      ? "failed"
+      : "passed";
+    return outcome === result.outcome ? result : { ...result, outcome };
+  });
 }

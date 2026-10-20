@@ -434,6 +434,9 @@ As built:
   tested.
 - `pnpm fit:study <model> <study> [--runs N] [--csv out.csv]` runs a study from the
   command line, in worker threads, and prints what it came to.
+- With more than one condition, the share of runs that met each one alone is given
+  beside the share that met them all, in the app and on the command line; the app
+  can count a run as passing by some of the conditions only.
 
 `coupler-trial` in [`examples/fit/`](../../examples/fit), Thomas's coupler from
 its drawings, has a study, `coupling`, over the sideways offset and how far each

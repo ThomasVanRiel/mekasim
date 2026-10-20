@@ -3,7 +3,7 @@ import { label } from "@mekasim/ui";
 import { useMemo } from "react";
 import { useStore } from "../store.ts";
 import { useStudies } from "../study/store.ts";
-import { progressText, rangeText, rateText, samplingText } from "../study/view.ts";
+import { eachText, progressText, rangeText, rateText, samplingText } from "../study/view.ts";
 
 const button =
   "rounded-sm border border-rule bg-sheet px-2 py-0.5 text-sm hover:border-ink-soft disabled:opacity-40";
@@ -18,6 +18,7 @@ function Standing({ study }: { study: string }) {
     <div className="text-sm">
       <p className="tabular-nums">{progressText(runs)}</p>
       {runs.results.length > 0 && <p className="tabular-nums">{rateText(summary)}</p>}
+      {eachText(summary) && <p className="tabular-nums">Each alone: {eachText(summary)}</p>}
       {!current && <p className="text-ink-soft">From an earlier version of the model.</p>}
     </div>
   );

@@ -98,6 +98,8 @@ export { drawRun, runValues } from "./study/sample.ts";
 export {
   BINS,
   type Bin,
+  conditionsOf,
+  judgedBy,
   type ParameterRates,
   type Share,
   type StudySummary,

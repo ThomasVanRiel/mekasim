@@ -1,4 +1,4 @@
-import { type Bin, shownValue, summarize } from "@mekasim/fit";
+import { type Bin, conditionsOf, judgedBy, shownValue, summarize } from "@mekasim/fit";
 import { label, Scatter } from "@mekasim/ui";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "../store.ts";
@@ -7,7 +7,7 @@ import {
   applying,
   averagedText,
   binRange,
-  conditionsOf,
+  eachText,
   filteredSummary,
   filterText,
   keeps,
@@ -143,10 +143,28 @@ export function StudyResults() {
   const [axes, setAxes] = useState<{ study?: string; x?: string; y?: string }>({});
   const [only, setOnly] = useState<string>();
   const [shaded, setShaded] = useState(false);
-  // The conditions the shading counts a run as passing by; all of them until some are left out.
+  // The conditions a run is counted as passing by; all of them until some are left out.
   const [left, setLeft] = useState<string[]>([]);
 
-  const overall = useMemo(() => (runs ? summarize(runs.plan, runs.results) : undefined), [runs]);
+  const conditions = useMemo(() => (runs ? conditionsOf(runs.results) : []), [runs]);
+  const counted = useMemo(
+    () => conditions.filter((condition) => !left.includes(condition)),
+    [conditions, left],
+  );
+  const some = counted.length < conditions.length ? counted : undefined;
+  // The runs as judged by the conditions counted, and the earlier ones alike.
+  const judged = useMemo(
+    () => (runs ? { ...runs, results: judgedBy(runs.results, counted) } : undefined),
+    [runs, counted],
+  );
+  const earlierJudged = useMemo(
+    () => (before ? { ...before, results: judgedBy(before.results, counted) } : undefined),
+    [before, counted],
+  );
+  const overall = useMemo(
+    () => (judged ? summarize(judged.plan, judged.results) : undefined),
+    [judged],
+  );
   const kept = useMemo(() => (runs ? applying(runs.plan, filters ?? {}) : {}), [runs, filters]);
   const filtering = Object.keys(kept).length > 0;
   const keptCount = useMemo(
@@ -155,13 +173,14 @@ export function StudyResults() {
   );
   // What the runs the filters keep come to; with no filter, all of them.
   const summary = useMemo(
-    () => (runs && filtering ? filteredSummary(runs.plan, runs.results, kept) : overall),
-    [runs, filtering, kept, overall],
+    () => (judged && filtering ? filteredSummary(judged.plan, judged.results, kept) : overall),
+    [judged, filtering, kept, overall],
   );
   const earlier = useMemo(
-    () => (before ? summarize(before.plan, before.results) : undefined),
-    [before],
+    () => (earlierJudged ? summarize(earlierJudged.plan, earlierJudged.results) : undefined),
+    [earlierJudged],
   );
+  const each = summary ? eachText(summary) : undefined;
   // The two parameters that matter most, until others are chosen.
   const names = runs?.plan.varied.map(({ name }) => name) ?? [];
   const x =
@@ -172,13 +191,9 @@ export function StudyResults() {
   const y =
     yChosen ?? overall?.telling.find((name) => name !== x) ?? names.find((name) => name !== x);
   const view = useMemo(
-    () => (runs && units ? scatterView(runs, units, x, y, before, only, kept) : undefined),
-    [runs, units, x, y, before, only, kept],
-  );
-  const conditions = useMemo(() => (runs ? conditionsOf(runs.results) : []), [runs]);
-  const counted = useMemo(
-    () => conditions.filter((condition) => !left.includes(condition)),
-    [conditions, left],
+    () =>
+      judged && units ? scatterView(judged, units, x, y, earlierJudged, only, kept) : undefined,
+    [judged, units, x, y, earlierJudged, only, kept],
   );
   const samples = useMemo(
     () => (runs && units && shaded ? passSamples(runs, units, x, y, counted, kept) : undefined),
@@ -213,7 +228,7 @@ export function StudyResults() {
         )}
         {runs && summary ? (
           <>
-            <span className="font-semibold tabular-nums">{rateText(summary)}</span>
+            <span className="font-semibold tabular-nums">{rateText(summary, some)}</span>
             <span className="text-ink-soft text-sm tabular-nums">{progressText(runs)}</span>
             {earlier && <span className="text-sm tabular-nums">Before: {shortRate(earlier)}</span>}
             {filtering && overall && (
@@ -226,6 +241,30 @@ export function StudyResults() {
           </span>
         )}
       </div>
+      {runs && summary && conditions.length > 1 && (
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-sm">
+          {each && <span className="tabular-nums">Each alone: {each}</span>}
+          <span className="flex flex-wrap items-baseline gap-2">
+            Counted as passed:
+            {conditions.map((condition) => (
+              <label key={condition} className="flex items-baseline gap-1">
+                <input
+                  type="checkbox"
+                  checked={!left.includes(condition)}
+                  onChange={(event) =>
+                    setLeft(
+                      event.target.checked
+                        ? left.filter((name) => name !== condition)
+                        : [...left, condition],
+                    )
+                  }
+                />
+                {label(condition)}
+              </label>
+            ))}
+          </span>
+        </div>
+      )}
       {runs && !current && (
         <p className="mt-1 text-ink-soft text-sm">
           These results are from an earlier version of the model. Run the study again to look at its
@@ -299,27 +338,6 @@ export function StudyResults() {
                 />
                 Shade where runs passed
               </label>
-              {shaded && conditions.length > 1 && (
-                <span className="flex flex-wrap items-baseline gap-2">
-                  counting
-                  {conditions.map((condition) => (
-                    <label key={condition} className="flex items-baseline gap-1">
-                      <input
-                        type="checkbox"
-                        checked={!left.includes(condition)}
-                        onChange={(event) =>
-                          setLeft(
-                            event.target.checked
-                              ? left.filter((each) => each !== condition)
-                              : [...left, condition],
-                          )
-                        }
-                      />
-                      {label(condition)}
-                    </label>
-                  ))}
-                </span>
-              )}
             </div>
             <Scatter
               points={view.points}

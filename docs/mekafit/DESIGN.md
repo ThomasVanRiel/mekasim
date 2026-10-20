@@ -626,6 +626,9 @@ interface RunResult {
 - The two parameters whose bins differ most in pass rate are the scatter's default
   axes; any two can be chosen.
 - Failures by condition, largest first; clicking one filters the scatter.
+- With more than one condition, each condition's own share; and which conditions a
+  run is counted as passing by (all of them unless some are left out), which the
+  share passed, the scatter, its shading and the rates over each range all follow.
 - Before and after: both pass rates, and the earlier failures as hollow crosses.
 
 ### 6.5 Replay

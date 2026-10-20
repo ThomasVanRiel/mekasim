@@ -8,9 +8,10 @@ import { describe, expect, it } from "vitest";
 import { simulate } from "../src/index.ts";
 import type { StudyPlan } from "../src/study/plan.ts";
 import { normalQuantile, random, xoshiro128 } from "../src/study/random.ts";
+import { studyReport } from "../src/study/report.ts";
 import { prepareStudy, type RunResult, runStudy, runText } from "../src/study/run.ts";
 import { drawRun } from "../src/study/sample.ts";
-import { summarize, wilson } from "../src/study/stats.ts";
+import { judgedBy, summarize, wilson } from "../src/study/stats.ts";
 
 /** A lever pressed by a bar that comes down to `low`; it is pressed flat when the bar reaches 5 mm. */
 const LEVER = `mekafit: 1
@@ -383,6 +384,65 @@ describe("pnpm fit:study", () => {
     });
     expect(out).toMatch(/Passed [0-2] of 2/);
     rmSync(folder, { recursive: true });
+  });
+});
+
+describe("a study judged by its conditions one at a time", () => {
+  const read = plan(`  s:
+    runs: 4
+    vary:
+      low: { from: 0 mm, to: 10 mm }
+`);
+  // Made up: of the three runs solved, two come home and one locks; the fourth is not solved.
+  const results: RunResult[] = [
+    { failed: [], outcome: "passed" },
+    { failed: ["locked"], outcome: "failed" },
+    { failed: ["home", "locked"], outcome: "failed" },
+    { failed: [], outcome: "unsolved" },
+  ].map(({ failed, outcome }, index) => ({
+    index,
+    values: { low: drawRun(read, index)[0] as number },
+    outcome: outcome as RunResult["outcome"],
+    failed,
+    numbers: (outcome === "unsolved"
+      ? {}
+      : {
+          home: failed.includes("home") ? 0 : 1,
+          locked: failed.includes("locked") ? 0 : 1,
+        }) as Record<string, number>,
+    ms: 1,
+  }));
+
+  it("gives each condition's own share", () => {
+    const { conditions, passed } = summarize(read, results);
+    expect(passed).toBe(1);
+    expect(conditions.map(({ condition, met }) => [condition, met])).toEqual([
+      ["home", 2],
+      ["locked", 1],
+    ]);
+    expect(conditions[0]?.rate).toEqual(wilson(2, 3));
+  });
+
+  it("passes a run that met the conditions counted, whatever came of the others", () => {
+    const judged = judgedBy(results, ["home"]);
+    expect(judged.map(({ outcome }) => outcome)).toEqual([
+      "passed",
+      "passed",
+      "failed",
+      "unsolved",
+    ]);
+    expect(judged[1]?.failed).toEqual(["locked"]);
+    expect(summarize(read, judged).passed).toBe(2);
+    expect(judgedBy(results, ["home", "locked"])).toEqual(results);
+  });
+
+  it("prints each condition's share on the command line", () => {
+    const report = studyReport(read, summarize(read, results), results, {
+      length: "mm",
+      angle: "deg",
+    });
+    expect(report).toContain("  home    met in 2 of 3: 67%, 95% range 21% to 94%");
+    expect(report).toContain("  locked  met in 1 of 3: 33%, 95% range 6% to 79%");
   });
 });
 

@@ -165,7 +165,9 @@ In the app: module workers, one fewer than the machine's threads, fed batches of
 eight; a Studies fold with Run and Stop; a Study tab beside Run with the pass rate,
 the scatter, what was not met (click to filter), the runs not solved and the rate
 over each range, whose strips filter the runs to a part of a range (each strip
-counted over the runs the other filters keep); clicking a run shows it on the
+counted over the runs the other filters keep); with more than one condition, each
+condition's own share, and "Counted as passed" to judge the runs by some of them
+only, which the pass rate, scatter, shading and strips follow; clicking a run shows it on the
 sheet and in the Run tab, with
 "Back to the model" and "Use these values"; results kept in IndexedDB per model,
 drawings and study, and the last results kept as "before" when the model changes.
@@ -218,7 +220,11 @@ Where phase 4 as built differs from what was planned:
 4. After a change to the model, the tab says its results are from an earlier
    version; run again, and the old failures show as faint dashed crosses with
    "Before:" and their rate. Reloading the page shows the last results again.
-5. In mekasim, nothing should have changed.
+5. On the coupler trial, under the pass rate: "Each alone" with the share of runs
+   that came home and the share that locked, and "Counted as passed" with Home and
+   Locked ticked. Untick Locked: the pass rate reads "Met Home in …", and the
+   scatter, the shading and the strips judge the runs by homing alone.
+6. In mekasim, nothing should have changed.
 
 **Open, for Thomas to say:**
 

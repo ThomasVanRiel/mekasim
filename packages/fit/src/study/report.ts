@@ -26,6 +26,14 @@ export function studyReport(
       ? `Passed ${summary.passed} of ${solved}: ${percent(rate.share)}, 95% range ${percent(rate.low)} to ${percent(rate.high)}`
       : "No run could be solved",
   );
+  if (solved > 0 && summary.conditions.length > 1) {
+    const width = Math.max(...summary.conditions.map(({ condition }) => condition.length));
+    for (const { condition, met, rate: alone } of summary.conditions) {
+      lines.push(
+        `  ${condition.padEnd(width)}  met in ${met} of ${solved}: ${percent(alone.share)}, 95% range ${percent(alone.low)} to ${percent(alone.high)}`,
+      );
+    }
+  }
   if (summary.unsolved > 0) {
     lines.push(`Could not be solved: ${plural(summary.unsolved, "run")}`);
     const byMessage = new Map<string, number[]>();

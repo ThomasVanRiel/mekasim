@@ -61,12 +61,28 @@ export function samplingText(plan: StudyPlan): string {
   return `${plural(plan.runs, "run")}, ${how}`;
 }
 
-/** The share passed and its range, or that nothing has been solved yet. */
-export function rateText(summary: StudySummary): string {
+/**
+ * The share passed and its range, or that nothing has been solved yet. With `counted` some
+ * of the conditions only, the runs were judged by those, and it says so.
+ */
+export function rateText(summary: StudySummary, counted?: string[]): string {
   const solved = summary.passed + summary.failed;
   if (solved === 0) return summary.done > 0 ? "No run could be solved" : "No runs yet";
+  if (counted?.length === 0) return `No condition is counted, so all ${solved} runs pass`;
   const { rate } = summary;
-  return `Passed ${summary.passed} of ${solved}: ${percent(rate.share)}, 95% range ${percent(rate.low)} to ${percent(rate.high)}`;
+  const what = counted ? `Met ${counted.map(label).join(" and ")} in` : "Passed";
+  return `${what} ${summary.passed} of ${solved}: ${percent(rate.share)}, 95% range ${percent(rate.low)} to ${percent(rate.high)}`;
+}
+
+/** Each condition's own share, where there is more than one: "Home 86% (80% to 90%), …". */
+export function eachText(summary: StudySummary): string | undefined {
+  if (summary.conditions.length < 2 || summary.passed + summary.failed === 0) return undefined;
+  return summary.conditions
+    .map(
+      ({ condition, rate }) =>
+        `${label(condition)} ${percent(rate.share)} (${percent(rate.low)} to ${percent(rate.high)})`,
+    )
+    .join(", ");
 }
 
 /** Just the share and its range, as for the runs before. */
@@ -277,15 +293,6 @@ export function scatterView(
     xRange: xAxis.range,
     yRange: yAxis.range,
   };
-}
-
-/** The conditions a study's runs were judged by, in the order they first come up. */
-export function conditionsOf(results: RunResult[]): string[] {
-  const seen = new Set<string>();
-  for (const { numbers, failed } of results) {
-    for (const condition of [...Object.keys(numbers), ...failed]) seen.add(condition);
-  }
-  return [...seen];
 }
 
 /**
