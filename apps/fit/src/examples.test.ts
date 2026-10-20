@@ -5,6 +5,7 @@ describe("mekafit's example picker", () => {
   it("contains mekafit examples from its own directory", () => {
     expect(EXAMPLES.map(({ id }) => id)).toEqual([
       "clearance-check",
+      "coupler-pull",
       "coupler-trial",
       "door-latch",
       "knuckle-coupler",

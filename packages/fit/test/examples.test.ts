@@ -130,6 +130,24 @@ describe("mekafit's examples", () => {
     ]);
   }, 30_000);
 
+  it("has the coupler trial pulled back once coupled, giving a little and holding", () => {
+    const file = "coupler-pull.mekafit.yaml";
+    const text = read(file);
+    const result = simulate(
+      text,
+      drawingsBeside(fileURLToPath(new URL(file, DIRECTORY)), text, FitDocument),
+    );
+    const value = (id: string) => result.measures.find((m) => m.id === id)?.quantity?.value;
+    // Coupled as in the trial, both locks in; then pulled back, the coming one gives a
+    // little, under the 3 mm allowed, and nothing lets it go.
+    expect(value("apart")).toBeCloseTo(0, 8);
+    expect(Array.from(result.latched.lock_a as Float64Array).at(-1)).toBe(1);
+    expect(Array.from(result.latched.lock_b as Float64Array).at(-1)).toBe(1);
+    expect(value("given")).toBeLessThan(0);
+    expect(value("given")).toBeGreaterThan(-0.003);
+    expect(result.free).toEqual([]);
+  }, 30_000);
+
   it("has a push latch that stays in after one push and comes out after the next", () => {
     const result = simulate(read("push-latch.mekafit.yaml"));
     const cycle = result.cycle as NonNullable<typeof result.cycle>;

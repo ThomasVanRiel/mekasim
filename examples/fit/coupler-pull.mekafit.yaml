@@ -1,0 +1,143 @@
+# The coupler trial (coupler-trial.mekafit.yaml) with a pull after it: once coupled,
+# the coming one is pulled back, and the coupling has to hold. Knuckle.dxf on
+# anvil.dxf, both kept beside this model, are drawn in the same place: the knuckle
+# turns on a 12 mm pin through its hole and the anvil's at (-10, 40).
+# The second knuckle and anvil are the first turned half round about the drawing's
+# own origin, which the hooked faces are drawn round. They start swung open and are
+# driven in along x until the two origins meet; each is to be swung shut, where its
+# sprung pin drops in. The coming one's cart is then let go and pulled back. The cart
+# keeps its line and its heading while it pulls; what gives way sideways is the
+# anvil on it.
+# Each anvil can give way sideways against a spring. A spring holds each knuckle
+# open; the sprung pin rides on its face, and once the pin's tip finds its hole it
+# pulls the knuckle shut and drops in. It is pulled out again to open the knuckle.
+#
+# Guessed, to be put right: how far open each starts, how far and how stiffly an
+# anvil gives way sideways, the spring that holds a knuckle open, where the pin is
+# and how hard it pulls, that a knuckle stops where it is drawn shut, how hard the
+# cart pulls and how far the coupling may give under it. The
+# drawings have no hole for the pin and nothing that stops a knuckle shutting
+# further, or opening further. Uncoupling is not tried: nothing lets a pin out yet.
+mekafit: 1
+meta:
+  name: Coupler trial, pulled
+  units: { length: mm, angle: deg }
+
+params:
+  start: 150 mm     # how far apart the two bases start
+  open_a: 70 deg    # how far each knuckle starts swung open
+  open_b: 85 deg
+  drop: 1 deg       # how near shut a knuckle is when its pin drops in
+  # The pin's pointed tip finds the hole once the hole's edge reaches it, and pulls
+  # the knuckle in with the pin's spring force, taken as acting 47.5 mm from the pivot.
+  catch: 10 deg    # how far from shut a knuckle is when the pin's tip finds its hole
+  pin: 10 N         # how hard the pin's tip presses the hole's edge sideways
+  hold: 0.05 N*m/rad  # the spring that holds a knuckle open
+  dy: 0 mm           # how far the coming one runs to the side
+  play: 50 mm        # how far each anvil can give way sideways, either way
+  # How hard the coming one's cart pulls back once coupled. Kept low for now: with a
+  # pull of 30 N or more, a run takes minutes.
+  tug: 10 N
+  give: 3 mm         # how far the coupling may give under that pull
+  side: 0.5 N/mm     # how stiffly each anvil is held in line sideways
+
+geometry:
+  knuckle: { file: knuckle.dxf, unit: mm }
+  anvil: { file: anvil.dxf, unit: mm }
+
+bodies:
+  ground:
+    hidden: true
+    points: { O: [0, 0], up: [0, 100], low: [0, -100], line: [0, dy], line_end: [100, dy] }
+  base_a:
+    points: { O: [0, 0], pin: [-10, 40] }
+    shape: { from: anvil, layer: "0", path: M 44.5491996 -11.0082566 L 44.5491996 -34 A 34 34 0 0 0 36.5947107 -55.8547787 L 20.6791111 -74.8222516 A 20 20 0 0 1 16 -87.6780038 L 16 -120 L 146.246455 -120 L 146.246455 120 L -15 120 L -15 68.2842712 A 30 30 0 0 0 -21.6666667 49.4280904 A 15 15 0 0 1 -21.262028 30.0920877 A 15 15 0 0 1 -2.13515703 27.2272068 A 39 39 0 0 0 44.5491996 -11.0082566 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z }
+  coupler_a:
+    points: { pin: [0, 0] }
+    layer: 1
+    shape: { from: knuckle, layer: "0", place: [-10, 40, 0], path: M 72.1110255 -50 A 5 5 0 0 1 76.3528505 -47.6470588 A 90 90 0 0 1 75.583935 48.8576378 A 5 5 0 0 1 68.4282081 50.1754954 L 44.5576033 32.6721958 A 5 5 0 0 1 43.2098986 26.0958564 A 45.6539273 45.6539273 0 0 0 49.0390918 9.75538176 L 43.5661194 8.66663943 A 5 5 0 0 0 39.4196013 9.70468699 A 63.0227899 63.0227899 0 0 1 -0.549199595 24 A 30 30 0 0 1 -30.5491996 -6 L -30.5491996 -28.9917434 A 35 35 0 0 1 4.4508004 -63.9917434 A 10 10 0 0 1 13.8477266 -50.571542 L 6.15227339 -29.428458 A 10 10 0 0 0 15.5491996 -16.0082566 A 45 45 0 0 0 58.1804784 -46.6008257 A 5 5 0 0 1 62.9172872 -50 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z }
+  car_b:
+    hidden: true
+    points: { O: [0, 0], up: [0, 100], low: [0, -100] }
+  base_b:
+    points: { O: [0, 0], pin: [-10, 40] }
+    shape: { from: anvil, layer: "0", path: M 44.5491996 -11.0082566 L 44.5491996 -34 A 34 34 0 0 0 36.5947107 -55.8547787 L 20.6791111 -74.8222516 A 20 20 0 0 1 16 -87.6780038 L 16 -120 L 146.246455 -120 L 146.246455 120 L -15 120 L -15 68.2842712 A 30 30 0 0 0 -21.6666667 49.4280904 A 15 15 0 0 1 -21.262028 30.0920877 A 15 15 0 0 1 -2.13515703 27.2272068 A 39 39 0 0 0 44.5491996 -11.0082566 Z M -4 40 A 6 6 0 0 0 -13 34.8038476 A 6 6 0 0 0 -13 45.1961524 A 6 6 0 0 0 -4 40 Z }
+  coupler_b:
+    points: { pin: [0, 0] }
+    layer: 1
+    shape: { from: knuckle, layer: "0", place: [-10, 40, 0], path: M 72.1110255 -50 A 5 5 0 0 1 76.3528505 -47.6470588 A 90 90 0 0 1 75.583935 48.8576378 A 5 5 0 0 1 68.4282081 50.1754954 L 44.5576033 32.6721958 A 5 5 0 0 1 43.2098986 26.0958564 A 45.6539273 45.6539273 0 0 0 49.0390918 9.75538176 L 43.5661194 8.66663943 A 5 5 0 0 0 39.4196013 9.70468699 A 63.0227899 63.0227899 0 0 1 -0.549199595 24 A 30 30 0 0 1 -30.5491996 -6 L -30.5491996 -28.9917434 A 35 35 0 0 1 4.4508004 -63.9917434 A 10 10 0 0 1 13.8477266 -50.571542 L 6.15227339 -29.428458 A 10 10 0 0 0 15.5491996 -16.0082566 A 45 45 0 0 0 58.1804784 -46.6008257 A 5 5 0 0 1 62.9172872 -50 Z M 6 0 A 6 6 0 0 0 -3 -5.19615242 A 6 6 0 0 0 -3 5.19615242 A 6 6 0 0 0 6 0 Z }
+
+joints:
+  # The coming cart keeps to its line and its heading while it pulls, as its drive holds it.
+  line: { type: slider, axis: [ground.line, ground.line_end], point: car_b.O, angle: 180 deg }
+  side_a: { type: slider, axis: [ground.O, ground.up], point: base_a.O, stops: [-play, play] }
+  side_b: { type: slider, axis: [car_b.O, car_b.up], point: base_b.O, stops: [-play, play] }
+  pin_a: { type: revolute, connect: [base_a.pin, coupler_a.pin], stops: [null, 0 deg] }
+  pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin], stops: [null, 0 deg] }
+
+springs:
+  centre_a: { connect: [ground.low, base_a.O], stiffness: side, length: 100 mm }
+  centre_b: { connect: [car_b.low, base_b.O], stiffness: side, length: 100 mm }
+  open_a: { joint: pin_a, stiffness: hold, rest: -open_a }
+  open_b: { joint: pin_b, stiffness: hold, rest: -open_b }
+
+latches:
+  lock_a: { joint: pin_a, at: -drop, drops: up, catch: catch - drop, pull: pin * 47.5 mm }
+  lock_b: { joint: pin_b, at: -drop, drops: up, catch: catch - drop, pull: pin * 47.5 mm }
+
+pose:
+  car_b: [-start, dy, 180 deg]
+  coupler_a: [-10, 40, -open_a]
+  base_b: [-start, dy, 180 deg]
+  coupler_b: [-start + 10, dy - 40, 180 deg - open_b]
+
+drivers:
+  shunt:
+    move: car_b
+    stages:
+      - { to: [0, dy, 180 deg], time: 2 s }
+      - { pull: [-tug, 0], time: 1 s }
+
+contacts:
+  couplers: { between: [coupler_a, coupler_b] }
+  jaw_a: { between: [coupler_b, base_a] }
+  jaw_b: { between: [coupler_a, base_b] }
+
+cycle: { steps: 225 }
+
+measures:
+  left_a: final(angle(coupler_a))
+  left_b: final(angle(coupler_b)) - 180 deg
+  apart: max(x(base_b.O))       # how near the two bases came
+  given: final(x(base_b.O))     # where the pull left the coming one
+  aside_a: y(base_a.O)
+  aside_b: y(base_b.O) - dy
+  hardest: max(force(couplers))
+  closing: max(force(shunt))   # the hardest the coming one has to be pushed
+  carried: final(force(couplers))  # what the knuckles carry of the pull
+  jaw_room: min(gap(coupler_b, base_a))
+  jaw_room_end: final(gap(coupler_b, base_a))
+
+checks:
+  home: apart > -0.01 mm
+  locked: final(latched(lock_a)) > 0 and final(latched(lock_b)) > 0
+  never_through: min(gap(coupler_a, coupler_b)) > -0.001 mm
+  holds: given > -give
+
+# Many trials at once: the coming knuckle off to the side, and each starting more or
+# less open.
+studies:
+  coupling:
+    runs: 500
+    vary:
+      dy: { from: -8 mm, to: 2 mm }
+      open_a: { from: 0 deg, to: 85 deg }
+      open_b: { from: 0 deg, to: 85 deg }
+
+plots:
+  turned: [angle(coupler_a), angle(coupler_b) - 180 deg]
+  between: x(base_b.O)
+  aside: [y(base_a.O), y(base_b.O) - dy]
+  pressed: [force(couplers), force(jaw_a), force(jaw_b)]
+  push: force(shunt)
+  jaw: ["gap(coupler_b, base_a)", "gap(coupler_a, base_b)"]
