@@ -503,6 +503,14 @@ one place has no direction and adds no gradient there.
 
 ### 5.7 Jams
 
+A sample whose 30 steps are spent while its parts still move is taken as it is, as
+long as nothing is more than a micrometre into anything else: the next sample takes
+them on from there. Where they are deeper, up to 10 more steps only take the parts
+out of each other: each the least move, a turn weighed as the shift it makes, that
+clears them, the springs left aside. A sample cleared that way is kept; without
+this, a sample whose steps went back and forth where two faces meet was called a
+jam where the parts could go on.
+
 A sample that does not converge is split in halves, down to 1/64 of its step (the
 same splitting as against tunnelling). If the
 last still fails, the run ends with a jam: "Jams at 1.24 s: `b_knuckle` against

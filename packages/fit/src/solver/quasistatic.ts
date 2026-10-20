@@ -88,6 +88,11 @@ const PENETRATION = 1e-9;
  * on from there and out of each other.
  */
 const UNSETTLED_PENETRATION = 1e-6;
+/**
+ * Steps tried, once a sample's are spent with the parts not quite out of each other,
+ * that only take them out: the least move that clears them, the springs left aside.
+ */
+const MAX_CLEARING = 10;
 /** A step below this fraction of the model's size is no step. */
 const SETTLED = 1e-10;
 /** Joints and contacts this near to met leave the step to the springs, in metres. */
@@ -187,6 +192,13 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     return furthest;
   }
 
+  /** The cost of a step by how far it moves the bodies, a turn weighed as the shift it makes. */
+  function movedTerms(): { gradient: Float64Array; hessian: Mat } {
+    const hessian = mat(width, width);
+    for (let i = 0; i < width; i++) hessian.data[i * width + i] = weight[i] as number;
+    return { gradient: new Float64Array(width), hessian };
+  }
+
   function openSources(constraints: SolverModel["constraints"], phi: Float64Array): string[] {
     const worst = new Map<string, number>();
     let row = 0;
@@ -256,6 +268,8 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       });
     let limited: string[] = [];
     let stepped = Number.POSITIVE_INFINITY;
+    /** How many steps have been taken only to clear the parts; none until the others are spent. */
+    let clearing = 0;
     for (let iteration = 0; ; iteration++) {
       const phi = residual(now, q, t);
       const rows = [
@@ -277,9 +291,17 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       // still be carrying them along, or they may be going back and forth where two
       // corners meet. The next sample takes them on from here. Only where no step can
       // be found do they jam.
-      if (iteration >= iterations) {
-        const sound = closed && rows.every((row) => row.value > -UNSETTLED_PENETRATION);
-        return sound ? { ok: true, q, limited } : failed();
+      // Where the steps go back and forth with the parts a hair too far into each other, a
+      // few more take them out, as little as they can; where they cannot, the parts jam.
+      if (clearing > 0) {
+        if (closed && rows.every((row) => row.value > -PENETRATION))
+          return { ok: true, q, limited };
+        if (clearing > MAX_CLEARING) return failed();
+        clearing++;
+      } else if (iteration >= iterations) {
+        if (closed && rows.every((row) => row.value > -UNSETTLED_PENETRATION))
+          return { ok: true, q, limited };
+        clearing = 1;
       }
 
       // The joints leave some directions free; the step that closes them is core's own.
@@ -290,19 +312,23 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       );
       const free = nullSpace(decomposition);
       const n = free.cols;
-      // The energy as the program sees it from here: its slope and its curvature.
-      const { gradient: slope, hessian } = springTerms(compiled.springs, q);
-      for (let i = 0; i < width; i++) {
-        hessian.data[i * width + i] += eps * weight[i];
-        slope[i] += eps * weight[i] * (q[i] - previous[i]);
-      }
-      // So is the pin of a lock that is drawing its joint in.
-      const caught = catchTerms(compiled.locks, engaged, q).gradient;
-      for (let i = 0; i < width; i++) slope[i] += caught[i] as number;
-      // A pull is energy that falls as the body goes its way.
-      for (const { stage, at } of pulls) {
-        slope[at] -= stage.force[0];
-        slope[at + 1] -= stage.force[1];
+      // The energy as the program sees it from here: its slope and its curvature. A step
+      // that only clears the parts costs by how far it moves them, and nothing else.
+      const { gradient: slope, hessian } =
+        clearing > 0 ? movedTerms() : springTerms(compiled.springs, q);
+      if (clearing === 0) {
+        for (let i = 0; i < width; i++) {
+          hessian.data[i * width + i] += eps * weight[i];
+          slope[i] += eps * weight[i] * (q[i] - previous[i]);
+        }
+        // So is the pin of a lock that is drawing its joint in.
+        const caught = catchTerms(compiled.locks, engaged, q).gradient;
+        for (let i = 0; i < width; i++) slope[i] += caught[i] as number;
+        // A pull is energy that falls as the body goes its way.
+        for (const { stage, at } of pulls) {
+          slope[at] -= stage.force[0];
+          slope[at + 1] -= stage.force[1];
+        }
       }
       limited = [];
       let dq = closing;
@@ -381,7 +407,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       // expects of it, the step is halved.
       const near =
         phi.every((value) => Math.abs(value) < NEARLY) && rows.every((row) => row.value > -NEARLY);
-      if (near && (compiled.springs.length > 0 || pulls.length > 0 || catching)) {
+      if (near && clearing === 0 && (compiled.springs.length > 0 || pulls.length > 0 || catching)) {
         let along = 0;
         let curved = 0;
         for (let i = 0; i < width; i++) {
