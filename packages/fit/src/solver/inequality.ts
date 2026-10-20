@@ -22,6 +22,8 @@ export interface Inequality {
   gradient: Float64Array;
   /** The two bodies of the contact, or of the joint a stop or a lock is on, for a jam's message. */
   between?: [string, string];
+  /** Where a contact touches, on each of its two bodies, in that body's own frame. */
+  places?: [Point, Point];
 }
 
 /**
@@ -151,6 +153,15 @@ function pose(body: CompiledBody, q: Float64Array): Pose {
   return { x: q[at] as number, y: q[at + 1] as number, angle: q[at + 2] as number };
 }
 
+/** A place on the sheet as seen from a body placed at `origin`. */
+function within(origin: Pose, point: Point): Point {
+  const dx = point[0] - origin.x;
+  const dy = point[1] - origin.y;
+  const c = Math.cos(origin.angle);
+  const s = Math.sin(origin.angle);
+  return [c * dx + s * dy, -s * dx + c * dy];
+}
+
 function addBodyGradient(
   gradient: Float64Array,
   body: number,
@@ -186,6 +197,7 @@ export function contactInequality(
     value: point.distance,
     gradient,
     between: [a.id, b.id],
+    places: [within(a.origin, point.a), within(b.origin, point.b)],
   };
 }
 

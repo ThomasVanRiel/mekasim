@@ -54,6 +54,7 @@ export {
   type Loads,
   type QuasistaticRun,
   solveQuasistatic,
+  type Touch,
 } from "./solver/quasistatic.ts";
 export {
   type CompiledSpring,

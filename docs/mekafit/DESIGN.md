@@ -538,6 +538,10 @@ not taken from the regularised program, whose multipliers include the `eps` term
   added up; each spring's load, counted as its preload is; how hard each stop and
   lock is held; and what each driver puts on its body. In a `pull` stage that is
   the pull itself. The force in a pin is found on the way but not kept.
+- Kept per sample too (`touches`): each place where two parts touch, within a
+  micrometre, on each of the two in that body's own frame, with its share of the
+  force. A jam's rows carry their places as well. They are what mekacarve gathers
+  over a study (see [../mekacarve/PLAN.md](../mekacarve/PLAN.md)).
 - `force(name)` is for a contact, a straight spring or a move; `torque(name)` for a
   torsion spring, a move (about its body's origin) or a motor. Asking `force` of
   something that turns, or `torque` of something that pushes, says which to use. A

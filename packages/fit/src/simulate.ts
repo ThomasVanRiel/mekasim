@@ -134,12 +134,14 @@ function finish(text: string, simulation: SweepRun["simulation"]): FitSimulation
   }
   const latched = (simulation.cycle as FitCycle | undefined)?.latched ?? {};
   const loads = (simulation.cycle as FitCycle | undefined)?.loads;
+  const touches = (simulation.cycle as FitCycle | undefined)?.touches ?? [];
   return Object.assign(simulation, {
     contacts,
     jam,
     free,
     latched,
     loads,
+    touches,
     studies,
   }) as FitSimulation;
 }

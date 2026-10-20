@@ -127,6 +127,15 @@ describe("the contact step", () => {
     expect(jam?.time).toBeGreaterThan(0.875);
     expect(jam?.time).toBeLessThan(0.875 + 1 / 40);
     expect(new Set(jam?.rows.map((row) => row.source))).toEqual(new Set(["push", "stop"]));
+    // And where, on each part: the pusher's face on the block's back, its front on the wall.
+    for (const row of jam?.rows ?? []) {
+      const [a, b] = row.places as [[number, number], [number, number]];
+      const [faceA, faceB] = row.source === "push" ? [0.01, 0] : [0.02, 0.1];
+      expect(a[0]).toBeCloseTo(faceA, 6);
+      expect(b[0]).toBeCloseTo(faceB, 6);
+      expect(a[1]).toBeGreaterThanOrEqual(-1e-9);
+      expect(a[1]).toBeLessThanOrEqual(0.02 + 1e-9);
+    }
     const errors = result.diagnostics.filter(({ severity }) => severity === "error");
     expect(errors).toHaveLength(1);
     expect(errors[0]?.message).toMatch(

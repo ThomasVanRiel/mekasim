@@ -135,6 +135,39 @@ measures:
     expect(contact[10]).toBeGreaterThan(contact[0] as number);
   });
 
+  it("keeps where the lever and the bar touch, on each, and how hard", () => {
+    const result = simulate(lever("  angle: angle(lever)"));
+    const angle = result.measures.find(({ id }) => id === "angle")?.quantity?.value as Float64Array;
+    const contact = result.loads?.contacts.rest as Float64Array;
+    expect(result.touches).toHaveLength(angle.length);
+    result.touches.forEach((touches, k) => {
+      const theta = angle[k] as number;
+      const y = 0.015 - 0.01 * (k <= 10 ? k / 10 : 2 - k / 10);
+      // Pressed flat, the two ends of the bar's lower face, sharing the force as their
+      // distances out; otherwise its far corner alone, on the lever's top face.
+      const places =
+        k === 10
+          ? [
+              [0.075, 0],
+              [0.085, 0.01],
+            ]
+          : [[0.085 * Math.cos(theta) + y * Math.sin(theta), 0.01]];
+      expect(touches).toHaveLength(places.length);
+      const sorted = [...touches].sort((p, q) => p.places[0][0] - q.places[0][0]);
+      sorted.forEach((touch, i) => {
+        const [out, along] = places[i] as [number, number];
+        expect(touch.contact).toBe("rest");
+        expect(touch.between).toEqual(["lever", "bar"]);
+        expect(touch.places[0][0]).toBeCloseTo(out, 6);
+        expect(touch.places[0][1]).toBeCloseTo(0.005, 6);
+        expect(touch.places[1][0]).toBeCloseTo(along, 6);
+        expect(touch.places[1][1]).toBeCloseTo(0, 6);
+        const share = k === 10 ? out / (0.075 + 0.085) : 1;
+        expect(touch.force).toBeCloseTo((contact[k] as number) * share, 6);
+      });
+    });
+  });
+
   it("shares the force of two flat faces between their two ends", () => {
     const found = measured(`mekafit: 1
 bodies:

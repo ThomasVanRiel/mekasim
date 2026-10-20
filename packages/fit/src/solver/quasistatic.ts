@@ -7,6 +7,7 @@ import {
   type Mat,
   mat,
   nullSpace,
+  type Point,
   pinvSolve,
   residual,
   type Shape,
@@ -72,6 +73,24 @@ export interface QuasistaticRun {
   /** Whether each lock is in at each sample: 1 or 0. */
   latched: Record<string, Float64Array>;
   loads: Loads;
+  /** Where the parts touch at each sample. */
+  touches: Touch[][];
+}
+
+/**
+ * One place where two parts touch, within a micrometre, and the force there. Where
+ * balance leaves open how the places of one face share a force, this is one share
+ * that holds, as the sum in `Loads` is.
+ */
+export interface Touch {
+  /** The `contacts` entry it belongs to. */
+  contact: string;
+  /** The two bodies, by name. */
+  between: [string, string];
+  /** Where it is on each of the two, in that body's own frame, in metres. */
+  places: [Point, Point];
+  /** How hard they press there, in newtons; 0 where they only meet. */
+  force: number;
 }
 
 /** Steps of the sequential program tried for one sample. */
@@ -457,6 +476,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     stops: Map<string, number>;
     locks: Map<string, number>;
     drivers: Map<string, [x: number, y: number, torque: number]>;
+    touches: Touch[];
   }
 
   /**
@@ -533,12 +553,20 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       stops: new Map(),
       locks: new Map(),
       drivers,
+      touches: [],
     };
     rows.forEach((row, r) => {
       const push = pushes[r] > NO_FORCE * greatest ? pushes[r] : 0;
       const into =
         row.kind === "contact" ? found.contacts : row.kind === "stop" ? found.stops : found.locks;
       into.set(row.source, (into.get(row.source) ?? 0) + push);
+      if (row.kind === "contact" && row.between && row.places)
+        found.touches.push({
+          contact: row.source,
+          between: row.between,
+          places: row.places,
+          force: push,
+        });
       for (let i = 0; i < width; i++) asked[i] -= push * (row.gradient[i] as number);
     });
     for (const spring of compiled.springs) {
@@ -650,6 +678,7 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
       free,
       latched: {},
       loads: { contacts: {}, springs: {}, stops: {}, locks: {}, drivers: {} },
+      touches: [],
     };
   }
   // A lock that is not said to be in or out is in where its joint starts beyond its place.
@@ -728,5 +757,6 @@ export function solveQuasistatic(compiled: FitCompiled): QuasistaticRun {
     free,
     latched,
     loads,
+    touches: carrying.map((sample) => sample.touches),
   };
 }
