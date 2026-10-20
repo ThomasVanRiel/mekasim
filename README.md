@@ -18,6 +18,11 @@ fail, in the app or with `pnpm fit:study`. It shares the core and the
 interface parts; its format is in [docs/mekafit/FORMAT.md](docs/mekafit/FORMAT.md),
 and [docs/mekafit/PLAN.md](docs/mekafit/PLAN.md) says where it stands.
 
+A third, mekacarve, is planned: it shapes a part by running a mekafit study over
+and over, cutting a little away each time where the parts get in each other's way,
+and keeping what the model's checks ask for. See
+[docs/mekacarve/PLAN.md](docs/mekacarve/PLAN.md).
+
 ## Use
 
 Requires Node 26 and pnpm 11.
