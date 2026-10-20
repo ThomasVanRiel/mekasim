@@ -31,6 +31,7 @@ params:
   hold: 0.05 N*m/rad  # the spring that holds a knuckle open
   dy: 0 mm           # how far the coming one runs to the side
   play: 50 mm        # how far each anvil can give way sideways, either way
+  side: 0.5 N/mm     # how stiffly each anvil is held in line sideways
 
 geometry:
   knuckle: { file: knuckle.dxf, unit: mm }
@@ -65,8 +66,8 @@ joints:
   pin_b: { type: revolute, connect: [base_b.pin, coupler_b.pin], stops: [null, 0 deg] }
 
 springs:
-  centre_a: { connect: [ground.low, base_a.O], stiffness: 0.5 N/mm, length: 100 mm }
-  centre_b: { connect: [car_b.low, base_b.O], stiffness: 0.5 N/mm, length: 100 mm }
+  centre_a: { connect: [ground.low, base_a.O], stiffness: side, length: 100 mm }
+  centre_b: { connect: [car_b.low, base_b.O], stiffness: side, length: 100 mm }
   open_a: { joint: pin_a, stiffness: hold, rest: -open_a }
   open_b: { joint: pin_b, stiffness: hold, rest: -open_b }
 
