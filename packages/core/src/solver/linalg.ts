@@ -211,3 +211,68 @@ export function solveLinear(a: Mat, b: Float64Array): Float64Array {
   }
   return pinvSolve(svd(a), b);
 }
+
+/**
+ * The minimum-norm solution of `a x = b` for a wide `a` (fewer rows than columns)
+ * whose rows are independent, through a QR factorization of `a^T`: with `a^T = Q R`,
+ * `x = Q R^-T b`. Returns null when the rows are close to dependent, so the caller can
+ * fall back to the pseudo-inverse. Much faster than the pseudo-inverse on the wide
+ * systems that a mechanism with motions that move nothing gives.
+ */
+export function minNormSolve(a: Mat, b: Float64Array): Float64Array | null {
+  const m = a.rows;
+  const n = a.cols;
+  if (m > n) return null;
+  // Householder QR of a^T, column by column of a^T, which are the rows of a.
+  const t = new Float64Array(n * m);
+  for (let i = 0; i < m; i++) for (let j = 0; j < n; j++) t[j * m + i] = a.data[i * n + j];
+  const vs: Float64Array[] = [];
+  const r = new Float64Array(m);
+  let largest = 0;
+  for (let k = 0; k < m; k++) {
+    let norm = 0;
+    for (let i = k; i < n; i++) norm += t[i * m + k] ** 2;
+    norm = Math.sqrt(norm);
+    const alpha = t[k * m + k] > 0 ? -norm : norm;
+    const v = new Float64Array(n - k);
+    for (let i = k; i < n; i++) v[i - k] = t[i * m + k];
+    v[0] = v[0] - alpha;
+    let vv = 0;
+    for (const x of v) vv += x * x;
+    if (vv > 0) {
+      for (let j = k; j < m; j++) {
+        let dot = 0;
+        for (let i = k; i < n; i++) dot += v[i - k] * t[i * m + j];
+        const f = (2 * dot) / vv;
+        for (let i = k; i < n; i++) t[i * m + j] = t[i * m + j] - f * v[i - k];
+      }
+    }
+    vs.push(v);
+    r[k] = t[k * m + k];
+    largest = Math.max(largest, Math.abs(r[k]));
+  }
+  for (let k = 0; k < m; k++) if (!(Math.abs(r[k]) > largest * 1e-10)) return null;
+
+  // R^T y = b, forward, then x = Q y.
+  const y = new Float64Array(m);
+  for (let i = 0; i < m; i++) {
+    let sum = b[i];
+    for (let k = 0; k < i; k++) sum -= t[k * m + i] * y[k];
+    y[i] = sum / t[i * m + i];
+  }
+  const x = new Float64Array(n);
+  x.set(y);
+  for (let k = m - 1; k >= 0; k--) {
+    const v = vs[k] as Float64Array;
+    let vv = 0;
+    let dot = 0;
+    for (let i = k; i < n; i++) {
+      vv += v[i - k] * v[i - k];
+      dot += v[i - k] * x[i];
+    }
+    if (vv === 0) continue;
+    const f = (2 * dot) / vv;
+    for (let i = k; i < n; i++) x[i] = x[i] - f * v[i - k];
+  }
+  return x;
+}

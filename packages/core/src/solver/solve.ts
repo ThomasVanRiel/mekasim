@@ -1,5 +1,5 @@
 import type { Constraint } from "./constraints.ts";
-import { type Mat, mat, maxAbs, norm2, solveLinear } from "./linalg.ts";
+import { type Mat, mat, maxAbs, minNormSolve, norm2, solveLinear } from "./linalg.ts";
 import type { Vec3 } from "./spatial.ts";
 
 export interface SolverModel {
@@ -38,6 +38,14 @@ export function blocks(model: SolverModel): Block[] {
     at += size;
   }
   return out;
+}
+
+/**
+ * Solve `a x = b` as `solveLinear` does. A wide system, as from a mechanism with
+ * motions that move nothing, takes the faster minimum-norm route where it can.
+ */
+function solveSystem(a: Mat, b: Float64Array): Float64Array {
+  return (a.rows < a.cols && minNormSolve(a, b)) || solveLinear(a, b);
 }
 
 /** Constraint error accepted as closed, in metres and radians. */
@@ -111,7 +119,7 @@ export function solvePosition(
     if (error < TOLERANCE) return { ok: true, iterations: iteration, error, open: [] };
     if (iteration >= maxIterations) break;
 
-    const step = solveLinear(jacobian(model, q), phi);
+    const step = solveSystem(jacobian(model, q), phi);
     const before = norm2(phi);
     let scale = 1;
     let next = phi;
@@ -142,7 +150,7 @@ export function solveVelocity(model: SolverModel, q: Float64Array): Float64Array
     c.velocityRhs(rhs, row);
     row += c.size;
   }
-  return solveLinear(jacobian(model, q), rhs);
+  return solveSystem(jacobian(model, q), rhs);
 }
 
 function accelerationRhs(model: SolverModel, q: Float64Array, qd: Float64Array): Float64Array {
@@ -161,7 +169,7 @@ export function solveAcceleration(
   q: Float64Array,
   qd: Float64Array,
 ): Float64Array {
-  return solveLinear(jacobian(model, q), accelerationRhs(model, q, qd));
+  return solveSystem(jacobian(model, q), accelerationRhs(model, q, qd));
 }
 
 /**
@@ -204,7 +212,7 @@ export function solveJerk(
 
   const ahead = along(h);
   const behind = along(-h);
-  return solveLinear(
+  return solveSystem(
     jacobian(model, q),
     ahead.map((value, i) => (value - behind[i]) / (2 * h)),
   );

@@ -1,0 +1,78 @@
+# yaml-language-server: $schema=../../packages/core/schema/mekasim-1.schema.json
+# A helicopter rotor head with a swash plate. The mast turns the hub and, through a
+# drive link lying along the way it turns, the rotating swash plate, which turns on
+# the stationary one below it.
+# The stationary plate is tilted by `cyclic` and raised by `collective`; a pitch link
+# from the rotating plate to each blade's pitch horn turns the blade about its span,
+# so its pitch rises and falls once a turn.
+mekasim: 1
+meta:
+  name: Swash plate and rotor
+
+params:
+  rpm: 300
+  cyclic: 5 deg        # tilt of the stationary swash plate, about the y axis
+  collective: 0 mm     # how far the swash plate is raised
+  plate: 120 mm        # height of the swash plate's centre on the mast
+  hub: 200 mm          # height of the hub
+  grip: 20 mm          # from the mast to each blade's feathering hinge
+  horn: 30 mm          # length of the pitch horns, along the chord
+  arm: 35 mm           # from the plate's centre to the pitch links, along the blades
+
+bodies:
+  ground:
+    # The mast's foot, and the centre of the stationary swash plate.
+    points: { O: [0, 0, 0], S: [0, 0, plate + collective] }
+  rotor:
+    spatial: true
+    points:
+      O: [0, 0, 0]
+      G1: [grip, 0, hub]          # feathering hinges
+      G2: [-grip, 0, hub]
+      K: [-30, 40, plate]         # the drive link's end on the mast, behind the plate's
+  swash:
+    # The rotating swash plate, in its own tilted frame: z is square to it.
+    spatial: true
+    points:
+      S: [0, 0, 0]
+      P1: [arm, horn, 0]
+      P2: [-arm, -horn, 0]
+      K: [0, 40, 0]
+  blade_1:
+    spatial: true
+    points: { G: [0, 0, 0], H: [arm - grip, horn, 0], tip: [300, 0, 0] }
+  blade_2:
+    spatial: true
+    points: { G: [0, 0, 0], H: [grip - arm, -horn, 0], tip: [-300, 0, 0] }
+  drive_link:
+    spatial: true
+    points: { A: [0, 0, 0], B: [-30, 0, 0] }
+  pitch_1:
+    spatial: true
+    points: { A: [0, 0, 0], B: [0, 0, hub - plate] }
+  pitch_2:
+    spatial: true
+    points: { A: [0, 0, 0], B: [0, 0, hub - plate] }
+
+joints:
+  mast:    { type: revolute, connect: [ground.O, rotor.O] }
+  bearing: { type: revolute, connect: [ground.S, swash.S], axis: ["sin(cyclic)", 0, "cos(cyclic)"] }
+  drive_a: { type: spherical, connect: [swash.K, drive_link.A] }
+  drive_b: { type: spherical, connect: [drive_link.B, rotor.K] }
+  feather_1: { type: revolute, connect: [rotor.G1, blade_1.G], axis: [1, 0, 0] }
+  feather_2: { type: revolute, connect: [rotor.G2, blade_2.G], axis: [1, 0, 0] }
+  link_1a: { type: spherical, connect: [swash.P1, pitch_1.A] }
+  link_1b: { type: spherical, connect: [pitch_1.B, blade_1.H] }
+  link_2a: { type: spherical, connect: [swash.P2, pitch_2.A] }
+  link_2b: { type: spherical, connect: [pitch_2.B, blade_2.H] }
+
+drivers:
+  motor: { joint: mast, speed: rpm }
+
+pose:
+  swash: { at: [0, 0, plate + collective], axis: [0, 1, 0], angle: cyclic }
+  blade_1: { at: [grip, 0, hub] }
+  blade_2: { at: [-grip, 0, hub] }
+  drive_link: { at: [0, 40, plate] }
+  pitch_1: { at: [arm, horn, plate] }
+  pitch_2: { at: [-arm, -horn, plate] }

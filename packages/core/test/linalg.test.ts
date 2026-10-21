@@ -4,6 +4,7 @@ import {
   type Mat,
   mat,
   matFrom,
+  minNormSolve,
   pinvSolve,
   rankOf,
   solveLinear,
@@ -128,5 +129,27 @@ describe("solveLinear", () => {
       [1, 1],
     ]);
     expectClose(solveLinear(a, Float64Array.of(2, 2)), [1, 1]);
+  });
+});
+
+describe("minNormSolve", () => {
+  it("gives the pseudo-inverse's answer to a wide system with independent rows", () => {
+    const a = matFrom([
+      [1, 2, 0, -1, 3],
+      [0, 1, 4, 2, -1],
+      [2, -1, 1, 0, 1],
+    ]);
+    const b = Float64Array.of(1, -2, 0.5);
+    const fast = minNormSolve(a, b) as Float64Array;
+    const slow = pinvSolve(svd(a), b);
+    for (let i = 0; i < 5; i++) expect(fast[i]).toBeCloseTo(slow[i] as number, 12);
+  });
+
+  it("leaves dependent rows to the pseudo-inverse", () => {
+    const a = matFrom([
+      [1, 2, 3],
+      [2, 4, 6],
+    ]);
+    expect(minNormSolve(a, Float64Array.of(1, 2))).toBeNull();
   });
 });

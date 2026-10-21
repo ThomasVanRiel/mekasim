@@ -348,7 +348,9 @@ joints:
 A body with `spatial: true` moves in space rather than in the plane of the sheet.
 Its points are `[x, y, z]`; a point written as `[x, y]` has z = 0. The ground's
 points may be `[x, y, z]` too, and are then off the sheet: only joints in space can
-use them. See `examples/spatial/rssr.mekasim.yaml`.
+use them. See `examples/spatial/rssr.mekasim.yaml`, and for a helicopter's rotor head,
+its swash plate tilted by `cyclic` and raised by `collective`,
+`examples/spatial/swash-plate.mekasim.yaml`.
 
 Two joints work in space, between any bodies: bodies in space, the ground, and bodies
 in the plane, whatever plane they are on.
