@@ -1,10 +1,13 @@
 import { drawingFiles } from "@mekasim/core";
 
-const files = import.meta.glob<string>("../../../examples/*.mekasim.yaml", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
+const files = import.meta.glob<string>(
+  ["../../../examples/*.mekasim.yaml", "../../../examples/spatial/*.mekasim.yaml"],
+  {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  },
+);
 
 /** The drawings some examples take their shapes from, kept beside them. */
 const drawings = import.meta.glob<string>("../../../examples/*.dxf", {

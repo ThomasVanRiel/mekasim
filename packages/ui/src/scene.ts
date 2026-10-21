@@ -18,6 +18,7 @@ import {
   type Simulation,
 } from "@mekasim/core";
 import { label } from "./names.ts";
+import { buildSpace, type SpaceScene } from "./space.ts";
 
 export type { Bounds };
 
@@ -174,6 +175,8 @@ export interface Scene {
   traces: DrawTrace[];
   dimensions: DrawDimension[];
   labels: DrawLabel[];
+  /** What moves in space, or on planes other than the sheet. */
+  space?: SpaceScene;
 }
 
 function wrap(angle: number): number {
@@ -206,15 +209,29 @@ export function poseAt(
   out[2] = q[a + 2] + f * wrap(q[b + 2] - q[a + 2]);
 }
 
-function isPeriodic(cycle: Cycle, extent: number): boolean {
+function isPeriodic(cycle: Cycle, extent: number, planar: number): boolean {
   if (cycle.count < 3 || cycle.failure) return false;
   const dt = cycle.t[1] - cycle.t[0];
   const last = (cycle.count - 1) * cycle.width;
-  for (let i = 0; i < cycle.width; i++) {
-    // One step beyond the last sample should land on the first.
-    const predicted = cycle.q[last + i] + cycle.qd[last + i] * dt;
-    const error = i % 3 === 2 ? wrap(predicted - cycle.q[i]) : (predicted - cycle.q[i]) / extent;
+  const predicted = (i: number): number => cycle.q[last + i] + cycle.qd[last + i] * dt;
+  // One step beyond the last sample should land on the first.
+  for (let i = 0; i < planar; i++) {
+    const error =
+      i % 3 === 2 ? wrap(predicted(i) - cycle.q[i]) : (predicted(i) - cycle.q[i]) / extent;
     if (Math.abs(error) > 0.01) return false;
+  }
+  // A body in space: its position, and its Euler parameters, which a whole turn negates.
+  for (let at = planar; at + 7 <= cycle.width; at += 7) {
+    for (let i = at; i < at + 3; i++) {
+      if (Math.abs(predicted(i) - cycle.q[i]) / extent > 0.01) return false;
+    }
+    let same = 0;
+    let opposite = 0;
+    for (let i = at + 3; i < at + 7; i++) {
+      same = Math.max(same, Math.abs(predicted(i) - cycle.q[i]));
+      opposite = Math.max(opposite, Math.abs(predicted(i) + cycle.q[i]));
+    }
+    if (Math.min(same, opposite) > 0.01) return false;
   }
   return true;
 }
@@ -235,6 +252,13 @@ export function buildScene(simulation: Simulation): Scene | undefined {
   if (!compiled || !cycle || cycle.count === 0) return undefined;
 
   const bounds = motionBounds(compiled, cycle);
+  const space = buildSpace(compiled, cycle);
+  if (space) {
+    bounds.minX = Math.min(bounds.minX, space.min[0]);
+    bounds.maxX = Math.max(bounds.maxX, space.max[0]);
+    bounds.minY = Math.min(bounds.minY, space.min[1]);
+    bounds.maxY = Math.max(bounds.maxY, space.max[1]);
+  }
   const unit = docFactor(LENGTH, compiled.units);
   const extent = modelExtent(compiled, bounds);
   const sizes = partSizes(compiled, extent);
@@ -506,7 +530,8 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     }
   }
 
-  const periodic = isPeriodic(cycle, extent);
+  const periodic = isPeriodic(cycle, extent, 3 * compiled.model.bodies.length);
+  if (space) depth = Math.max(depth, space.max[2]);
   for (const trace of traces) {
     if (periodic && trace.points.length > 0) {
       trace.points.push(trace.points[0] as [number, number, number]);
@@ -537,5 +562,6 @@ export function buildScene(simulation: Simulation): Scene | undefined {
     traces,
     dimensions,
     labels,
+    ...(space && { space }),
   };
 }

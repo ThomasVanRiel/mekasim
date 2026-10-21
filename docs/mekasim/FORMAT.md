@@ -367,7 +367,12 @@ them all on one plane.
 A rod between two ball joints can spin about its own line without moving any of its
 points. Such a turning is reported, and not counted as a degree of freedom.
 
-Bodies in space are not drawn yet, and measures, traces and frames cannot use them.
+Bodies in space are drawn in the view as rods from their first point to each of the
+others, with a ball at each point; ball joints are drawn as brass balls and hinges as
+brass barrels along their axes. Measures of their points are taken in the world, with
+`z(p)` for the height off the sheet (see Measures). `angle()`, `omega()`, `alpha()`
+and the jerk of them, traces and frames are not there yet, and they cannot be picked
+or dragged in the view.
 
 ## Planes
 
@@ -398,8 +403,7 @@ Joints in space join it to anything else. See
 `examples/spatial/rssr-planes.mekasim.yaml`, the four-bar of `rssr.mekasim.yaml`
 with its crank on the sheet and its rocker on a plane of its own.
 
-Bodies on a plane other than the sheet are not drawn yet, and measures, traces and
-frames cannot use them.
+Bodies on a plane other than the sheet are drawn and measured as bodies in space are.
 
 ## Components
 
@@ -533,6 +537,7 @@ and give a value at every sample of the cycle:
 |---|---|
 | `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
 | `r(p)`, `theta(p)` | The same position as a radius and an angle: how far the point is from the origin, and in which direction |
+| `z(p)`, `vz(p)`, `az(p)` | How far a point is off the sheet, and how fast that changes; 0 on the sheet |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `vr(p)`, `vt(p)` | Velocity along the radius, and across it |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |

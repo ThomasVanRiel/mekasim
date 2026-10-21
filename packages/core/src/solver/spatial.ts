@@ -222,6 +222,23 @@ export function unturn(q: Float64Array, body: SpatialBody, a: Vec3): Vec3 {
   return [ax * c + ay * sn, -ax * sn + ay * c, dot(a, plane.normal)];
 }
 
+/** Where a point is, and its velocity and acceleration, from the coordinates and their rates. */
+export function pointMotionAt(
+  q: Float64Array,
+  qd: Float64Array,
+  qdd: Float64Array,
+  point: SpatialPoint,
+): { x: Vec3; v: Vec3; a: Vec3 } {
+  const now = state(q, qd, point, point.s, true);
+  // The velocity is linear in the rates, so with qdd in their place it gives J qdd.
+  const pushed = state(q, qdd, point, point.s, true).v;
+  return {
+    x: now.x,
+    v: now.v,
+    a: [pushed[0] + now.quad[0], pushed[1] + now.quad[1], pushed[2] + now.quad[2]],
+  };
+}
+
 /** How fast a point of the body in space at `at` moves when the coordinates change at the rates `qd`. */
 export function pointRate(q: Float64Array, qd: Float64Array, at: number, s: Vec3): Vec3 {
   return state(q, qd, { at }, s, true).v;

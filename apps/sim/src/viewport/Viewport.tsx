@@ -32,6 +32,7 @@ import { Dimensions } from "./Dimensions.tsx";
 import { CamPlate, Roller, Tie, Wheel } from "./Extras.tsx";
 import { Interaction } from "./Interaction.tsx";
 import { Labels } from "./Labels.tsx";
+import { Space } from "./Space.tsx";
 
 type Vec3 = [number, number, number];
 
@@ -409,6 +410,7 @@ function Mechanism({ scene }: { scene: Scene }) {
             ))}
         </group>
       ))}
+      <Space scene={scene} />
       {scene.ties.map((tie) => (
         <Tie key={tie.id} scene={scene} tie={tie} selected={tie.id === selectedJoint} />
       ))}

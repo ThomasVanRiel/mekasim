@@ -36,6 +36,8 @@ export {
   type CompiledDriver,
   type CompiledFrame,
   type CompiledJoint,
+  type CompiledSpatialBody,
+  type CompiledSpatialJoint,
   type CompileResult,
   compile,
 } from "./compile/compile.ts";
@@ -214,3 +216,13 @@ export {
   solveVelocity,
   TOLERANCE,
 } from "./solver/solve.ts";
+export {
+  type Plane,
+  placePoint as placeInSpace,
+  SHEET,
+  SPATIAL_SIZE,
+  type SpatialBody,
+  type SpatialPoint,
+  turn,
+  type Vec3,
+} from "./solver/spatial.ts";

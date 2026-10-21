@@ -88,8 +88,26 @@ describe("the RSSR example", () => {
     }
   });
 
-  it("is told that measures of bodies in space are not there yet", () => {
-    expect(messages(`${RSSR}\nmeasures:\n  where: x(rocker.B)\n`)).toEqual([
+  it("measures points in space in the world", () => {
+    const text = `${RSSR}\nmeasures:\n  across: x(rocker.B)\n  height: z(rocker.B)\n  rod: dist(crank.A, rocker.B)\n  speed: v(crank.A)\n  climb: vz(crank.A)\n`;
+    const { measures, diagnostics } = simulate(text);
+    expect(diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+    const value = (id: string): Float64Array =>
+      measures.find((m) => m.id === id)?.quantity?.value as Float64Array;
+    const z = value("height");
+    for (let k = 0; k < 360; k++) {
+      // The rocker turns about x through x = 50 mm, the rod keeps its length, and the
+      // crank's end goes round at 20 mm and 60 rpm, on the sheet.
+      expect(value("across")[k]).toBeCloseTo(0.05, 10);
+      expect(value("rod")[k]).toBeCloseTo(0.095, 10);
+      expect(value("speed")[k]).toBeCloseTo(0.02 * 2 * Math.PI, 8);
+      expect(value("climb")[k]).toBeCloseTo(0, 10);
+    }
+    expect(Math.max(...z) - Math.min(...z)).toBeGreaterThan(0.005);
+  });
+
+  it("is told that the angle of a body in space is not there yet", () => {
+    expect(messages(`${RSSR}\nmeasures:\n  turned: angle(rocker)\n`)).toEqual([
       '"rocker" moves in space, and measures of bodies in space are not there yet',
     ]);
   });

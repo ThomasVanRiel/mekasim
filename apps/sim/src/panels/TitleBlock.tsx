@@ -25,7 +25,7 @@ export function TitleBlock() {
 
   const { mobility, cycle } = shown;
   const { units } = compiled;
-  const bodies = compiled.model.bodies.length;
+  const bodies = compiled.model.bodies.length + compiled.spatial.size;
   const driver = compiled.drivers[0];
   let freedom = "Not assembled";
   if (mobility) {
@@ -43,7 +43,10 @@ export function TitleBlock() {
       </Cell>
       <Cell label="Parts">
         {bodies} moving {bodies === 1 ? "body" : "bodies"},{" "}
-        {plural(compiled.joints.length, "joint")}
+        {plural(
+          compiled.joints.length + compiled.planeJoints.length + compiled.spatialJoints.length,
+          "joint",
+        )}
       </Cell>
       <Cell label="Freedom">{freedom}</Cell>
       <Cell label="Cycle">

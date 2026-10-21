@@ -69,6 +69,18 @@ joints:
 drivers:
   motor: { joint: mast, speed: rpm }
 
+measures:
+  # Each horn points along its blade's leading edge, so how far it rises over the
+  # blade's hinge, out of its length, is the blade's pitch.
+  blade_1_pitch: asin((z(blade_1.H) - z(blade_1.G)) / horn)
+  blade_2_pitch: asin((z(blade_2.H) - z(blade_2.G)) / horn)
+  cyclic_range: range(blade_1_pitch)
+  tip_speed: max(v(blade_1.tip))
+
+plots:
+  pitch: [blade_1_pitch, blade_2_pitch]
+  tip_height: z(blade_1.tip)
+
 pose:
   swash: { at: [0, 0, plate + collective], axis: [0, 1, 0], angle: cyclic }
   blade_1: { at: [grip, 0, hub] }

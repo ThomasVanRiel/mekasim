@@ -78,10 +78,17 @@ steps, each leaving the example baseline unchanged until a model uses something 
    bodies in space, ball joints and hinges in step 2). Still to come: universal,
    cylindrical, prismatic, point-on-plane and point-on-line joints in the format;
    measures, traces and frames of bodies in space; `z(p)`, angles between axes, and
-   a meaning (or another name) for `angle(body)` on a spatial body.
+   a meaning (or another name) for `angle(body)` on a spatial body. Done so far:
+   the point measures (`x`, `y`, `z`, their rates, `v`, `a`, `dist`) of points off
+   the sheet, in the world.
 5. **The view.** Spatial bodies drawn as rods with ball and fork ends, picking in
    3D, sketching on a chosen plane with the 2D tools; truly spatial parts written
    in the source and the inspector first, a gizmo for placing points in 3D last.
+   Begun, to see the swash plate move: `packages/ui/src/space.ts` gives each body in
+   space or on another plane its pose at every sample, and `apps/sim`'s
+   `viewport/Space.tsx` draws them as rods with balls at their points, ball joints
+   as balls and hinges as barrels. The spatial examples are in the app's list.
+   Picking, dragging, labels and forks are still to come.
 
 ## Ideas
 

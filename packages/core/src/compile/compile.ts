@@ -115,6 +115,10 @@ export interface CompiledSpatialJoint {
   type: "revolute" | "spherical";
   /** The two points it connects, each as `body.point`. */
   points: string[];
+  /** Its first point, as the solver places it: where the joint is. */
+  at: SpatialPoint;
+  /** For a hinge, its axis: a direction in the frame of its first point's body. */
+  axis?: SpatialBody & { a: Vec3 };
 }
 
 export interface CompiledDriver {
@@ -693,6 +697,7 @@ function compileExpanded(
         const b = spacePoint(joint.connect[1], [...path, "connect", 1]);
         if (a.at === b.at)
           throw fail("A joint must connect two different bodies", [...path, "connect"]);
+        let hinge: CompiledSpatialJoint["axis"];
         if (joint.type === "spherical") {
           constraints.push(spherical(id, a, b));
         } else {
@@ -705,6 +710,7 @@ function compileExpanded(
             );
           const [f] = perpendiculars(along);
           const ha = unturn(q0, a, along);
+          hinge = { at: a.at, plane: a.plane, a: ha };
           constraints.push(revolute(id, a, b, ha, unturn(q0, b, along)));
           spaceHinges.set(id, {
             a,
@@ -714,7 +720,13 @@ function compileExpanded(
             fb: unturn(q0, b, f),
           });
         }
-        spatialJoints.push({ id, type: joint.type, points: [...joint.connect] });
+        spatialJoints.push({
+          id,
+          type: joint.type,
+          points: [...joint.connect],
+          at: a,
+          ...(hinge && { axis: hinge }),
+        });
         return;
       }
 

@@ -124,7 +124,7 @@ describe("planes in the format", () => {
     expect(messages(`${PLANES}traces: [a.A]\n`)).toEqual([
       '"a" is on the plane "side", and only bodies on the sheet can be used here so far',
     ]);
-    expect(messages(`${PLANES}measures:\n  m: x(a.A)\n`)).toEqual([
+    expect(messages(`${PLANES}measures:\n  m: angle(a)\n`)).toEqual([
       '"a" is on the plane "side", and measures of bodies off the sheet are not there yet',
     ]);
     expect(

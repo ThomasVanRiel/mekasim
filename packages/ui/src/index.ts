@@ -52,6 +52,13 @@ export {
   zoomed,
 } from "./sheet/view.ts";
 export { clamp } from "./size.ts";
+export {
+  type DrawSpaceBody,
+  type DrawSpaceJoint,
+  type SpaceScene,
+  spaceJointAt,
+  spacePoseAt,
+} from "./space.ts";
 export { Tabs } from "./Tabs.tsx";
 export {
   bodyColor,

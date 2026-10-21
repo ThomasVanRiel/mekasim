@@ -3,6 +3,7 @@ import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
 import { ANGLE, type Dim, describeDim, isPure, LENGTH, TIME } from "../expr/units.ts";
 import type { Registry } from "../registry.ts";
+import { pointMotionAt, SHEET, type SpatialPoint, type Vec3 } from "../solver/spatial.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
 import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
 import { gapsOf, type MeasuredGap } from "./gaps.ts";
@@ -21,6 +22,59 @@ export interface PointMotion {
   vy: Float64Array;
   ax: Float64Array;
   ay: Float64Array;
+  /** Off the sheet: for a point of a body in space, or on a plane other than the sheet. */
+  z?: Float64Array;
+  vz?: Float64Array;
+  az?: Float64Array;
+}
+
+/**
+ * The point `body.point` of a body in space or on a plane other than the sheet, as
+ * the solver places it; undefined for a point of a body on the sheet.
+ */
+function spacePoint(compiled: Compiled, ref: string): SpatialPoint | undefined {
+  const [bodyId, name] = splitRef(ref);
+  if (name === undefined) return undefined;
+  const inSpace = compiled.spatial.get(bodyId);
+  if (inSpace) {
+    const s = inSpace.points.get(name);
+    return s && { at: inSpace.at, s };
+  }
+  const flat = compiled.planeBodies.get(bodyId);
+  const local = flat?.points.get(name);
+  if (!flat || !local) return undefined;
+  const plane = flat.plane === undefined ? SHEET : compiled.planes.get(flat.plane);
+  return plane && { at: 3 * flat.index, plane, s: [local.u, local.v, 0] };
+}
+
+/** The motion of a point off the sheet, in the world. */
+function spaceMotion(cycle: Cycle, point: SpatialPoint): PointMotion {
+  const n = cycle.count;
+  const out = {
+    x: new Float64Array(n),
+    y: new Float64Array(n),
+    z: new Float64Array(n),
+    vx: new Float64Array(n),
+    vy: new Float64Array(n),
+    vz: new Float64Array(n),
+    ax: new Float64Array(n),
+    ay: new Float64Array(n),
+    az: new Float64Array(n),
+  };
+  const { width } = cycle;
+  for (let k = 0; k < n; k++) {
+    const slice = (of: Float64Array): Float64Array => of.subarray(k * width, (k + 1) * width);
+    const { x, v, a } = pointMotionAt(slice(cycle.q), slice(cycle.qd), slice(cycle.qdd), point);
+    const put = (into: Float64Array[], from: Vec3): void => {
+      into.forEach((array, i) => {
+        array[k] = from[i] as number;
+      });
+    };
+    put([out.x, out.y, out.z], x);
+    put([out.vx, out.vy, out.vz], v);
+    put([out.ax, out.ay, out.az], a);
+  }
+  return out;
 }
 
 /** The jerk of one point at every sample. */
@@ -207,7 +261,7 @@ const OF_POINT = new Set([
 ]);
 
 /** Kinematic functions take bodies and points, not values, as arguments. */
-const KINEMATIC = new Set([...OF_POINT, "dist", "gap", "angle", "omega", "alpha"]);
+const KINEMATIC = new Set([...OF_POINT, "z", "vz", "az", "dist", "gap", "angle", "omega", "alpha"]);
 
 /**
  * Evaluate the measures, checks and plots of a model over a solved cycle. `registry`
@@ -280,6 +334,20 @@ export function evaluateMeasures(
     const known = motions.get(ref);
     if (known) return known;
     const [bodyId, name] = splitRef(ref);
+    const offSheet = compiled.spatial.get(bodyId) ?? compiled.planeBodies.get(bodyId);
+    if (offSheet) {
+      if (name === undefined)
+        throw new ExprError(
+          `"${bodyId}" is off the sheet, so name one of its points, such as ${bodyId}.${offSheet.points.keys().next().value ?? "A"}`,
+          (node as Node).pos,
+        );
+      const point = spacePoint(compiled, ref);
+      if (!point)
+        throw new ExprError(`Body "${bodyId}" has no point "${name}"`, (node as Node).pos);
+      const result = spaceMotion(cycle, point);
+      motions.set(ref, result);
+      return result;
+    }
     const body = compiled.bodies.get(bodyId);
     if (!body) throw unknownBody(bodyId, (node as Node).pos);
     // A body stands for its centre.
@@ -297,7 +365,8 @@ export function evaluateMeasures(
 
   function jerk(node: Node | undefined, fn: Node): PointJerk {
     // Checks the point, and says what is wrong with it.
-    motion(node, fn);
+    if (motion(node, fn).z)
+      throw new ExprError("The jerk of a point off the sheet is not there yet", (node as Node).pos);
     const ref = refName(node, fn);
     const known = jerks.get(ref);
     if (known) return known;
@@ -435,9 +504,19 @@ export function evaluateMeasures(
     const one = (): void => {
       if (args.length !== 1) throw wrongArity(call, "1 argument");
     };
+    if (name === "z" || name === "vz" || name === "az") {
+      if (args.length !== 1) throw wrongArity(call, "a point");
+      const m = motion(args[0], call);
+      const dim = name === "z" ? LENGTH : name === "vz" ? SPEED : ACCELERATION;
+      // A point on the sheet stays at z = 0.
+      return { value: m[name] ?? new Float64Array(n), dim };
+    }
     if (OF_POINT.has(name)) {
-      const size = (xs: Float64Array, ys: Float64Array): Float64Array =>
-        signal((k) => Math.hypot(xs[k], ys[k]));
+      // Off the sheet and seen from the world, a size takes in z too.
+      const deep = (axis: "vz" | "az"): Float64Array | undefined =>
+        call.args.length === 1 ? motion(call.args[0], call)[axis] : undefined;
+      const size = (xs: Float64Array, ys: Float64Array, zs?: Float64Array): Float64Array =>
+        signal((k) => Math.hypot(xs[k], ys[k], zs?.[k] ?? 0));
       const part = name.endsWith("r") ? "radial" : "transverse";
       switch (name) {
         case "x":
@@ -464,7 +543,7 @@ export function evaluateMeasures(
           return { value: seen(call)[name], dim: SPEED };
         case "v": {
           const m = seen(call);
-          return { value: size(m.vx, m.vy), dim: SPEED };
+          return { value: size(m.vx, m.vy, deep("vz")), dim: SPEED };
         }
         case "vr":
         case "vt": {
@@ -476,7 +555,7 @@ export function evaluateMeasures(
           return { value: seen(call)[name], dim: ACCELERATION };
         case "a": {
           const m = seen(call);
-          return { value: size(m.ax, m.ay), dim: ACCELERATION };
+          return { value: size(m.ax, m.ay, deep("az")), dim: ACCELERATION };
         }
         case "ar":
         case "at": {
@@ -512,7 +591,9 @@ export function evaluateMeasures(
         if (args.length !== 2) throw wrongArity(call, "2 points");
         const p = motion(args[0], fn);
         const q = motion(args[1], fn);
-        const value = signal((k) => Math.hypot(q.x[k] - p.x[k], q.y[k] - p.y[k]));
+        const value = signal((k) =>
+          Math.hypot(q.x[k] - p.x[k], q.y[k] - p.y[k], (q.z?.[k] ?? 0) - (p.z?.[k] ?? 0)),
+        );
         return { value, dim: LENGTH };
       }
       case "omega":
