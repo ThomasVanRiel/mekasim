@@ -129,6 +129,114 @@
         "additionalProperties": false
       }
     },
+    "planes": {
+      "description": "Planes in space, other than the sheet, that bodies in the plane can move on",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            ],
+            "items": false,
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Where the plane's own [0, 0] is in the world, as [x, y, z]"
+          },
+          "normal": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            ],
+            "items": false,
+            "minItems": 3,
+            "maxItems": 3,
+            "description": "Which way the plane faces: the direction square to it"
+          },
+          "x": {
+            "description": "Which way the plane's own x axis points; made square to the normal. Default: along the world's x, or y where x is square to the plane",
+            "type": "array",
+            "prefixItems": [
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            ],
+            "items": false,
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "origin",
+          "normal"
+        ],
+        "additionalProperties": false
+      }
+    },
     "bodies": {
       "default": {},
       "description": "Rigid bodies. \"ground\" is the fixed one",
@@ -337,8 +445,13 @@
             "type": "boolean"
           },
           "spatial": {
-            "description": "Moves in space, not in the plane of the sheet; only the ground and other bodies in space can be joined to it",
+            "description": "Moves in space, not in the plane of the sheet; its points may be [x, y, z]",
             "type": "boolean"
+          },
+          "plane": {
+            "description": "The plane, named under planes, that this body moves on, rather than the sheet",
+            "type": "string",
+            "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
           }
         },
         "required": [

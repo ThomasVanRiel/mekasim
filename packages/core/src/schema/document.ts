@@ -112,9 +112,20 @@ const Body = PlanarBody.extend({
   spatial: z
     .boolean()
     .optional()
-    .describe(
-      "Moves in space, not in the plane of the sheet; only the ground and other bodies in space can be joined to it",
-    ),
+    .describe("Moves in space, not in the plane of the sheet; its points may be [x, y, z]"),
+  plane: Id.optional().describe(
+    "The plane, named under planes, that this body moves on, rather than the sheet",
+  ),
+});
+
+const Plane = z.strictObject({
+  origin: z
+    .tuple([Expr, Expr, Expr])
+    .describe("Where the plane's own [0, 0] is in the world, as [x, y, z]"),
+  normal: Direction.describe("Which way the plane faces: the direction square to it"),
+  x: Direction.optional().describe(
+    "Which way the plane's own x axis points; made square to the normal. Default: along the world's x, or y where x is square to the plane",
+  ),
 });
 
 const PlanarRevolute = z.strictObject({
@@ -296,6 +307,10 @@ export const Document = z.strictObject({
     .record(Id, Geometry)
     .optional()
     .describe("The drawings the model takes outlines from, kept as files beside it"),
+  planes: z
+    .record(Id, Plane)
+    .optional()
+    .describe("Planes in space, other than the sheet, that bodies in the plane can move on"),
   bodies: bodiesOf(Body),
   components: z
     .record(Id, Component)
@@ -383,7 +398,7 @@ export function documentSchema(extra?: SchemaExtra): typeof Document {
   const joint = jointOf(
     PLANAR_JOINTS.map((kind) => kind.extend(extra.joint ?? {})) as unknown as typeof PLANAR_JOINTS,
   );
-  const extended = Document.extend({
+  const extended = Document.omit({ planes: true }).extend({
     ...(version && {
       mekasim: Document.shape.mekasim.optional(),
       [version.key]: z.literal(version.value).optional().describe("Format version"),

@@ -6,15 +6,38 @@ import type { Mat } from "./linalg.ts";
  * coordinates starting at its block's offset `at`: its position `r = (x, y, z)` and
  * then its Euler parameters `p = (e0, e1, e2, e3)`, a quaternion kept of unit length
  * by `unitQuaternion`. The fixed body has `at = -1` and no coordinates.
+ *
+ * A body in the plane can be joined in space too. It keeps its three coordinates
+ * `(x, y, phi)` at `at`, and its `plane` says where they are in the world.
  */
 export const SPATIAL_SIZE = 7;
 
 export type Vec3 = [number, number, number];
 
-/** A point fixed in a body's frame, in metres. */
-export interface SpatialPoint {
+/**
+ * A plane in the world: its origin, and the directions of its x and y axes and of its
+ * normal, a right-handed frame of unit vectors.
+ */
+export interface Plane {
+  origin: Vec3;
+  x: Vec3;
+  y: Vec3;
+  normal: Vec3;
+}
+
+/** The plane of the sheet: the world's own x and y. */
+export const SHEET: Plane = { origin: [0, 0, 0], x: [1, 0, 0], y: [0, 1, 0], normal: [0, 0, 1] };
+
+/** A body as joints in space see it. */
+export interface SpatialBody {
   /** Offset of the body's block in `q`; -1 for the fixed body. */
   at: number;
+  /** For a body in the plane, the plane it moves on; left out for a body in space. */
+  plane?: Plane;
+}
+
+/** A point fixed in a body's frame, in metres. On a body in the plane, z is along the normal. */
+export interface SpatialPoint extends SpatialBody {
   s: Vec3;
 }
 
@@ -113,82 +136,147 @@ function times(b: Float64Array, x: ArrayLike<number>): Vec3 {
   return out;
 }
 
-/** Where a point of a body is in the world. */
-export function placePoint(q: Float64Array, point: SpatialPoint): Vec3 {
-  if (point.at < 0) return [...point.s];
-  const turned = rotate(params(q, point.at), point.s);
-  return [q[point.at] + turned[0], q[point.at + 1] + turned[1], q[point.at + 2] + turned[2]];
+/** `a` in the plane's axes: `a_x x + a_y y + a_z normal`. */
+function inPlane(plane: Plane, ax: number, ay: number, az: number): Vec3 {
+  const { x, y, normal: n } = plane;
+  return [
+    ax * x[0] + ay * y[0] + az * n[0],
+    ax * x[1] + ay * y[1] + az * n[1],
+    ax * x[2] + ay * y[2] + az * n[2],
+  ];
 }
 
-/** Where a point is, how fast it goes, and the part of its acceleration that comes from velocities alone. */
-interface PointState {
+/**
+ * Where a point or direction of a body is, how fast it moves, and the part of its
+ * acceleration that comes from velocities alone. A point moves with the body's
+ * origin; a direction only turns.
+ */
+interface State {
   x: Vec3;
   v: Vec3;
   quad: Vec3;
 }
 
-/** The same for a direction fixed in a body. */
-interface VectorState {
-  a: Vec3;
-  v: Vec3;
-  quad: Vec3;
-}
+const STILL: Vec3 = [0, 0, 0];
 
-function pointState(q: Float64Array, qd: Float64Array, point: SpatialPoint): PointState {
-  if (point.at < 0) return { x: [...point.s], v: [0, 0, 0], quad: [0, 0, 0] };
-  const pd = params(qd, point.at);
-  const turned = times(bMatrix(params(q, point.at), point.s), pd);
-  const quad = times(bMatrix(pd, point.s), pd);
-  const at = point.at;
-  return {
-    x: placePoint(q, point),
-    v: [qd[at] + turned[0], qd[at + 1] + turned[1], qd[at + 2] + turned[2]],
-    quad,
-  };
-}
-
-function vectorState(q: Float64Array, qd: Float64Array, at: number, a: Vec3): VectorState {
-  if (at < 0) return { a: [...a], v: [0, 0, 0], quad: [0, 0, 0] };
+function state(
+  q: Float64Array,
+  qd: Float64Array | undefined,
+  body: SpatialBody,
+  s: Vec3,
+  point: boolean,
+): State {
+  const { at, plane } = body;
+  if (at < 0) return { x: [...s], v: STILL, quad: STILL };
+  if (plane) {
+    const c = Math.cos(q[at + 2]);
+    const sn = Math.sin(q[at + 2]);
+    const bx = s[0] * c - s[1] * sn;
+    const by = s[0] * sn + s[1] * c;
+    const local = inPlane(plane, (point ? q[at] : 0) + bx, (point ? q[at + 1] : 0) + by, s[2]);
+    const x: Vec3 = point
+      ? [plane.origin[0] + local[0], plane.origin[1] + local[1], plane.origin[2] + local[2]]
+      : local;
+    if (!qd) return { x, v: STILL, quad: STILL };
+    const w = qd[at + 2];
+    return {
+      x,
+      v: inPlane(plane, (point ? qd[at] : 0) - w * by, (point ? qd[at + 1] : 0) + w * bx, 0),
+      quad: inPlane(plane, -w * w * bx, -w * w * by, 0),
+    };
+  }
+  const p = params(q, at);
+  const turned = rotate(p, s);
+  const x: Vec3 = point
+    ? [q[at] + turned[0], q[at + 1] + turned[1], q[at + 2] + turned[2]]
+    : turned;
+  if (!qd) return { x, v: STILL, quad: STILL };
   const pd = params(qd, at);
+  const rate = times(bMatrix(p, s), pd);
   return {
-    a: rotate(params(q, at), a),
-    v: times(bMatrix(params(q, at), a), pd),
-    quad: times(bMatrix(pd, a), pd),
+    x,
+    v: point ? [qd[at] + rate[0], qd[at + 1] + rate[1], qd[at + 2] + rate[2]] : rate,
+    quad: times(bMatrix(pd, s), pd),
   };
 }
 
-/** How fast a point of the body at `at` moves when the coordinates change at the rates `qd`. */
+/** Where a point of a body is in the world. */
+export function placePoint(q: Float64Array, point: SpatialPoint): Vec3 {
+  return state(q, undefined, point, point.s, true).x;
+}
+
+/** A direction of a body's frame, turned into the world. */
+export function turn(q: Float64Array, body: SpatialBody, a: Vec3): Vec3 {
+  return state(q, undefined, body, a, false).x;
+}
+
+/** A direction in the world, seen in a body's frame: what `turn` turns into it. */
+export function unturn(q: Float64Array, body: SpatialBody, a: Vec3): Vec3 {
+  const { at, plane } = body;
+  if (at < 0) return [...a];
+  if (!plane) return unrotate(params(q, at), a);
+  const ax = dot(a, plane.x);
+  const ay = dot(a, plane.y);
+  const c = Math.cos(q[at + 2]);
+  const sn = Math.sin(q[at + 2]);
+  return [ax * c + ay * sn, -ax * sn + ay * c, dot(a, plane.normal)];
+}
+
+/** How fast a point of the body in space at `at` moves when the coordinates change at the rates `qd`. */
 export function pointRate(q: Float64Array, qd: Float64Array, at: number, s: Vec3): Vec3 {
-  return pointState(q, qd, { at, s }).v;
+  return state(q, qd, { at }, s, true).v;
 }
 
 /**
- * Add `g · d(point)/dq` into row `row` of `jac`, for a gradient `g` taken with respect
- * to the point's world position.
+ * Add `g · d(x)/dq` into row `row` of `jac`, for a point or direction `x` of a body
+ * and a gradient `g` taken with respect to where it is in the world.
  */
-function addPoint(jac: Mat, row: number, point: SpatialPoint, g: Vec3, q: Float64Array): void {
-  if (point.at < 0) return;
-  addTranslation(jac, row, point.at, g);
-  addTurning(jac, row, point.at, bMatrix(params(q, point.at), point.s), g);
-}
-
-function addTranslation(jac: Mat, row: number, at: number, g: Vec3): void {
+function addGradient(
+  jac: Mat,
+  row: number,
+  body: SpatialBody,
+  s: Vec3,
+  point: boolean,
+  g: Vec3,
+  q: Float64Array,
+): void {
+  const { at, plane } = body;
+  if (at < 0) return;
   const base = row * jac.cols + at;
-  for (let i = 0; i < 3; i++) jac.data[base + i] = jac.data[base + i] + g[i];
-}
-
-/** Add `g^T B` into the columns of a body's Euler parameters. */
-function addTurning(jac: Mat, row: number, at: number, b: Float64Array, g: Vec3): void {
-  const base = row * jac.cols + at + 3;
+  if (plane) {
+    const c = Math.cos(q[at + 2]);
+    const sn = Math.sin(q[at + 2]);
+    const bx = s[0] * c - s[1] * sn;
+    const by = s[0] * sn + s[1] * c;
+    if (point) {
+      jac.data[base] = jac.data[base] + dot(g, plane.x);
+      jac.data[base + 1] = jac.data[base + 1] + dot(g, plane.y);
+    }
+    jac.data[base + 2] = jac.data[base + 2] + dot(g, inPlane(plane, -by, bx, 0));
+    return;
+  }
+  if (point) for (let i = 0; i < 3; i++) jac.data[base + i] = jac.data[base + i] + g[i];
+  const b = bMatrix(params(q, at), s);
   for (let k = 0; k < 4; k++) {
-    jac.data[base + k] = jac.data[base + k] + g[0] * b[k] + g[1] * b[4 + k] + g[2] * b[8 + k];
+    jac.data[base + 3 + k] =
+      jac.data[base + 3 + k] + g[0] * b[k] + g[1] * b[4 + k] + g[2] * b[8 + k];
   }
 }
 
-/** Add `g · d(A a)/dq` for a direction `a` fixed in the body at `at`. */
-function addVector(jac: Mat, row: number, at: number, a: Vec3, g: Vec3, q: Float64Array): void {
-  if (at < 0) return;
-  addTurning(jac, row, at, bMatrix(params(q, at), a), g);
+function addPoint(jac: Mat, row: number, point: SpatialPoint, g: Vec3, q: Float64Array): void {
+  addGradient(jac, row, point, point.s, true, g, q);
+}
+
+function addVector(jac: Mat, row: number, v: BodyVector, g: Vec3, q: Float64Array): void {
+  addGradient(jac, row, v, v.a, false, g, q);
+}
+
+function pointState(q: Float64Array, qd: Float64Array, point: SpatialPoint): State {
+  return state(q, qd, point, point.s, true);
+}
+
+function vectorState(q: Float64Array, qd: Float64Array, v: BodyVector): State {
+  return state(q, qd, v, v.a, false);
 }
 
 /** One scalar equation of a spatial joint, with all it needs for the solver. */
@@ -199,28 +287,32 @@ interface Row {
   gamma(q: Float64Array, qd: Float64Array): number;
 }
 
-/** A direction fixed in a body: `a` in the frame of the body at `at`. */
-interface BodyVector {
-  at: number;
+/** A direction fixed in a body: `a` in the body's frame. */
+interface BodyVector extends SpatialBody {
   a: Vec3;
+}
+
+/** The direction `a` of the body a point is on. */
+function on(body: SpatialBody, a: Vec3): BodyVector {
+  return { at: body.at, plane: body.plane, a };
 }
 
 /** The two directions stay square to each other: `a_i · a_j = 0`. */
 function square(i: BodyVector, j: BodyVector): Row {
   return {
     value(q) {
-      return dot(rotate(params(q, i.at), i.a), rotate(params(q, j.at), j.a));
+      return dot(turn(q, i, i.a), turn(q, j, j.a));
     },
     jacobian(q, jac, row) {
-      const ai = rotate(params(q, i.at), i.a);
-      const aj = rotate(params(q, j.at), j.a);
-      addVector(jac, row, i.at, i.a, aj, q);
-      addVector(jac, row, j.at, j.a, ai, q);
+      const ai = turn(q, i, i.a);
+      const aj = turn(q, j, j.a);
+      addVector(jac, row, i, aj, q);
+      addVector(jac, row, j, ai, q);
     },
     gamma(q, qd) {
-      const si = vectorState(q, qd, i.at, i.a);
-      const sj = vectorState(q, qd, j.at, j.a);
-      return -(dot(si.a, sj.quad) + dot(sj.a, si.quad) + 2 * dot(si.v, sj.v));
+      const si = vectorState(q, qd, i);
+      const sj = vectorState(q, qd, j);
+      return -(dot(si.x, sj.quad) + dot(sj.x, si.quad) + 2 * dot(si.v, sj.v));
     },
   };
 }
@@ -232,23 +324,23 @@ function square(i: BodyVector, j: BodyVector): Row {
 function across(direction: BodyVector, from: SpatialPoint, to: SpatialPoint): Row {
   return {
     value(q) {
-      const a = rotate(params(q, direction.at), direction.a);
+      const a = turn(q, direction, direction.a);
       return dot(a, sub(placePoint(q, to), placePoint(q, from)));
     },
     jacobian(q, jac, row) {
-      const a = rotate(params(q, direction.at), direction.a);
+      const a = turn(q, direction, direction.a);
       const d = sub(placePoint(q, to), placePoint(q, from));
-      addVector(jac, row, direction.at, direction.a, d, q);
+      addVector(jac, row, direction, d, q);
       addPoint(jac, row, to, a, q);
       addPoint(jac, row, from, [-a[0], -a[1], -a[2]], q);
     },
     gamma(q, qd) {
-      const a = vectorState(q, qd, direction.at, direction.a);
+      const a = vectorState(q, qd, direction);
       const pi = pointState(q, qd, from);
       const pj = pointState(q, qd, to);
       const d = sub(pj.x, pi.x);
       const dv = sub(pj.v, pi.v);
-      return -(dot(d, a.quad) + dot(a.a, sub(pj.quad, pi.quad)) + 2 * dot(a.v, dv));
+      return -(dot(d, a.quad) + dot(a.x, sub(pj.quad, pi.quad)) + 2 * dot(a.v, dv));
     },
   };
 }
@@ -325,8 +417,8 @@ function pointRows(a: SpatialPoint, b: SpatialPoint): Row[] {
 }
 
 /** Rows that keep the direction `h` of body `j` along the direction whose square frame is `f, g` on body `i`. */
-function parallelRows(i: number, f: Vec3, g: Vec3, j: number, h: Vec3): Row[] {
-  return [square({ at: i, a: f }, { at: j, a: h }), square({ at: i, a: g }, { at: j, a: h })];
+function parallelRows(i: SpatialBody, f: Vec3, g: Vec3, j: SpatialBody, h: Vec3): Row[] {
+  return [square(on(i, f), on(j, h)), square(on(i, g), on(j, h))];
 }
 
 /** Two points share one position, and each body turns freely about it: a ball joint. */
@@ -346,7 +438,7 @@ export function universal(
   ha: Vec3,
   hb: Vec3,
 ): Constraint {
-  return joint(source, [...pointRows(a, b), square({ at: a.at, a: ha }, { at: b.at, a: hb })]);
+  return joint(source, [...pointRows(a, b), square(on(a, ha), on(b, hb))]);
 }
 
 /** A ball joint whose bodies also keep the axes `ha` and `hb` in line: a hinge. */
@@ -358,7 +450,7 @@ export function revolute(
   hb: Vec3,
 ): Constraint {
   const [f, g] = perpendiculars(ha);
-  return joint(source, [...pointRows(a, b), ...parallelRows(a.at, f, g, b.at, hb)]);
+  return joint(source, [...pointRows(a, b), ...parallelRows(a, f, g, b, hb)]);
 }
 
 /**
@@ -377,11 +469,7 @@ export function cylindrical(
 
 function cylinderRows(a: SpatialPoint, b: SpatialPoint, ha: Vec3, hb: Vec3): Row[] {
   const [f, g] = perpendiculars(ha);
-  return [
-    ...parallelRows(a.at, f, g, b.at, hb),
-    across({ at: a.at, a: f }, a, b),
-    across({ at: a.at, a: g }, a, b),
-  ];
+  return [...parallelRows(a, f, g, b, hb), across(on(a, f), a, b), across(on(a, g), a, b)];
 }
 
 /**
@@ -398,10 +486,7 @@ export function prismatic(
   fa: Vec3,
   fb: Vec3,
 ): Constraint {
-  return joint(source, [
-    ...cylinderRows(a, b, ha, hb),
-    square({ at: a.at, a: cross(ha, fa) }, { at: b.at, a: fb }),
-  ]);
+  return joint(source, [...cylinderRows(a, b, ha, hb), square(on(a, cross(ha, fa)), on(b, fb))]);
 }
 
 /** The point `b` stays on the plane through `a` square to the direction `n` of a's body. */
@@ -411,7 +496,7 @@ export function pointOnPlane(
   n: Vec3,
   b: SpatialPoint,
 ): Constraint {
-  return joint(source, [across({ at: a.at, a: n }, a, b)]);
+  return joint(source, [across(on(a, n), a, b)]);
 }
 
 /** The point `b` stays on the line through `a` along the direction `h` of a's body. */
@@ -422,7 +507,7 @@ export function pointOnSpatialLine(
   b: SpatialPoint,
 ): Constraint {
   const [f, g] = perpendiculars(h);
-  return joint(source, [across({ at: a.at, a: f }, a, b), across({ at: a.at, a: g }, a, b)]);
+  return joint(source, [across(on(a, f), a, b), across(on(a, g), a, b)]);
 }
 
 /**
@@ -433,8 +518,8 @@ export function pointOnSpatialLine(
  */
 export function hingeAngle(
   source: string,
-  a: number,
-  b: number,
+  a: SpatialBody,
+  b: SpatialBody,
   ha: Vec3,
   fa: Vec3,
   fb: Vec3,
@@ -443,8 +528,8 @@ export function hingeAngle(
   driver = false,
 ): Constraint {
   // The cosine and sine of the angle are c = fa · fb and s = ga · fb.
-  const cos = square({ at: a, a: fa }, { at: b, a: fb });
-  const sin = square({ at: a, a: cross(ha, fa) }, { at: b, a: fb });
+  const cos = square(on(a, fa), on(b, fb));
+  const sin = square(on(a, cross(ha, fa)), on(b, fb));
   const rates = (q: Float64Array, qd: Float64Array, r: Row): number => {
     // The rate of a dot product: J qd, from a Jacobian row of its own.
     const jac: Mat = { rows: 1, cols: q.length, data: new Float64Array(q.length) };

@@ -251,7 +251,9 @@ export function evaluateMeasures(
     return new ExprError(
       compiled.spatial.has(id)
         ? `"${id}" moves in space, and measures of bodies in space are not there yet`
-        : `Unknown body "${id}"`,
+        : compiled.planeBodies.has(id)
+          ? `"${id}" is on the plane "${compiled.planeBodies.get(id)?.plane}", and measures of bodies off the sheet are not there yet`
+          : `Unknown body "${id}"`,
       pos,
     );
   }

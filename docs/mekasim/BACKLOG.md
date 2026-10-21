@@ -66,6 +66,13 @@ steps, each leaving the example baseline unchanged until a model uses something 
    a planar body may sit on a plane and keeps its three coordinates, mapped into
    the world where it meets a spatial body. Gears, belts and cams stay planar and
    must share one plane.
+   Built: `planes:` with an optional `x` direction, `plane:` on a body, and joints in
+   space that take bodies in the plane on any plane (the `Plane` of a `SpatialBody`
+   in `spatial.ts`). Every joint in the plane, gears, belts and cams among them,
+   works in its plane's own terms and needs all its bodies on that plane. Bodies on
+   a plane other than the sheet, and their joints, are kept apart
+   (`compiled.planeBodies`, `compiled.planeJoints`), so the drawing and measures do
+   not see them yet. Components stay on the sheet.
 4. **Format and measures.** Points may be `[x, y, z]` and joints take an `axis`;
    left out, they mean the plane as now, so `mekasim: 1` files stay valid (done for
    bodies in space, ball joints and hinges in step 2). Still to come: universal,

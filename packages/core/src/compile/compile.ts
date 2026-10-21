@@ -33,16 +33,21 @@ import {
 } from "../solver/constraints.ts";
 import type { SolverModel } from "../solver/solve.ts";
 import {
+  cross,
+  dot,
   hingeAngle,
+  type Plane,
   perpendiculars,
   quaternion,
   revolute,
+  SHEET,
   SPATIAL_SIZE,
+  type SpatialBody,
   type SpatialPoint,
   spherical,
   unit,
   unitQuaternion,
-  unrotate,
+  unturn,
   type Vec3,
 } from "../solver/spatial.ts";
 import { type AutoPose, expandComponents } from "./components.ts";
@@ -61,6 +66,8 @@ export interface CompiledBody {
   layerGiven: boolean;
   /** The real outline, where the model gives one, in metres. */
   shape?: Shape;
+  /** The plane it moves on, named under `planes`; on the sheet when left out. */
+  plane?: string;
   /** Whether the model leaves the body out of the drawing and of what is made. */
   hidden: boolean;
 }
@@ -142,13 +149,20 @@ export interface Compiled {
   params: Map<string, Quantity>;
   /** The bounds of the parameters that have them, in the same terms as their values. */
   bounds: Map<string, { min?: number; max?: number }>;
-  /** The bodies in the plane, ground among them. */
+  /** The bodies on the sheet, ground among them. */
   bodies: Map<string, CompiledBody>;
+  /** Bodies in the plane that move on one of the model's `planes`, not on the sheet. */
+  planeBodies: Map<string, CompiledBody>;
   /** The bodies that move in space. Their coordinates come after those of the bodies in the plane. */
   spatial: Map<string, CompiledSpatialBody>;
+  /** The model's planes, in metres. */
+  planes: Map<string, Plane>;
   model: SolverModel;
-  /** The joints between bodies in the plane. */
+  /** The joints between bodies on the sheet. */
   joints: CompiledJoint[];
+  /** The joints between bodies on one of the model's `planes`, each in that plane's terms. */
+  planeJoints: CompiledJoint[];
+  /** The joints in space: between bodies in space, or bodies on different planes. */
   spatialJoints: CompiledSpatialJoint[];
   drivers: CompiledDriver[];
   /** Duration of one motion cycle in seconds; 0 when nothing is driven. */
@@ -359,11 +373,45 @@ function compileExpanded(
     }
   }
 
+  /** A direction written in the model, as a unit vector. */
+  function direction(source: Expr[], path: Path): Vec3 {
+    const [x, y, z] = source.map((value, i) => scalar(value, NONE, [...path, i])) as Vec3;
+    if (Math.hypot(x, y, z) < 1e-12) throw fail("A direction cannot be [0, 0, 0]", path);
+    return unit([x, y, z]);
+  }
+
+  const planes = new Map<string, Plane>();
+  for (const [id, plane] of Object.entries(doc.planes ?? {})) {
+    const path = ["planes", id];
+    attempt(() => {
+      const origin = plane.origin.map((value, i) =>
+        scalar(value, LENGTH, [...path, "origin", i]),
+      ) as Vec3;
+      const normal = direction(plane.normal, [...path, "normal"]);
+      // The x axis, made square to the normal.
+      const square = (a: Vec3): Vec3 => {
+        const along = dot(a, normal);
+        return [a[0] - along * normal[0], a[1] - along * normal[1], a[2] - along * normal[2]];
+      };
+      let x: Vec3;
+      if (plane.x) {
+        x = square(direction(plane.x, [...path, "x"]));
+        if (Math.hypot(...x) < 1e-9)
+          throw fail("The x axis must not be square to the plane", [...path, "x"]);
+      } else {
+        x = square([1, 0, 0]);
+        if (Math.hypot(...x) < 1e-9) x = square([0, 1, 0]);
+      }
+      x = unit(x);
+      planes.set(id, { origin, x, y: cross(normal, x), normal });
+    });
+  }
+
   const bodies = new Map<string, CompiledBody>();
   const spatial = new Map<string, CompiledSpatialBody>();
   const moving: string[] = [];
-  /** How far each point of the ground is off the sheet, where it is. */
-  const groundDepth = new Map<string, number>();
+  /** Where each point of the ground is in the world. */
+  const groundWorld = new Map<string, Vec3>();
   const planarCount = Object.entries(doc.bodies).filter(
     ([id, body]) => id !== GROUND && !body.spatial,
   ).length;
@@ -375,6 +423,17 @@ function compileExpanded(
         message: `"${GROUND}" is fixed, so spatial: true means nothing for it; its points may be [x, y, z] without it`,
         path: ["bodies", id, "spatial"],
       });
+    if (body.plane !== undefined) {
+      const why =
+        id === GROUND
+          ? `"${GROUND}" is fixed and on no plane; its points are where they are in the world`
+          : inSpace
+            ? "A body in space is on no plane"
+            : planes.has(body.plane) || doc.planes?.[body.plane]
+              ? undefined
+              : `Unknown plane "${body.plane}"`;
+      if (why) diagnostics.push({ severity: "error", message: why, path: ["bodies", id, "plane"] });
+    }
     const points = new Map<string, { u: number; v: number }>();
     const spacePoints = new Map<string, Vec3>();
     for (const [name, [x, y, z]] of Object.entries(body.points)) {
@@ -390,13 +449,13 @@ function compileExpanded(
       if (w !== 0 && id !== GROUND) {
         attempt(() => {
           throw fail(
-            "This body moves in the plane, so its points are on the sheet; write them as [x, y], or give the body spatial: true",
+            "This body moves in the plane, so its points are on its plane; write them as [x, y], or give the body spatial: true",
             [...path, 2],
           );
         });
         continue;
       }
-      if (w !== 0) groundDepth.set(name, w);
+      if (id === GROUND) groundWorld.set(name, [u, v, w]);
       points.set(name, { u, v });
     }
     if (inSpace) {
@@ -425,6 +484,7 @@ function compileExpanded(
       layer: body.layer ?? 0,
       layerGiven: body.layer !== undefined,
       hidden: body.hidden ?? false,
+      ...(body.plane !== undefined && id !== GROUND && { plane: body.plane }),
     });
   }
   if (!bodies.has(GROUND)) {
@@ -435,40 +495,57 @@ function compileExpanded(
     });
   }
 
-  /** A point used by something in the plane. */
-  function point(ref: string, path: Path, offSheet = false): BodyPoint {
+  /**
+   * A point used by something in the plane: by a joint on `plane` (the sheet when left
+   * out) when `inJoint`, or else by something that is only on the sheet so far. Points
+   * of the ground are given in the plane's own terms.
+   */
+  function point(ref: string, path: Path, plane?: string, inJoint = false): BodyPoint {
     const [bodyId, name] = ref.split(".") as [string, string];
     if (spatial.has(bodyId))
       throw fail(
         `"${bodyId}" moves in space, and only bodies in the plane can be used here so far`,
         path,
       );
-    if (bodyId === GROUND && groundDepth.has(name) && !offSheet)
-      throw fail(
-        `"${ref}" is off the sheet, and only points on the sheet can be used here so far`,
-        path,
-      );
     const body = bodies.get(bodyId);
     if (!body) throw fail(`Unknown body "${bodyId}"`, path);
+    if (body.index >= 0 && body.plane !== plane)
+      throw fail(
+        inJoint
+          ? `"${bodyId}" is not on the same plane as the rest of this joint`
+          : `"${bodyId}" is on the plane "${body.plane}", and only bodies on the sheet can be used here so far`,
+        path,
+      );
     const local = body.points.get(name);
     if (!local) {
       // A point that failed to evaluate has already been reported.
       if (doc.bodies[bodyId]?.points[name]) throw new Reported();
       throw fail(`Body "${bodyId}" has no point "${name}"`, path);
     }
-    return { body: body.index, u: local.u, v: local.v };
+    if (body.index >= 0) return { body: body.index, u: local.u, v: local.v };
+
+    const world = groundWorld.get(name) as Vec3;
+    const frame = plane === undefined ? SHEET : planes.get(plane);
+    // A plane that failed to compile has already been reported.
+    if (!frame) throw new Reported();
+    const d: Vec3 = [
+      world[0] - frame.origin[0],
+      world[1] - frame.origin[1],
+      world[2] - frame.origin[2],
+    ];
+    if (Math.abs(dot(d, frame.normal)) > 1e-9)
+      throw fail(
+        plane === undefined
+          ? `"${ref}" is off the sheet, and only points on the sheet can be used here so far`
+          : `"${ref}" is not on the plane "${plane}"`,
+        path,
+      );
+    return { body: GROUND_INDEX, u: dot(d, frame.x), v: dot(d, frame.y) };
   }
 
   const q0 = new Float64Array(3 * moving.length + SPATIAL_SIZE * spatial.size);
   // A body in space starts unturned.
   for (const { at } of spatial.values()) q0[at + 3] = 1;
-
-  /** A direction written in the model, as a unit vector. */
-  function direction(source: Expr[], path: Path): Vec3 {
-    const [x, y, z] = source.map((value, i) => scalar(value, NONE, [...path, i])) as Vec3;
-    if (Math.hypot(x, y, z) < 1e-12) throw fail("A direction cannot be [0, 0, 0]", path);
-    return unit([x, y, z]);
-  }
 
   for (const [id, pose] of Object.entries(doc.pose ?? {})) {
     const path = ["pose", id];
@@ -495,25 +572,33 @@ function compileExpanded(
     });
   }
 
-  /** The Euler parameters a body starts with: none for the ground. */
-  function startTurn(at: number): ArrayLike<number> {
-    return at < 0 ? [1, 0, 0, 0] : q0.subarray(at + 3, at + 7);
-  }
-
-  /** A point used by a joint in space. `why` says why a body in the plane cannot have it. */
-  function spacePoint(ref: string, path: Path, why: string): SpatialPoint {
+  /** A point used by a joint in space, on any kind of body. */
+  function spacePoint(ref: string, path: Path): SpatialPoint {
     const [bodyId, name] = ref.split(".") as [string, string];
-    const body = spatial.get(bodyId);
-    if (body) {
-      const s = body.points.get(name);
-      if (s) return { at: body.at, s };
-      if (doc.bodies[bodyId]?.points[name]) throw new Reported();
-      throw fail(`Body "${bodyId}" has no point "${name}"`, path);
+    const missing = (): Reported => {
+      // A point that failed to evaluate has already been reported.
+      if (doc.bodies[bodyId]?.points[name]) return new Reported();
+      return fail(`Body "${bodyId}" has no point "${name}"`, path);
+    };
+    const inSpace = spatial.get(bodyId);
+    if (inSpace) {
+      const s = inSpace.points.get(name);
+      if (!s) throw missing();
+      return { at: inSpace.at, s };
     }
-    if (bodyId !== GROUND && bodies.has(bodyId))
-      throw fail(`"${bodyId}" moves in the plane; ${why}`, path);
-    const { u, v } = point(bodyId === GROUND ? `${GROUND}.${name}` : ref, path, true);
-    return { at: -1, s: [u, v, groundDepth.get(name) ?? 0] };
+    const body = bodies.get(bodyId);
+    if (!body) throw fail(`Unknown body "${bodyId}"`, path);
+    if (body.index < 0) {
+      const s = groundWorld.get(name);
+      if (!s) throw missing();
+      return { at: -1, s };
+    }
+    const local = body.points.get(name);
+    if (!local) throw missing();
+    const plane = body.plane === undefined ? SHEET : planes.get(body.plane);
+    // A plane that failed to compile has already been reported.
+    if (!plane) throw new Reported();
+    return { at: 3 * body.index, plane, s: [local.u, local.v, 0] };
   }
 
   /** Where a point is at the start, from the starting position of its body. */
@@ -561,44 +646,72 @@ function compileExpanded(
    * bodies, the hinge's axis in the first body's frame, and a direction square to it
    * in each body's frame, where the two lie together at the start.
    */
-  const spaceHinges = new Map<string, { a: number; b: number; axis: Vec3; fa: Vec3; fb: Vec3 }>();
+  const spaceHinges = new Map<
+    string,
+    { a: SpatialBody; b: SpatialBody; axis: Vec3; fa: Vec3; fb: Vec3 }
+  >();
   const joints: CompiledJoint[] = [];
+  const planeJoints: CompiledJoint[] = [];
   const spatialJoints: CompiledSpatialJoint[] = [];
   const drivers: CompiledDriver[] = [];
 
   for (const [id, joint] of Object.entries(doc.joints ?? {})) {
     const path = ["joints", id];
     attempt(() => {
-      const inSpace = (refs: string[]): boolean =>
-        refs.some((ref) => spatial.has(ref.split(".")[0] as string));
-      if (
+      const refs =
+        joint.type === "slider" || joint.type === "pin-slot"
+          ? [...joint.axis, joint.point]
+          : joint.type === "cam"
+            ? [joint.cam, joint.follower]
+            : joint.connect;
+      const sides = refs.map((ref) => ref.split(".")[0] as string);
+      if ((joint.type === "gear" || joint.type === "belt") && joint.carrier !== undefined)
+        sides.push(joint.carrier);
+      // The plane of the joint's first moving body in the plane: the joint is on it, or in space.
+      const flat = sides.map((side) => bodies.get(side)).filter((body) => body && body.index >= 0);
+      const plane = flat[0]?.plane;
+      const onOnePlane = flat.every((body) => body?.plane === plane);
+      const frame = plane === undefined ? SHEET : planes.get(plane);
+      const axis =
+        joint.type === "revolute" && joint.axis
+          ? direction(joint.axis, [...path, "axis"])
+          : undefined;
+      const inSpace =
         joint.type === "spherical" ||
-        (joint.type === "revolute" && (joint.axis !== undefined || inSpace(joint.connect)))
-      ) {
-        const why =
-          joint.type === "spherical"
-            ? "a ball joint joins bodies in space, and the ground"
-            : inSpace(joint.connect)
-              ? "it cannot be joined to a body in space yet"
-              : "every hinge between bodies in the plane turns about z, so an axis is only for bodies in space";
-        const a = spacePoint(joint.connect[0], [...path, "connect", 0], why);
-        const b = spacePoint(joint.connect[1], [...path, "connect", 1], why);
+        (joint.type === "revolute" &&
+          (sides.some((side) => spatial.has(side)) ||
+            !onOnePlane ||
+            (axis !== undefined &&
+              frame !== undefined &&
+              Math.abs(Math.abs(dot(axis, frame.normal)) - 1) > 1e-9)));
+      const flatJoints = plane === undefined ? joints : planeJoints;
+      /** A point of the joint's plane, for a joint between bodies in the plane. */
+      const flatPoint = (ref: string, at: Path): BodyPoint => point(ref, at, plane, true);
+
+      if (inSpace) {
+        const a = spacePoint(joint.connect[0], [...path, "connect", 0]);
+        const b = spacePoint(joint.connect[1], [...path, "connect", 1]);
         if (a.at === b.at)
           throw fail("A joint must connect two different bodies", [...path, "connect"]);
         if (joint.type === "spherical") {
           constraints.push(spherical(id, a, b));
         } else {
-          const axis = direction(joint.axis ?? [0, 0, 1], [...path, "axis"]);
-          const [f] = perpendiculars(axis);
-          const [ta, tb] = [startTurn(a.at), startTurn(b.at)];
-          const ha = unrotate(ta, axis);
-          constraints.push(revolute(id, a, b, ha, unrotate(tb, axis)));
+          // Left out, a hinge turns about the normal of the plane its bodies are on.
+          const along = axis ?? (onOnePlane ? frame?.normal : undefined);
+          if (!along)
+            throw fail(
+              "Its bodies are on different planes, so give the hinge an axis: which way it points",
+              path,
+            );
+          const [f] = perpendiculars(along);
+          const ha = unturn(q0, a, along);
+          constraints.push(revolute(id, a, b, ha, unturn(q0, b, along)));
           spaceHinges.set(id, {
-            a: a.at,
-            b: b.at,
+            a,
+            b,
             axis: ha,
-            fa: unrotate(ta, f),
-            fb: unrotate(tb, f),
+            fa: unturn(q0, a, f),
+            fb: unturn(q0, b, f),
           });
         }
         spatialJoints.push({ id, type: joint.type, points: [...joint.connect] });
@@ -606,8 +719,8 @@ function compileExpanded(
       }
 
       if (joint.type === "revolute" || joint.type === "weld" || joint.type === "distance") {
-        const a = point(joint.connect[0], [...path, "connect", 0]);
-        const b = point(joint.connect[1], [...path, "connect", 1]);
+        const a = flatPoint(joint.connect[0], [...path, "connect", 0]);
+        const b = flatPoint(joint.connect[1], [...path, "connect", 1]);
         if (a.body === b.body)
           throw fail("A joint must connect two different bodies", [...path, "connect"]);
         if (joint.type === "distance") {
@@ -619,13 +732,13 @@ function compileExpanded(
           if (joint.type === "weld") constraints.push(relativeAngle(id, a.body, b.body, angle));
           else hinges.set(id, [a.body, b.body]);
         }
-        joints.push({ id, type: joint.type, points: [...joint.connect] });
+        flatJoints.push({ id, type: joint.type, points: [...joint.connect] });
         return;
       }
 
       if (joint.type === "gear" || joint.type === "belt") {
-        const a = point(joint.connect[0], [...path, "connect", 0]);
-        const b = point(joint.connect[1], [...path, "connect", 1]);
+        const a = flatPoint(joint.connect[0], [...path, "connect", 0]);
+        const b = flatPoint(joint.connect[1], [...path, "connect", 1]);
         if (a.body === b.body)
           throw fail("The two wheels must be on different bodies", [...path, "connect"]);
         const first = quantity(joint.sizes[0], [...path, "sizes", 0]);
@@ -638,7 +751,17 @@ function compileExpanded(
         let carrier = GROUND_INDEX;
         if (joint.carrier !== undefined) {
           const body = bodies.get(joint.carrier);
-          if (!body) throw fail(`Unknown body "${joint.carrier}"`, [...path, "carrier"]);
+          if (!body) {
+            const where = spatial.has(joint.carrier)
+              ? `"${joint.carrier}" moves in space, and gears and belts stay in the plane`
+              : `Unknown body "${joint.carrier}"`;
+            throw fail(where, [...path, "carrier"]);
+          }
+          if (body.index >= 0 && body.plane !== plane)
+            throw fail(`"${joint.carrier}" is not on the same plane as the rest of this joint`, [
+              ...path,
+              "carrier",
+            ]);
           carrier = body.index;
         }
         // Meshing gears turn against each other; wheels on a belt turn the same way.
@@ -649,7 +772,7 @@ function compileExpanded(
         const constant =
           ka * (angleOf(a.body) - angleOf(carrier)) + kb * (angleOf(b.body) - angleOf(carrier));
         constraints.push(angleCoupling(id, a.body, b.body, carrier, ka, kb, constant));
-        joints.push({
+        flatJoints.push({
           id,
           type: joint.type,
           points: [...joint.connect],
@@ -659,8 +782,8 @@ function compileExpanded(
       }
 
       if (joint.type === "cam") {
-        const centre = point(joint.cam, [...path, "cam"]);
-        const follower = point(joint.follower, [...path, "follower"]);
+        const centre = flatPoint(joint.cam, [...path, "cam"]);
+        const follower = flatPoint(joint.follower, [...path, "follower"]);
         if (centre.body === follower.body)
           throw fail("The cam and its follower must be different bodies", [...path, "follower"]);
         const base = scalar(joint.base, LENGTH, [...path, "base"]);
@@ -682,7 +805,7 @@ function compileExpanded(
         const roller = scalar(joint.roller ?? 0, LENGTH, [...path, "roller"]);
         const profile = camProfile(base, knots, joint.law ?? "cycloidal");
         constraints.push(camContact(id, centre, follower, profile));
-        joints.push({
+        flatJoints.push({
           id,
           type: joint.type,
           points: [joint.cam, joint.follower],
@@ -691,9 +814,9 @@ function compileExpanded(
         return;
       }
 
-      const from = point(joint.axis[0], [...path, "axis", 0]);
-      const to = point(joint.axis[1], [...path, "axis", 1]);
-      const pin = point(joint.point, [...path, "point"]);
+      const from = flatPoint(joint.axis[0], [...path, "axis", 0]);
+      const to = flatPoint(joint.axis[1], [...path, "axis", 1]);
+      const pin = flatPoint(joint.point, [...path, "point"]);
       if (from.body !== to.body)
         throw fail("Both axis points must be on the same body", [...path, "axis"]);
       if (pin.body === from.body)
@@ -707,7 +830,7 @@ function compileExpanded(
         pointOnLine(id, from, -(to.v - from.v) / length, (to.u - from.u) / length, pin),
       );
       if (joint.type === "slider") constraints.push(relativeAngle(id, from.body, pin.body, angle));
-      joints.push({ id, type: joint.type, points: [...joint.axis, joint.point] });
+      flatJoints.push({ id, type: joint.type, points: [...joint.axis, joint.point] });
     });
   }
 
@@ -825,8 +948,10 @@ function compileExpanded(
       units,
       params,
       bounds,
-      bodies,
+      bodies: new Map([...bodies].filter(([, body]) => body.plane === undefined)),
+      planeBodies: new Map([...bodies].filter(([, body]) => body.plane !== undefined)),
       spatial,
+      planes,
       model: {
         bodies: moving,
         ...(spatial.size > 0 && {
@@ -840,6 +965,7 @@ function compileExpanded(
         q0,
       },
       joints,
+      planeJoints,
       spatialJoints,
       drivers,
       period,

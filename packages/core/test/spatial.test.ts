@@ -9,6 +9,7 @@ import {
   cylindrical,
   dot,
   hingeAngle,
+  type Plane,
   perpendiculars,
   placePoint,
   pointOnPlane,
@@ -17,12 +18,15 @@ import {
   quaternion,
   revolute,
   rotate,
+  SHEET,
   SPATIAL_SIZE,
   spherical,
+  turn,
   unit,
   unitQuaternion,
   universal,
   unrotate,
+  unturn,
   type Vec3,
 } from "../src/solver/spatial.ts";
 
@@ -122,8 +126,34 @@ const cases: [string, Constraint][] = [
     "point on a line",
     pointOnSpatialLine("j", { at: -1, s: [0.1, -0.05, 0.2] }, h1, { at: A, s: [-0.2, 0.1, 0.05] }),
   ],
-  ["hinge angle", hingeAngle("j", A, B, h1, f1, f2, 0.4)],
-  ["motor on a hinge to ground", hingeAngle("d", -1, B, h1, f1, f2, 0.4, 3, true)],
+  ["hinge angle", hingeAngle("j", { at: A }, { at: B }, h1, f1, f2, 0.4)],
+  ["motor on a hinge to ground", hingeAngle("d", { at: -1 }, { at: B }, h1, f1, f2, 0.4, 3, true)],
+];
+
+// The planar body, on a tilted plane.
+const [tx, ty] = perpendiculars(unit([0.2, -0.4, 0.9]));
+const TILTED: Plane = { origin: [0.1, 0.2, -0.3], x: tx, y: ty, normal: cross(tx, ty) };
+const P = { at: 0, plane: TILTED };
+
+/** Cases that join the planar body, on its plane, to bodies in space and the ground. */
+const planarCases: [string, Constraint][] = [
+  [
+    "ball joint to a body in the plane",
+    spherical("j", { ...P, s: [0.1, -0.05, 0.02] }, { at: B, s: [-0.2, 0.1, 0.05] }),
+  ],
+  [
+    "hinge from a body in the plane to ground",
+    revolute("j", { at: -1, s: [0.3, 0.1, -0.2] }, { ...P, s: [0.1, 0.2, 0] }, h1, h2),
+  ],
+  [
+    "hinge between a body in space and one in the plane",
+    revolute("j", { at: A, s: [0.1, -0.05, 0.2] }, { ...P, s: [-0.2, 0.1, 0.05] }, h1, h2),
+  ],
+  [
+    "point on the plane of a body in the plane",
+    pointOnPlane("j", { ...P, s: [0.1, -0.05, 0] }, h2, { at: B, s: [-0.2, 0.1, 0.05] }),
+  ],
+  ["hinge angle of a body in the plane", hingeAngle("j", { at: B }, P, h1, f1, f2, 0.4)],
 ];
 
 function residualOf(c: Constraint, at: Float64Array, t = 0): Float64Array {
@@ -142,7 +172,7 @@ function shifted(direction: Float64Array, h: number): Float64Array {
   return q.map((value, i) => value + h * direction[i]);
 }
 
-describe.each(cases)("%s", (_name, c) => {
+describe.each([...cases, ...planarCases])("%s", (_name, c) => {
   it("has a Jacobian matching finite differences of the residual", () => {
     const analytic = jacobianOf(c, q);
     const h = 1e-6;
@@ -154,13 +184,6 @@ describe.each(cases)("%s", (_name, c) => {
       for (let i = 0; i < c.size; i++) {
         expect(Math.abs(analytic[i * n + j] - (plus[i] - minus[i]) / (2 * h))).toBeLessThan(1e-7);
       }
-    }
-  });
-
-  it("leaves the planar body's coordinates alone", () => {
-    const analytic = jacobianOf(c, q);
-    for (let i = 0; i < c.size; i++) {
-      for (let j = 0; j < 3; j++) expect(analytic[i * n + j]).toBe(0);
     }
   });
 
@@ -190,7 +213,35 @@ describe.each(cases)("%s", (_name, c) => {
   });
 });
 
+describe.each(cases)("%s, without the body in the plane", (_name, c) => {
+  it("leaves the planar body's coordinates alone", () => {
+    const analytic = jacobianOf(c, q);
+    for (let i = 0; i < c.size; i++) {
+      for (let j = 0; j < 3; j++) expect(analytic[i * n + j]).toBe(0);
+    }
+  });
+});
+
 describe("turning", () => {
+  it("places a body in the plane on its plane, and turns its directions back", () => {
+    const at = q.subarray(0, 3);
+    const where = placePoint(at, { ...P, s: [0.1, 0.2, 0] });
+    const [x, y, phi] = [at[0], at[1], at[2]] as number[];
+    const u = x + 0.1 * Math.cos(phi) - 0.2 * Math.sin(phi);
+    const v = y + 0.1 * Math.sin(phi) + 0.2 * Math.cos(phi);
+    for (let i = 0; i < 3; i++) {
+      const expected = (TILTED.origin[i] as number) + u * (tx[i] as number) + v * (ty[i] as number);
+      expect(where[i]).toBeCloseTo(expected, 14);
+    }
+    const back = unturn(at, P, turn(at, P, [0.3, -0.4, 0.5]));
+    expect(back.map((value) => Number(value.toFixed(12)))).toEqual([0.3, -0.4, 0.5]);
+    // On the sheet, a body in the plane is where its coordinates say.
+    const sheet = placePoint(at, { at: 0, plane: SHEET, s: [0.1, 0.2, 0] });
+    expect(sheet[0]).toBeCloseTo(u, 14);
+    expect(sheet[1]).toBeCloseTo(v, 14);
+    expect(sheet[2]).toBe(0);
+  });
+
   it("turns by an angle about an axis, and back", () => {
     const p = quaternion(unit([0, 0, 1]), Math.PI / 2);
     const turned = rotate(p, [1, 0, 0]);
@@ -267,7 +318,7 @@ function rssr(crank: Vec3, pivot: Vec3, axis: Vec3, rocker: Vec3, speed: number)
         spherical("ball_a", { at: crankAt, s: crank }, { at: couplerAt, s: ends[0] }),
         spherical("ball_b", { at: couplerAt, s: ends[1] }, { at: rockerAt, s: rocker }),
         revolute("rock", { at: -1, s: pivot }, { at: rockerAt, s: [0, 0, 0] }, axis, axis),
-        hingeAngle("motor", -1, crankAt, Z, f, f, 0, speed, true),
+        hingeAngle("motor", { at: -1 }, { at: crankAt }, Z, f, f, 0, speed, true),
       ],
       q0,
     },

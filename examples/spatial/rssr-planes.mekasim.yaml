@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=../../packages/core/schema/mekasim-1.schema.json
+# The spatial four-bar of rssr.mekasim.yaml, with its crank and rocker as bodies in
+# the plane: the crank turns on the sheet, the rocker on a plane of its own, square
+# to x through its pivot. Only the rod between their ball joints moves in space.
+mekasim: 1
+meta:
+  name: Spatial four-bar on two planes
+
+params:
+  rpm: 60
+
+planes:
+  # The plane's own x runs along the world's y, its y along the world's z.
+  side: { origin: [50, 60, 40], normal: [1, 0, 0] }
+
+bodies:
+  ground:
+    points: { O: [0, 0], R: [50, 60, 40] }
+  crank:
+    points: { O: [0, 0], A: [20, 0] }
+  coupler:
+    spatial: true
+    points: { A: [0, 0, 0], B: [95, 0, 0] }
+  rocker:
+    plane: side
+    points: { R: [0, 0], B: [30, -52] }
+
+joints:
+  main:   { type: revolute, connect: [ground.O, crank.O] }
+  ball_a: { type: spherical, connect: [crank.A, coupler.A] }
+  ball_b: { type: spherical, connect: [coupler.B, rocker.B] }
+  rock:   { type: revolute, connect: [ground.R, rocker.R] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+pose:
+  coupler: { at: [20, 0, 0], axis: [0, 0, 1], angle: 60 }

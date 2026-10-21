@@ -350,18 +350,54 @@ Its points are `[x, y, z]`; a point written as `[x, y]` has z = 0. The ground's
 points may be `[x, y, z]` too, and are then off the sheet: only joints in space can
 use them. See `examples/spatial/rssr.mekasim.yaml`.
 
-Bodies in space are joined to each other and to the ground, not yet to bodies in the
-plane, and two joints work between them:
+Two joints work in space, between any bodies: bodies in space, the ground, and bodies
+in the plane, whatever plane they are on.
 
 | Type | Fields | Effect |
 |---|---|---|
 | `spherical` | `connect: [a.P, b.Q]` | A ball joint: holds the two points together, and each body turns freely about them |
-| `revolute` | `connect: [a.P, b.Q]`, `axis` | A hinge: holds the two points together, and the bodies turn about one another only about `axis`, which way it points in the world at the start (default `[0, 0, 1]`) |
+| `revolute` | `connect: [a.P, b.Q]`, `axis` | A hinge: holds the two points together, and the bodies turn about one another only about `axis`, which way it points in the world at the start. Left out, it is the normal of the plane the bodies in the plane are on, `[0, 0, 1]` on the sheet; bodies on different planes need one |
+
+A `revolute` between bodies on one plane, with no `axis` or one square to the plane,
+is the pin it has always been. Any other joint between bodies in the plane needs
+them all on one plane.
 
 A rod between two ball joints can spin about its own line without moving any of its
 points. Such a turning is reported, and not counted as a degree of freedom.
 
 Bodies in space are not drawn yet, and measures, traces and frames cannot use them.
+
+## Planes
+
+```yaml
+planes:
+  side: { origin: [50, 60, 40], normal: [1, 0, 0] }
+bodies:
+  ground:
+    points: { R: [50, 60, 40] }
+  rocker:
+    plane: side
+    points: { R: [0, 0], B: [30, -52] }
+joints:
+  rock: { type: revolute, connect: [ground.R, rocker.R] }
+```
+
+A body in the plane moves on the sheet unless it names one of the model's `planes`.
+A plane is given by its `origin`, where its own `[0, 0]` is, and its `normal`, which
+way it faces; `x`, which way its own x axis points, is made square to the normal, and
+left out it runs along the world's x (along y, where x is square to the plane). Its y
+axis then follows, as on the sheet seen with the normal towards the viewer.
+
+On its plane a body is as on the sheet: its points are `[x, y]` in the plane's own
+terms, its `pose` is `[x, y, angle]` in them, and a driver turns it counter-clockwise
+as seen from the side the normal points to. The joints between bodies on a plane
+work as on the sheet, and the points of the ground they use must lie on the plane.
+Joints in space join it to anything else. See
+`examples/spatial/rssr-planes.mekasim.yaml`, the four-bar of `rssr.mekasim.yaml`
+with its crank on the sheet and its rocker on a plane of its own.
+
+Bodies on a plane other than the sheet are not drawn yet, and measures, traces and
+frames cannot use them.
 
 ## Components
 

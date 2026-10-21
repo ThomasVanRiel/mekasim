@@ -110,24 +110,20 @@ describe("bodies in space in the format", () => {
         "mekasim: 1\nbodies:\n  ground: { points: { O: [0, 0] } }\n  link: { points: { A: [0, 0, 5] } }\n",
       ),
     ).toEqual([
-      "This body moves in the plane, so its points are on the sheet; write them as [x, y], or give the body spatial: true",
+      "This body moves in the plane, so its points are on its plane; write them as [x, y], or give the body spatial: true",
     ]);
   });
 
-  it("joins a body in space only to the ground or another in space", () => {
-    expect(
-      messages(`${BASE}joints:\n  j: { type: spherical, connect: [arm.A, link.A] }\n`),
-    ).toEqual(['"link" moves in the plane; a ball joint joins bodies in space, and the ground']);
-    expect(messages(`${BASE}joints:\n  j: { type: revolute, connect: [arm.A, link.A] }\n`)).toEqual(
-      ['"link" moves in the plane; it cannot be joined to a body in space yet'],
-    );
-    expect(
-      messages(
-        `${BASE}joints:\n  j: { type: revolute, connect: [ground.O, link.O], axis: [1, 0, 0] }\n`,
-      ),
-    ).toEqual([
-      '"link" moves in the plane; every hinge between bodies in the plane turns about z, so an axis is only for bodies in space',
-    ]);
+  it("joins bodies in the plane to bodies in space by joints in space", () => {
+    for (const joint of [
+      "{ type: spherical, connect: [arm.A, link.A] }",
+      "{ type: revolute, connect: [arm.A, link.A] }",
+      "{ type: revolute, connect: [ground.O, link.O], axis: [1, 0, 0] }",
+    ]) {
+      const simulation = simulate(`${BASE}joints:\n  j: ${joint}\n`);
+      expect(simulation.diagnostics.filter((d) => d.severity === "error")).toEqual([]);
+      expect(simulation.compiled?.spatialJoints.map((j) => j.id)).toEqual(["j"]);
+    }
   });
 
   it("keeps bodies in space and points off the sheet out of what is in the plane", () => {
