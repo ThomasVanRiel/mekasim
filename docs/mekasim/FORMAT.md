@@ -323,6 +323,46 @@ because nothing holds it down, does not lift off here.
 The cam joint only keeps the follower on the curve: the follower still needs its
 own joint, a slider to move in a line or a pin to swing.
 
+## Bodies in space
+
+```yaml
+bodies:
+  ground:
+    points: { O: [0, 0, 0], R: [50, 60, 40] }
+  crank:
+    spatial: true
+    points: { O: [0, 0, 0], A: [20, 0, 0] }
+  coupler:
+    spatial: true
+    points: { A: [0, 0, 0], B: [95, 0, 0] }
+  rocker:
+    spatial: true
+    points: { R: [0, 0, 0], B: [0, 30, -52] }
+joints:
+  main:   { type: revolute, connect: [ground.O, crank.O] }
+  ball_a: { type: spherical, connect: [crank.A, coupler.A] }
+  ball_b: { type: spherical, connect: [coupler.B, rocker.B] }
+  rock:   { type: revolute, connect: [ground.R, rocker.R], axis: [1, 0, 0] }
+```
+
+A body with `spatial: true` moves in space rather than in the plane of the sheet.
+Its points are `[x, y, z]`; a point written as `[x, y]` has z = 0. The ground's
+points may be `[x, y, z]` too, and are then off the sheet: only joints in space can
+use them. See `examples/spatial/rssr.mekasim.yaml`.
+
+Bodies in space are joined to each other and to the ground, not yet to bodies in the
+plane, and two joints work between them:
+
+| Type | Fields | Effect |
+|---|---|---|
+| `spherical` | `connect: [a.P, b.Q]` | A ball joint: holds the two points together, and each body turns freely about them |
+| `revolute` | `connect: [a.P, b.Q]`, `axis` | A hinge: holds the two points together, and the bodies turn about one another only about `axis`, which way it points in the world at the start (default `[0, 0, 1]`) |
+
+A rod between two ball joints can spin about its own line without moving any of its
+points. Such a turning is reported, and not counted as a degree of freedom.
+
+Bodies in space are not drawn yet, and measures, traces and frames cannot use them.
+
 ## Components
 
 ```yaml
@@ -396,7 +436,8 @@ body relative to its first is `phase + speed * time`.
 - `speed`: in rpm unless a unit is given (`10 rad/s`, `5 Hz`). Positive is
   counter-clockwise. `0` holds the joint at `phase`.
 - `phase`: relative angle at time 0, default 0. With a model written as drawn,
-  0 means "start where it is drawn".
+  0 means "start where it is drawn". On a hinge between bodies in space, the angle
+  is always counted from where the two bodies start in `pose`.
 
 ## Cycle
 
@@ -423,6 +464,10 @@ constraint: the solver moves the bodies from there until every joint closes.
 It matters because most mechanisms can be assembled in more than one way (a
 four-bar open or crossed), and the solver settles on the one nearest the guess.
 Rough values are enough.
+
+A body in space takes its pose as `{ at: [x, y, z], axis: [x, y, z], angle }`: where
+its frame's origin is, turned by `angle` about `axis` (default `[0, 0, 1]`). Bodies in
+space not listed start at the origin, unturned.
 
 ## Traces
 

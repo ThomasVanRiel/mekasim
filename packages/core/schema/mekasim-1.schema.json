@@ -147,28 +147,61 @@
               "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
             },
             "additionalProperties": {
-              "type": "array",
-              "prefixItems": [
+              "anyOf": [
                 {
-                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 2,
+                  "maxItems": 2
                 },
                 {
-                  "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-                  "type": [
-                    "number",
-                    "string"
-                  ]
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    },
+                    {
+                      "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                      "type": [
+                        "number",
+                        "string"
+                      ]
+                    }
+                  ],
+                  "items": false,
+                  "minItems": 3,
+                  "maxItems": 3
                 }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
+              ]
             },
-            "description": "Named points in the body's own frame, as [x, y]"
+            "description": "Named points in the body's own frame, as [x, y], or [x, y, z] off the sheet"
           },
           "layer": {
             "description": "Depth order for the 3D view; higher is nearer the viewer",
@@ -301,6 +334,10 @@
           },
           "hidden": {
             "description": "Leaves the body out of the drawing and of what is made; it moves and holds its joints as before",
+            "type": "boolean"
+          },
+          "spatial": {
+            "description": "Moves in space, not in the plane of the sheet; only the ground and other bodies in space can be joined to it",
             "type": "boolean"
           }
         },
@@ -527,6 +564,36 @@
                 "minItems": 2,
                 "maxItems": 2,
                 "description": "The two points pinned together"
+              },
+              "axis": {
+                "description": "Which way the hinge points, in the world at the start; for bodies in space only, default [0, 0, 1]",
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
               }
             },
             "required": [
@@ -900,6 +967,39 @@
               "profile"
             ],
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "spherical"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The two points held together; each body turns freely about them"
+              }
+            },
+            "required": [
+              "type",
+              "connect"
+            ],
+            "additionalProperties": false
           }
         ]
       }
@@ -1100,40 +1200,120 @@
       "additionalProperties": false
     },
     "pose": {
-      "description": "Starting position of bodies as [x, y, angle]; bodies left out start at [0, 0, 0]",
+      "description": "Starting position of bodies as [x, y, angle], or of a body in space as { at, axis, angle }; bodies left out start at the origin, unturned",
       "type": "object",
       "propertyNames": {
         "type": "string",
         "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
       },
       "additionalProperties": {
-        "type": "array",
-        "prefixItems": [
+        "anyOf": [
           {
-            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "array",
+            "prefixItems": [
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              },
+              {
+                "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            ],
+            "items": false,
+            "minItems": 3,
+            "maxItems": 3
           },
           {
-            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-            "type": [
-              "number",
-              "string"
-            ]
-          },
-          {
-            "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
-            "type": [
-              "number",
-              "string"
-            ]
+            "type": "object",
+            "properties": {
+              "at": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Where the body's origin is, as [x, y, z]"
+              },
+              "axis": {
+                "description": "The axis it is turned about; default [0, 0, 1]",
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "angle": {
+                "description": "How far it is turned about the axis; default 0",
+                "type": [
+                  "number",
+                  "string"
+                ]
+              }
+            },
+            "required": [
+              "at"
+            ],
+            "additionalProperties": false
           }
-        ],
-        "items": false,
-        "minItems": 3,
-        "maxItems": 3
+        ]
       }
     }
   },

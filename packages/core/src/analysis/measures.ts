@@ -247,6 +247,14 @@ export function evaluateMeasures(
     }
     return node.name;
   }
+  function unknownBody(id: string, pos: number): ExprError {
+    return new ExprError(
+      compiled.spatial.has(id)
+        ? `"${id}" moves in space, and measures of bodies in space are not there yet`
+        : `Unknown body "${id}"`,
+      pos,
+    );
+  }
   /** Measures and checks evaluated so far; what comes after them can use them by name. */
   const named = new Map<string, Quantity>();
   const motions = new Map<string, PointMotion>();
@@ -271,7 +279,7 @@ export function evaluateMeasures(
     if (known) return known;
     const [bodyId, name] = splitRef(ref);
     const body = compiled.bodies.get(bodyId);
-    if (!body) throw new ExprError(`Unknown body "${bodyId}"`, (node as Node).pos);
+    if (!body) throw unknownBody(bodyId, (node as Node).pos);
     // A body stands for its centre.
     if (name === undefined && body.points.size === 0)
       throw new ExprError(
@@ -300,7 +308,7 @@ export function evaluateMeasures(
   function body(node: Node | undefined, fn: Node): CompiledBody {
     const ref = refName(node, fn);
     const found = compiled.bodies.get(ref);
-    if (!found) throw new ExprError(`Unknown body "${ref}"`, (node as Node).pos);
+    if (!found) throw unknownBody(ref, (node as Node).pos);
     return found;
   }
 

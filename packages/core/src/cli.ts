@@ -29,9 +29,9 @@ function main(): number {
 
   if (doc && compiled) {
     console.log(doc.meta?.name ?? file);
-    const joints = compiled.joints.length;
+    const joints = compiled.joints.length + compiled.spatialJoints.length;
     const drivers = compiled.drivers.length;
-    const moving = compiled.model.bodies.length;
+    const moving = compiled.model.bodies.length + compiled.spatial.size;
     console.log(
       `  ${moving} moving ${moving === 1 ? "body" : "bodies"}, ${plural(joints, "joint")}, ${plural(drivers, "driver")}`,
     );

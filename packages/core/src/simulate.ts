@@ -61,6 +61,15 @@ function mobilityDiagnostics(mobility: Mobility, compiled: Compiled): Diagnostic
       path: driven ? ["drivers"] : undefined,
     });
   }
+  if (mobility.idle > 0) {
+    const [first] = mobility.idleBodies;
+    const their = mobility.idleBodies.length === 1 ? "its" : "their";
+    diagnostics.push({
+      severity: "info",
+      message: `${list(mobility.idleBodies)} can turn without moving any of ${their} points, so that turning is not counted as a degree of freedom`,
+      path: first === undefined ? undefined : ["bodies", first],
+    });
+  }
   if (mobility.redundant > 0) {
     diagnostics.push({
       severity: "info",

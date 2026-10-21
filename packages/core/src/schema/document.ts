@@ -87,7 +87,11 @@ const Geometry = z.strictObject({
   ),
 });
 
-const Body = z.strictObject({
+const Direction = z
+  .tuple([Expr, Expr, Expr])
+  .describe("A direction as [x, y, z]; only which way it points matters");
+
+const PlanarBody = z.strictObject({
   points: z
     .record(Id, z.tuple([Expr, Expr]))
     .describe("Named points in the body's own frame, as [x, y]"),
@@ -101,9 +105,34 @@ const Body = z.strictObject({
     ),
 });
 
-const Revolute = z.strictObject({
+const Body = PlanarBody.extend({
+  points: z
+    .record(Id, z.union([z.tuple([Expr, Expr]), z.tuple([Expr, Expr, Expr])]))
+    .describe("Named points in the body's own frame, as [x, y], or [x, y, z] off the sheet"),
+  spatial: z
+    .boolean()
+    .optional()
+    .describe(
+      "Moves in space, not in the plane of the sheet; only the ground and other bodies in space can be joined to it",
+    ),
+});
+
+const PlanarRevolute = z.strictObject({
   type: z.literal("revolute"),
   connect: z.tuple([PointRef, PointRef]).describe("The two points pinned together"),
+});
+
+const Revolute = PlanarRevolute.extend({
+  axis: Direction.optional().describe(
+    "Which way the hinge points, in the world at the start; for bodies in space only, default [0, 0, 1]",
+  ),
+});
+
+const Spherical = z.strictObject({
+  type: z.literal("spherical"),
+  connect: z
+    .tuple([PointRef, PointRef])
+    .describe("The two points held together; each body turns freely about them"),
 });
 
 const Weld = z.strictObject({
@@ -163,12 +192,14 @@ const Cam = z.strictObject({
   roller: Expr.optional().describe("Radius of the follower's roller, for drawing; default 0"),
 });
 
-const JOINTS = [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam] as const;
+const JOINTS = [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam, Spherical] as const;
+/** The joints of a format built on mekasim, which stays in the plane. */
+const PLANAR_JOINTS = [PlanarRevolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam] as const;
 
-function jointOf(kinds: typeof JOINTS) {
+function jointOf<Kinds extends typeof JOINTS | typeof PLANAR_JOINTS>(kinds: Kinds) {
+  const names = kinds.map((kind) => kind.shape.type.value);
   return z.discriminatedUnion("type", kinds, {
-    error:
-      "Unknown joint type; expected revolute, weld, slider, pin-slot, distance, gear, belt or cam",
+    error: `Unknown joint type; expected ${names.slice(0, -1).join(", ")} or ${names.at(-1)}`,
   });
 }
 
@@ -220,7 +251,21 @@ const Frame = z.strictObject({
   body: Id.optional().describe("The body it turns with"),
 });
 
-function bodiesOf(body: typeof Body) {
+const PlanarPose = z.tuple([Expr, Expr, Expr]);
+
+const SpatialPose = z.strictObject({
+  at: z.tuple([Expr, Expr, Expr]).describe("Where the body's origin is, as [x, y, z]"),
+  axis: Direction.optional().describe("The axis it is turned about; default [0, 0, 1]"),
+  angle: Expr.optional().describe("How far it is turned about the axis; default 0"),
+});
+
+function posesOf<
+  Pose extends typeof PlanarPose | z.ZodUnion<[typeof PlanarPose, typeof SpatialPose]>,
+>(pose: Pose, description: string) {
+  return z.record(Id, pose).optional().describe(description);
+}
+
+function bodiesOf<Kind extends typeof Body | typeof PlanarBody>(body: Kind) {
   return z.record(Id, body).default({}).describe(`Rigid bodies. "${GROUND}" is the fixed one`);
 }
 
@@ -294,10 +339,10 @@ export const Document = z.strictObject({
         .describe("Driver revolutions per cycle; default 1"),
     })
     .optional(),
-  pose: z
-    .record(Id, z.tuple([Expr, Expr, Expr]))
-    .optional()
-    .describe("Starting position of bodies as [x, y, angle]; bodies left out start at [0, 0, 0]"),
+  pose: posesOf(
+    z.union([PlanarPose, SpatialPose]),
+    "Starting position of bodies as [x, y, angle], or of a body in space as { at, axis, angle }; bodies left out start at the origin, unturned",
+  ),
 });
 
 export type Document = z.infer<typeof Document>;
@@ -333,17 +378,22 @@ export interface SchemaExtra {
 export function documentSchema(extra?: SchemaExtra): typeof Document {
   if (!extra) return Document;
   const { version } = extra;
-  const body = extra.body ? Body.extend(extra.body) : Body;
-  const joint = extra.joint
-    ? jointOf(JOINTS.map((kind) => kind.extend(extra.joint ?? {})) as unknown as typeof JOINTS)
-    : Joint;
+  // What is built on mekasim stays in the plane: its bodies, joints and poses are planar.
+  const body = extra.body ? PlanarBody.extend(extra.body) : PlanarBody;
+  const joint = jointOf(
+    PLANAR_JOINTS.map((kind) => kind.extend(extra.joint ?? {})) as unknown as typeof PLANAR_JOINTS,
+  );
   const extended = Document.extend({
     ...(version && {
       mekasim: Document.shape.mekasim.optional(),
       [version.key]: z.literal(version.value).optional().describe("Format version"),
     }),
     bodies: bodiesOf(body as typeof Body),
-    joints: jointsOf(joint),
+    joints: jointsOf(joint as unknown as typeof Joint),
+    pose: posesOf(
+      PlanarPose,
+      "Starting position of bodies as [x, y, angle]; bodies left out start at [0, 0, 0]",
+    ),
     ...extra.sections,
   });
   if (!version) return extended as unknown as typeof Document;

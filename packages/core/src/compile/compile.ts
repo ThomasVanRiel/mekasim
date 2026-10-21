@@ -32,6 +32,19 @@ import {
   relativeAngle,
 } from "../solver/constraints.ts";
 import type { SolverModel } from "../solver/solve.ts";
+import {
+  hingeAngle,
+  perpendiculars,
+  quaternion,
+  revolute,
+  SPATIAL_SIZE,
+  type SpatialPoint,
+  spherical,
+  unit,
+  unitQuaternion,
+  unrotate,
+  type Vec3,
+} from "../solver/spatial.ts";
 import { type AutoPose, expandComponents } from "./components.ts";
 
 type Path = (string | number)[];
@@ -52,6 +65,14 @@ export interface CompiledBody {
   hidden: boolean;
 }
 
+/** A body that moves in space. Its block of seven coordinates is in `q` at `at`. */
+export interface CompiledSpatialBody {
+  id: string;
+  at: number;
+  /** Points in the body frame, in metres. */
+  points: Map<string, Vec3>;
+}
+
 /** How near two places on an outline count as one, in metres. */
 const SAME_PLACE = 1e-9;
 
@@ -62,7 +83,7 @@ export interface CompiledMeasure {
 
 export interface CompiledJoint {
   id: string;
-  type: Joint["type"];
+  type: Exclude<Joint["type"], "spherical">;
   /**
    * The points involved, each as `body.point`: the two connected points of a
    * revolute, weld, distance, gear or belt; the two axis points and then the pin of a
@@ -79,6 +100,14 @@ export interface CompiledJoint {
         surface: [number, number][];
         roller: number;
       };
+}
+
+/** A joint between bodies in space, or between one of them and the ground. */
+export interface CompiledSpatialJoint {
+  id: string;
+  type: "revolute" | "spherical";
+  /** The two points it connects, each as `body.point`. */
+  points: string[];
 }
 
 export interface CompiledDriver {
@@ -113,9 +142,14 @@ export interface Compiled {
   params: Map<string, Quantity>;
   /** The bounds of the parameters that have them, in the same terms as their values. */
   bounds: Map<string, { min?: number; max?: number }>;
+  /** The bodies in the plane, ground among them. */
   bodies: Map<string, CompiledBody>;
+  /** The bodies that move in space. Their coordinates come after those of the bodies in the plane. */
+  spatial: Map<string, CompiledSpatialBody>;
   model: SolverModel;
+  /** The joints between bodies in the plane. */
   joints: CompiledJoint[];
+  spatialJoints: CompiledSpatialJoint[];
   drivers: CompiledDriver[];
   /** Duration of one motion cycle in seconds; 0 when nothing is driven. */
   period: number;
@@ -326,14 +360,58 @@ function compileExpanded(
   }
 
   const bodies = new Map<string, CompiledBody>();
+  const spatial = new Map<string, CompiledSpatialBody>();
   const moving: string[] = [];
+  /** How far each point of the ground is off the sheet, where it is. */
+  const groundDepth = new Map<string, number>();
+  const planarCount = Object.entries(doc.bodies).filter(
+    ([id, body]) => id !== GROUND && !body.spatial,
+  ).length;
   for (const [id, body] of Object.entries(doc.bodies)) {
+    const inSpace = body.spatial === true && id !== GROUND;
+    if (body.spatial && id === GROUND)
+      diagnostics.push({
+        severity: "error",
+        message: `"${GROUND}" is fixed, so spatial: true means nothing for it; its points may be [x, y, z] without it`,
+        path: ["bodies", id, "spatial"],
+      });
     const points = new Map<string, { u: number; v: number }>();
-    for (const [name, [x, y]] of Object.entries(body.points)) {
+    const spacePoints = new Map<string, Vec3>();
+    for (const [name, [x, y, z]] of Object.entries(body.points)) {
       const path = ["bodies", id, "points", name];
       const u = attempt(() => scalar(x, LENGTH, [...path, 0]));
       const v = attempt(() => scalar(y, LENGTH, [...path, 1]));
-      if (u !== undefined && v !== undefined) points.set(name, { u, v });
+      const w = z === undefined ? 0 : attempt(() => scalar(z, LENGTH, [...path, 2]));
+      if (u === undefined || v === undefined || w === undefined) continue;
+      if (inSpace) {
+        spacePoints.set(name, [u, v, w]);
+        continue;
+      }
+      if (w !== 0 && id !== GROUND) {
+        attempt(() => {
+          throw fail(
+            "This body moves in the plane, so its points are on the sheet; write them as [x, y], or give the body spatial: true",
+            [...path, 2],
+          );
+        });
+        continue;
+      }
+      if (w !== 0) groundDepth.set(name, w);
+      points.set(name, { u, v });
+    }
+    if (inSpace) {
+      if (body.shape)
+        diagnostics.push({
+          severity: "error",
+          message: "A body in space has no outline yet",
+          path: ["bodies", id, "shape"],
+        });
+      spatial.set(id, {
+        id,
+        at: 3 * planarCount + SPATIAL_SIZE * spatial.size,
+        points: spacePoints,
+      });
+      continue;
     }
     const index = id === GROUND ? GROUND_INDEX : moving.push(id) - 1;
     // A shape still waiting for its drawing is left out, as when the drawing is not attached.
@@ -357,8 +435,19 @@ function compileExpanded(
     });
   }
 
-  function point(ref: string, path: Path): BodyPoint {
+  /** A point used by something in the plane. */
+  function point(ref: string, path: Path, offSheet = false): BodyPoint {
     const [bodyId, name] = ref.split(".") as [string, string];
+    if (spatial.has(bodyId))
+      throw fail(
+        `"${bodyId}" moves in space, and only bodies in the plane can be used here so far`,
+        path,
+      );
+    if (bodyId === GROUND && groundDepth.has(name) && !offSheet)
+      throw fail(
+        `"${ref}" is off the sheet, and only points on the sheet can be used here so far`,
+        path,
+      );
     const body = bodies.get(bodyId);
     if (!body) throw fail(`Unknown body "${bodyId}"`, path);
     const local = body.points.get(name);
@@ -370,17 +459,61 @@ function compileExpanded(
     return { body: body.index, u: local.u, v: local.v };
   }
 
-  const q0 = new Float64Array(3 * moving.length);
-  for (const [id, [x, y, angle]] of Object.entries(doc.pose ?? {})) {
+  const q0 = new Float64Array(3 * moving.length + SPATIAL_SIZE * spatial.size);
+  // A body in space starts unturned.
+  for (const { at } of spatial.values()) q0[at + 3] = 1;
+
+  /** A direction written in the model, as a unit vector. */
+  function direction(source: Expr[], path: Path): Vec3 {
+    const [x, y, z] = source.map((value, i) => scalar(value, NONE, [...path, i])) as Vec3;
+    if (Math.hypot(x, y, z) < 1e-12) throw fail("A direction cannot be [0, 0, 0]", path);
+    return unit([x, y, z]);
+  }
+
+  for (const [id, pose] of Object.entries(doc.pose ?? {})) {
     const path = ["pose", id];
     attempt(() => {
+      const inSpace = spatial.get(id);
+      if (inSpace) {
+        if (Array.isArray(pose))
+          throw fail("A body in space takes its pose as { at: [x, y, z], axis, angle }", path);
+        const at = pose.at.map((value, i) => scalar(value, LENGTH, [...path, "at", i]));
+        const axis = direction(pose.axis ?? [0, 0, 1], [...path, "axis"]);
+        const angle = scalar(pose.angle ?? 0, ANGLE, [...path, "angle"]);
+        q0.set([...at, ...quaternion(axis, angle)], inSpace.at);
+        return;
+      }
       const body = bodies.get(id);
       if (!body) throw fail(`Unknown body "${id}"`, path);
       if (body.index < 0) throw fail(`"${GROUND}" is fixed and has no pose`, path);
+      if (!Array.isArray(pose))
+        throw fail("A body in the plane takes its pose as [x, y, angle]", path);
+      const [x, y, angle] = pose;
       q0[3 * body.index] = scalar(x, LENGTH, [...path, 0]);
       q0[3 * body.index + 1] = scalar(y, LENGTH, [...path, 1]);
       q0[3 * body.index + 2] = scalar(angle, ANGLE, [...path, 2]);
     });
+  }
+
+  /** The Euler parameters a body starts with: none for the ground. */
+  function startTurn(at: number): ArrayLike<number> {
+    return at < 0 ? [1, 0, 0, 0] : q0.subarray(at + 3, at + 7);
+  }
+
+  /** A point used by a joint in space. `why` says why a body in the plane cannot have it. */
+  function spacePoint(ref: string, path: Path, why: string): SpatialPoint {
+    const [bodyId, name] = ref.split(".") as [string, string];
+    const body = spatial.get(bodyId);
+    if (body) {
+      const s = body.points.get(name);
+      if (s) return { at: body.at, s };
+      if (doc.bodies[bodyId]?.points[name]) throw new Reported();
+      throw fail(`Body "${bodyId}" has no point "${name}"`, path);
+    }
+    if (bodyId !== GROUND && bodies.has(bodyId))
+      throw fail(`"${bodyId}" moves in the plane; ${why}`, path);
+    const { u, v } = point(bodyId === GROUND ? `${GROUND}.${name}` : ref, path, true);
+    return { at: -1, s: [u, v, groundDepth.get(name) ?? 0] };
   }
 
   /** Where a point is at the start, from the starting position of its body. */
@@ -420,14 +553,58 @@ function compileExpanded(
   }
 
   const constraints: Constraint[] = [];
+  for (const { id, at } of spatial.values()) constraints.push(unitQuaternion(id, at));
   /** Bodies joined by each revolute joint, for drivers to act on. */
   const hinges = new Map<string, [number, number]>();
+  /**
+   * Hinges between bodies in space, for drivers to act on: the blocks of their two
+   * bodies, the hinge's axis in the first body's frame, and a direction square to it
+   * in each body's frame, where the two lie together at the start.
+   */
+  const spaceHinges = new Map<string, { a: number; b: number; axis: Vec3; fa: Vec3; fb: Vec3 }>();
   const joints: CompiledJoint[] = [];
+  const spatialJoints: CompiledSpatialJoint[] = [];
   const drivers: CompiledDriver[] = [];
 
   for (const [id, joint] of Object.entries(doc.joints ?? {})) {
     const path = ["joints", id];
     attempt(() => {
+      const inSpace = (refs: string[]): boolean =>
+        refs.some((ref) => spatial.has(ref.split(".")[0] as string));
+      if (
+        joint.type === "spherical" ||
+        (joint.type === "revolute" && (joint.axis !== undefined || inSpace(joint.connect)))
+      ) {
+        const why =
+          joint.type === "spherical"
+            ? "a ball joint joins bodies in space, and the ground"
+            : inSpace(joint.connect)
+              ? "it cannot be joined to a body in space yet"
+              : "every hinge between bodies in the plane turns about z, so an axis is only for bodies in space";
+        const a = spacePoint(joint.connect[0], [...path, "connect", 0], why);
+        const b = spacePoint(joint.connect[1], [...path, "connect", 1], why);
+        if (a.at === b.at)
+          throw fail("A joint must connect two different bodies", [...path, "connect"]);
+        if (joint.type === "spherical") {
+          constraints.push(spherical(id, a, b));
+        } else {
+          const axis = direction(joint.axis ?? [0, 0, 1], [...path, "axis"]);
+          const [f] = perpendiculars(axis);
+          const [ta, tb] = [startTurn(a.at), startTurn(b.at)];
+          const ha = unrotate(ta, axis);
+          constraints.push(revolute(id, a, b, ha, unrotate(tb, axis)));
+          spaceHinges.set(id, {
+            a: a.at,
+            b: b.at,
+            axis: ha,
+            fa: unrotate(ta, f),
+            fb: unrotate(tb, f),
+          });
+        }
+        spatialJoints.push({ id, type: joint.type, points: [...joint.connect] });
+        return;
+      }
+
       if (joint.type === "revolute" || joint.type === "weld" || joint.type === "distance") {
         const a = point(joint.connect[0], [...path, "connect", 0]);
         const b = point(joint.connect[1], [...path, "connect", 1]);
@@ -539,6 +716,17 @@ function compileExpanded(
     const path = ["drivers", id];
     attempt(() => {
       const hinge = hinges.get(driver.joint);
+      const spaceHinge = spaceHinges.get(driver.joint);
+      if (spaceHinge) {
+        // In space the angle is counted from where the two bodies start.
+        const { a, b, axis, fa, fb } = spaceHinge;
+        const speed = scalar(driver.speed, ANGULAR_SPEED, [...path, "speed"], "rpm");
+        const phase = scalar(driver.phase ?? 0, ANGLE, [...path, "phase"]);
+        constraints.push(hingeAngle(id, a, b, axis, fa, fb, phase, speed, true));
+        drivers.push({ id, joint: driver.joint, speed, phase });
+        if (period === 0 && speed !== 0) period = (2 * Math.PI) / Math.abs(speed);
+        return;
+      }
       if (!hinge) {
         const joint = doc.joints?.[driver.joint];
         // A revolute joint missing here failed to compile and is already reported.
@@ -638,8 +826,21 @@ function compileExpanded(
       params,
       bounds,
       bodies,
-      model: { bodies: moving, constraints, q0 },
+      spatial,
+      model: {
+        bodies: moving,
+        ...(spatial.size > 0 && {
+          spatial: [...spatial.values()].map(({ id, points }) => ({
+            id,
+            size: SPATIAL_SIZE,
+            points: [...points.values()],
+          })),
+        }),
+        constraints,
+        q0,
+      },
       joints,
+      spatialJoints,
       drivers,
       period,
       steps: doc.cycle?.steps ?? 360,

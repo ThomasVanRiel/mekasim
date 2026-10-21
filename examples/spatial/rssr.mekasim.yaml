@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../../packages/core/schema/mekasim-1.schema.json
+# A spatial four-bar (RSSR): a crank turning about z drives, through a rod with a ball
+# joint at each end, a rocker turning about x, off to the side and above the crank.
+# Bodies marked `spatial: true` move in space and may have points off the sheet.
+mekasim: 1
+meta:
+  name: Spatial four-bar (RSSR)
+
+params:
+  rpm: 60
+
+bodies:
+  ground:
+    points: { O: [0, 0, 0], R: [50, 60, 40] }
+  crank:
+    spatial: true
+    points: { O: [0, 0, 0], A: [20, 0, 0] }
+  coupler:
+    spatial: true
+    points: { A: [0, 0, 0], B: [95, 0, 0] }
+  rocker:
+    spatial: true
+    points: { R: [0, 0, 0], B: [0, 30, -52] }
+
+joints:
+  main:   { type: revolute, connect: [ground.O, crank.O] }
+  ball_a: { type: spherical, connect: [crank.A, coupler.A] }
+  ball_b: { type: spherical, connect: [coupler.B, rocker.B] }
+  rock:   { type: revolute, connect: [ground.R, rocker.R], axis: [1, 0, 0] }
+
+drivers:
+  motor: { joint: main, speed: rpm }
+
+pose:
+  # The coupler starts roughly along the line from the crank to the rocker.
+  coupler: { at: [20, 0, 0], axis: [0, 0, 1], angle: 60 }
+  rocker: { at: [50, 60, 40] }

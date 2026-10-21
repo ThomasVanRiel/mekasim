@@ -1,5 +1,6 @@
 import type { Constraint } from "./constraints.ts";
 import { type Mat, mat, maxAbs, norm2, solveLinear } from "./linalg.ts";
+import type { Vec3 } from "./spatial.ts";
 
 export interface SolverModel {
   /**
@@ -7,8 +8,13 @@ export interface SolverModel {
    * `q[3i..3i+2]`, so whatever reads `3 * body` finds it there.
    */
   bodies: string[];
-  /** Bodies with coordinates of their own kind, in blocks after the planar ones, in this order. */
-  spatial?: { id: string; size: number }[];
+  /**
+   * Bodies with coordinates of their own kind, in blocks after the planar ones, in this
+   * order. A body in space gives its `points`, in its own frame: its block is then its
+   * position and Euler parameters, as in `spatial.ts`, and a free motion that moves
+   * none of the points moves nothing.
+   */
+  spatial?: { id: string; size: number; points?: Vec3[] }[];
   constraints: Constraint[];
   /** Starting position, used as the first guess; as long as all blocks together. */
   q0: Float64Array;
@@ -19,14 +25,16 @@ export interface Block {
   id: string;
   at: number;
   size: number;
+  /** For a body in space, its points; see `SolverModel.spatial`. */
+  points?: Vec3[];
 }
 
 /** The place in `q` of every moving body, the planar ones first. */
 export function blocks(model: SolverModel): Block[] {
   const out: Block[] = model.bodies.map((id, i) => ({ id, at: 3 * i, size: 3 }));
   let at = 3 * model.bodies.length;
-  for (const { id, size } of model.spatial ?? []) {
-    out.push({ id, at, size });
+  for (const { id, size, points } of model.spatial ?? []) {
+    out.push(points ? { id, at, size, points } : { id, at, size });
     at += size;
   }
   return out;
@@ -168,11 +176,15 @@ export function solveJerk(
   qd: Float64Array,
   qdd: Float64Array,
 ): Float64Array {
-  // A step that turns the fastest planar body by about 1e-5 rad: small enough that what
-  // the difference leaves out is far below it, large enough to stay clear of rounding.
+  // A step that turns the fastest body by about 1e-5 rad: small enough that what the
+  // difference leaves out is far below it, large enough to stay clear of rounding.
   let turning = 1;
   const planar = 3 * model.bodies.length;
   for (let i = 2; i < planar; i += 3) turning = Math.max(turning, Math.abs(qd[i]));
+  // A body in space turns at twice the rate its unit Euler parameters change.
+  for (const { at, points } of blocks(model)) {
+    if (points) turning = Math.max(turning, 2 * Math.hypot(...qd.subarray(at + 3, at + 7)));
+  }
   const h = 1e-5 / turning;
 
   /** `gamma - Phi_q qdd` a time `dt` along the motion, with `qdd` held as it is. */

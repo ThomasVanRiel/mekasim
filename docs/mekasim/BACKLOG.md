@@ -52,14 +52,26 @@ steps, each leaving the example baseline unchanged until a model uses something 
    an RSSR four-bar spinning about its own line, are found and named in the
    diagnostics rather than counted as degrees of freedom. Done when the RSSR
    four-bar solves through `pnpm solve`.
+   Built in `packages/core/src/solver/spatial.ts`, with a driver that turns a hinge
+   about its axis, and `idle` and `idleBodies` in `mobility.ts`. To get the RSSR
+   through `pnpm solve`, some of step 4 came along: `spatial: true` on a body,
+   points as `[x, y, z]`, a pose `{ at, axis, angle }`, `spherical` joints and an
+   `axis` on `revolute`, all in mekasim's schema only (mekafit's stays planar).
+   Bodies in space are kept apart from the planar ones (`compiled.spatial`,
+   `compiled.spatialJoints`), so drawing, measures, layers and export do not see
+   them yet. The example is `examples/spatial/rssr.mekasim.yaml`, outside the
+   app's list and the baseline until the view can show it. The other joints are in
+   the solver, with their tests, but not yet in the format.
 3. **Planar groups placed in space.** A `planes:` section (an origin and a normal);
    a planar body may sit on a plane and keeps its three coordinates, mapped into
    the world where it meets a spatial body. Gears, belts and cams stay planar and
    must share one plane.
 4. **Format and measures.** Points may be `[x, y, z]` and joints take an `axis`;
-   left out, they mean the plane as now, so `mekasim: 1` files stay valid. `z(p)`,
-   angles between axes, and a meaning (or another name) for `angle(body)` on a
-   spatial body.
+   left out, they mean the plane as now, so `mekasim: 1` files stay valid (done for
+   bodies in space, ball joints and hinges in step 2). Still to come: universal,
+   cylindrical, prismatic, point-on-plane and point-on-line joints in the format;
+   measures, traces and frames of bodies in space; `z(p)`, angles between axes, and
+   a meaning (or another name) for `angle(body)` on a spatial body.
 5. **The view.** Spatial bodies drawn as rods with ball and fork ends, picking in
    3D, sketching on a chosen plane with the 2D tools; truly spatial parts written
    in the source and the inspector first, a gizmo for placing points in 3D last.

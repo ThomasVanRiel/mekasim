@@ -138,7 +138,8 @@ packages/core/src
   schema/     document format (Zod), YAML loading
   expr/       expression parser, units and dimensions
   compile/    document -> solver model
-  solver/     constraints, position/velocity/acceleration, degrees of freedom
+  solver/     constraints in the plane and in space, position/velocity/acceleration,
+              degrees of freedom
   analysis/   motion cycle, measures, checks and plots, CSV, parameter sweeps
   fabricate/  parts as flat pieces, sheet layout, DXF
   geometry/   outlines: plates, shapes of lines and arcs, path text

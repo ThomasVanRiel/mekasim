@@ -55,7 +55,7 @@ function PointRow({
 }: {
   body: string;
   name: string;
-  point: [number | string, number | string];
+  point: [number | string, number | string] | [number | string, number | string, number | string];
 }) {
   const select = useStore((s) => s.select);
   return (
@@ -69,6 +69,9 @@ function PointRow({
       </button>
       <Field label="x" path={["bodies", body, "points", name, 0]} value={point[0]} />
       <Field label="y" path={["bodies", body, "points", name, 1]} value={point[1]} />
+      {point.length === 3 && (
+        <Field label="z" path={["bodies", body, "points", name, 2]} value={point[2]} />
+      )}
     </div>
   );
 }
@@ -83,6 +86,7 @@ const JOINT_NAMES = {
   gear: "Gear",
   belt: "Belt",
   cam: "Cam",
+  spherical: "Ball joint",
 } as const;
 
 /** Buttons that add a chart of something to the model. */
