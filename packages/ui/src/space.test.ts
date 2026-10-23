@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { placeInSpace, simulate } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import { buildScene, type Scene } from "./scene.ts";
-import { spaceJointAt, spacePoseAt } from "./space.ts";
+import { spaceJointAt, spacePath, spacePoseAt, toSpaceLocal } from "./space.ts";
 
 function example(name: string): { scene: Scene; simulation: ReturnType<typeof simulate> } {
   const url = new URL(`../../../examples/spatial/${name}.mekasim.yaml`, import.meta.url);
@@ -119,6 +119,42 @@ describe("the names in space", () => {
     const at = placeInSpace(q, { at: output.at, s: [0, 0, 0.02] });
     trace.points[50]?.forEach((value, i) => {
       expect(value).toBeCloseTo(at[i] as number, 12);
+    });
+  });
+});
+
+describe("following a point in space", () => {
+  const { scene, simulation } = example("swash-plate");
+  const blade = scene.space?.bodies.find((body) => body.id === "blade_1");
+  const compiled = simulation.compiled;
+  const cycle = simulation.cycle;
+
+  it("gives where a point of a body is at every sample", () => {
+    if (!blade || !compiled || !cycle) throw new Error("no blade");
+    const tip = compiled.spatial.get("blade_1")?.points.get("tip") as [number, number, number];
+    const path = spacePath(blade, tip);
+    const at = compiled.spatial.get("blade_1")?.at as number;
+    for (let k = 0; k < cycle.count; k += 17) {
+      const q = cycle.q.subarray(k * cycle.width, (k + 1) * cycle.width);
+      const [x, y, z] = placeInSpace(q, { at, s: tip });
+      // The solver keeps the Euler parameters of unit length to its tolerance.
+      expect(path[3 * k]).toBeCloseTo(x, 9);
+      expect(path[3 * k + 1]).toBeCloseTo(y, 9);
+      expect(path[3 * k + 2]).toBeCloseTo(z, 9);
+    }
+  });
+
+  it("sees a place in the world in the body's own frame, and back", () => {
+    if (!blade) throw new Error("no blade");
+    const s: [number, number, number] = [0.01, -0.02, 0.03];
+    const path = spacePath(blade, s);
+    const world: [number, number, number] = [
+      path[3 * 40] as number,
+      path[3 * 40 + 1] as number,
+      path[3 * 40 + 2] as number,
+    ];
+    toSpaceLocal(blade, 40, scene.periodic, world).forEach((value, i) => {
+      expect(value).toBeCloseTo(s[i] as number, 12);
     });
   });
 });

@@ -215,3 +215,51 @@ export function spaceJointAt(
     }
   }
 }
+
+/** `v` turned by the unit quaternion `[qx, qy, qz, qw]` at `q[at]`. */
+function rotateBy(q: ArrayLike<number>, at: number, v: Vec3, inverse = false): Vec3 {
+  const sign = inverse ? -1 : 1;
+  const u: Vec3 = [
+    sign * (q[at] as number),
+    sign * (q[at + 1] as number),
+    sign * (q[at + 2] as number),
+  ];
+  const w = q[at + 3] as number;
+  // v' = v + 2 w (u × v) + 2 u × (u × v).
+  const cross = (a: Vec3, b: Vec3): Vec3 => [
+    a[1] * b[2] - a[2] * b[1],
+    a[2] * b[0] - a[0] * b[2],
+    a[0] * b[1] - a[1] * b[0],
+  ];
+  const t = cross(u, v).map((value) => 2 * value) as Vec3;
+  const c = cross(u, t);
+  return [v[0] + w * t[0] + c[0], v[1] + w * t[1] + c[1], v[2] + w * t[2] + c[2]];
+}
+
+/** Where a point of a body in space, `s` in its own frame, is at every sample: three numbers each. */
+export function spacePath(body: DrawSpaceBody, s: Vec3): Float64Array {
+  const count = body.poses.length / 7;
+  const out = new Float64Array(3 * count);
+  for (let k = 0; k < count; k++) {
+    const turned = rotateBy(body.poses, 7 * k + 3, s);
+    for (let i = 0; i < 3; i++) out[3 * k + i] = (body.poses[7 * k + i] as number) + turned[i];
+  }
+  return out;
+}
+
+/** A place in the world seen in a body's own frame, with the body where it is at `step`. */
+export function toSpaceLocal(
+  body: DrawSpaceBody,
+  step: number,
+  periodic: boolean,
+  world: Vec3,
+): Vec3 {
+  const pose = new Float64Array(7);
+  spacePoseAt(body, step, periodic, pose);
+  const d: Vec3 = [
+    world[0] - (pose[0] as number),
+    world[1] - (pose[1] as number),
+    world[2] - (pose[2] as number),
+  ];
+  return rotateBy(pose, 3, d, true);
+}

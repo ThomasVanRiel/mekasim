@@ -4,14 +4,16 @@ import {
   type DrawSpaceJoint,
   type Scene,
   spaceJointAt,
+  spacePath,
   spacePoseAt,
+  toSpaceLocal,
   useColors,
 } from "@mekasim/ui";
-import { type ThreeEvent, useFrame } from "@react-three/fiber";
-import { type ReactNode, useMemo, useRef } from "react";
+import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
+import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { type Group, Quaternion, Vector3 } from "three";
 import { useStore } from "../store.ts";
-import type { Hit } from "./pick.ts";
+import { type Hit, nearestStep } from "./pick.ts";
 
 type Vec3 = [number, number, number];
 
@@ -102,7 +104,12 @@ function Body({
         />
       ))}
       {body.points.map(({ name, s }) => (
-        <mesh key={name} position={s} {...picks({ kind: "point", ref: `${body.id}.${name}` })}>
+        <mesh
+          key={name}
+          position={s}
+          userData={{ point: name }}
+          {...picks({ kind: "point", ref: `${body.id}.${name}` })}
+        >
           <sphereGeometry args={[radius * (name === point ? 1.7 : 1.25), 16, 12]} />
           <meshLambertMaterial color={name === point ? colors.dye : color} />
         </mesh>
@@ -195,6 +202,74 @@ export function Space({ scene }: { scene: Scene }) {
   const at = useRef(new Float64Array(3));
   const axis = useRef(new Float64Array(3));
   const along = useRef(new Vector3());
+  const camera = useThree((s) => s.camera);
+  const gl = useThree((s) => s.gl);
+  const controls = useThree((s) => s.controls) as { enabled: boolean } | null;
+  /** A part held to scrub the cycle: where it is on the screen at every sample. */
+  const held = useRef<{ xs: Float64Array; ys: Float64Array; x: number; y: number; moved: boolean }>(
+    undefined,
+  );
+
+  /** Take hold of a part whose place in the world at every sample is `path`. */
+  function hold(event: ThreeEvent<PointerEvent>, path: () => Float64Array): void {
+    const state = useStore.getState();
+    if (event.button !== 0 || state.tool !== "select") return;
+    // The nearest part takes the press, not the ones behind it.
+    event.stopPropagation();
+    const driven = (state.shown?.compiled?.drivers.length ?? 0) > 0 && scene.cycle.count > 1;
+    if (!driven) return;
+    const places = path();
+    const box = gl.domElement.getBoundingClientRect();
+    const count = places.length / 3;
+    const xs = new Float64Array(count);
+    const ys = new Float64Array(count);
+    const v = new Vector3();
+    for (let k = 0; k < count; k++) {
+      v.set(places[3 * k] as number, places[3 * k + 1] as number, places[3 * k + 2] as number);
+      v.project(camera);
+      xs[k] = ((v.x + 1) / 2) * box.width;
+      ys[k] = ((1 - v.y) / 2) * box.height;
+    }
+    held.current = { xs, ys, x: event.clientX, y: event.clientY, moved: false };
+    // Holding a part must not also turn the view.
+    if (controls) controls.enabled = false;
+  }
+
+  useEffect(() => {
+    function onMove(event: PointerEvent): void {
+      const part = held.current;
+      if (!part) return;
+      if (!part.moved && Math.hypot(event.clientX - part.x, event.clientY - part.y) < CLICK_PX)
+        return;
+      part.moved = true;
+      const box = gl.domElement.getBoundingClientRect();
+      const state = useStore.getState();
+      state.setPlaying(false);
+      state.setStep(
+        nearestStep(
+          part.xs,
+          part.ys,
+          event.clientX - box.left,
+          event.clientY - box.top,
+          state.step,
+          periodic,
+        ),
+      );
+    }
+    function onUp(): void {
+      if (!held.current) return;
+      held.current = undefined;
+      if (controls) controls.enabled = true;
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
+  }, [gl, controls, periodic]);
 
   useFrame(() => {
     if (!space) return;
@@ -232,10 +307,22 @@ export function Space({ scene }: { scene: Scene }) {
       {space.bodies.map((body) => (
         <group
           key={body.id}
+          userData={{ space: true }}
           ref={(group) => {
             if (group) bodies.current.set(body.id, group);
             else bodies.current.delete(body.id);
           }}
+          onPointerDown={(event) =>
+            hold(event, () => {
+              // A point is followed as it is; a rod at the place on it that was pressed.
+              const name = event.object.userData.point as string | undefined;
+              const { step } = useStore.getState();
+              const s =
+                body.points.find((p) => p.name === name)?.s ??
+                toSpaceLocal(body, step, periodic, [event.point.x, event.point.y, event.point.z]);
+              return spacePath(body, s);
+            })
+          }
         >
           <Body
             body={body}
@@ -248,10 +335,12 @@ export function Space({ scene }: { scene: Scene }) {
       {space.joints.map((joint) => (
         <group
           key={joint.id}
+          userData={{ space: true }}
           ref={(group) => {
             if (group) joints.current.set(joint.id, group);
             else joints.current.delete(joint.id);
           }}
+          onPointerDown={(event) => hold(event, () => joint.at)}
         >
           <Joint joint={joint} radius={radius} selected={joint.id === selectedJoint} />
         </group>

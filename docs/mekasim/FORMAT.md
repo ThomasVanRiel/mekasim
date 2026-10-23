@@ -381,7 +381,9 @@ others, with a ball at each point. Joints are drawn in brass: ball joints as bal
 hinges as barrels along their axes, sleeves as longer barrels, sliders as blocks,
 universal joints as a ball with the first pin, and a point on a face as a pad.
 Their points and bodies are named in the view, and a click on a body, a point or a
-joint selects it, in either view; they cannot be dragged yet.
+joint selects it, in either view. Dragging one of them runs the motion to where it
+comes nearest the pointer, as on the sheet; a mechanism in space with no driver
+cannot be posed by dragging yet.
 Measures of their points are taken in the world, with `z(p)` for the height off the
 sheet, and their points can be traced. A body in space has no one angle: its hinges
 have, `angle(hinge)` (see Measures), and so has a corner of three of its points,

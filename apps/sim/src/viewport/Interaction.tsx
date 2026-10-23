@@ -2,7 +2,7 @@ import { noMiddlePaste, useColors } from "@mekasim/ui";
 import { Line } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useState } from "react";
-import { type OrthographicCamera, Vector3 } from "three";
+import { type Object3D, type OrthographicCamera, Raycaster, Vector2, Vector3 } from "three";
 import { type DraftPoint, useStore } from "../store.ts";
 import { type Hit, pick } from "./pick.ts";
 import {
@@ -87,6 +87,7 @@ export function Interaction() {
   const gl = useThree((s) => s.gl);
   const camera = useThree((s) => s.camera) as OrthographicCamera;
   const controls = useThree((s) => s.controls) as { enabled: boolean } | null;
+  const world = useThree((s) => s.scene);
   const scene = useStore((s) => s.scene);
   const draft = useStore((s) => s.draft);
   const tool = useStore((s) => s.tool);
@@ -111,6 +112,25 @@ export function Interaction() {
       return { x: corner.x, y: corner.y, reach: REACH_PX / camera.zoom };
     }
 
+    const ray = new Raycaster();
+    const pointer = new Vector2();
+    /** Whether the nearest thing under the pointer moves in space, which picks itself. */
+    function overSpace(event: PointerEvent): boolean {
+      const box = canvas.getBoundingClientRect();
+      pointer.set(
+        ((event.clientX - box.left) / box.width) * 2 - 1,
+        1 - ((event.clientY - box.top) / box.height) * 2,
+      );
+      ray.setFromCamera(pointer, camera);
+      let object: Object3D | null | undefined = ray.intersectObjects(world.children, true)[0]
+        ?.object;
+      while (object) {
+        if (object.userData.space) return true;
+        object = object.parent;
+      }
+      return false;
+    }
+
     function onDown(event: PointerEvent): void {
       const state = useStore.getState();
       if (event.button !== 0 || event.target !== canvas || state.view !== "2d" || !state.scene)
@@ -128,6 +148,7 @@ export function Interaction() {
       press = { startX: event.clientX, startY: event.clientY, moved: false };
 
       if (state.tool === "select") {
+        if (state.scene.space && overSpace(event)) return;
         press.hit = pick(state.scene, state.step, x, y, reach);
         if (press.hit) press.held = grab(state.scene, press.hit, x, y);
       } else if (state.tool === "reshape") {
@@ -212,7 +233,7 @@ export function Interaction() {
       window.removeEventListener("pointercancel", onUp);
       if (controls) controls.enabled = true;
     };
-  }, [gl, camera, controls]);
+  }, [gl, camera, controls, world]);
 
   useEffect(() => {
     gl.domElement.style.cursor = tool === "select" ? "" : "crosshair";
