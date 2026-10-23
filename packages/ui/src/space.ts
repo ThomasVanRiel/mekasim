@@ -1,5 +1,6 @@
 import {
   type Compiled,
+  type CompiledSpatialJoint,
   type Cycle,
   placeInSpace,
   SHEET,
@@ -25,11 +26,11 @@ export interface DrawSpaceBody {
 /** A joint in space, drawn where it is in the world. */
 export interface DrawSpaceJoint {
   id: string;
-  kind: "spherical" | "revolute";
+  kind: CompiledSpatialJoint["type"];
   driven: boolean;
   /** Where it is at every sample, three numbers each. */
   at: Float64Array;
-  /** For a hinge, which way its axis points at every sample. */
+  /** Which way it is drawn along at every sample: see `CompiledSpatialJoint.axis`. */
   axis?: Float64Array;
 }
 

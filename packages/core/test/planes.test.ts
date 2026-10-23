@@ -114,19 +114,16 @@ describe("planes in the format", () => {
   it("says what does not fit", () => {
     expect(
       messages(`${PLANES}joints:\n  j: { type: revolute, connect: [ground.F, a.O] }\n`),
-    ).toEqual(['"ground.F" is not on the plane "side"']);
+    ).toEqual(['The mechanism cannot be assembled from its starting position; cannot close "j"']);
     expect(
       messages(`${PLANES}joints:\n  j: { type: distance, connect: [a.A, c.C], length: 5 }\n`),
     ).toEqual(['"c" is not on the same plane as the rest of this joint']);
     expect(messages(`${PLANES}joints:\n  j: { type: revolute, connect: [a.A, c.C] }\n`)).toEqual([
       "Its bodies are on different planes, so give the hinge an axis: which way it points",
     ]);
-    expect(messages(`${PLANES}traces: [a.A]\n`)).toEqual([
-      '"a" is on the plane "side", and only bodies on the sheet can be used here so far',
-    ]);
-    expect(messages(`${PLANES}measures:\n  m: angle(a)\n`)).toEqual([
-      '"a" is on the plane "side", and measures of bodies off the sheet are not there yet',
-    ]);
+    expect(messages(`${PLANES}traces: [a.A]\n`)).toEqual([]);
+    // A body on a plane has its angle in its plane.
+    expect(messages(`${PLANES}measures:\n  m: angle(a)\n`)).toEqual([]);
     expect(
       messages(
         "mekasim: 1\nbodies:\n  ground: { points: {} }\n  a: { plane: nowhere, points: {} }\n",

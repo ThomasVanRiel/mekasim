@@ -104,6 +104,7 @@ export function plotsOf(simulation: Simulation): PlotResult[] {
       series: [
         { source: `x(${ref})`, quantity: { value: motion.x, dim: LENGTH } },
         { source: `y(${ref})`, quantity: { value: motion.y, dim: LENGTH } },
+        ...(motion.z ? [{ source: `z(${ref})`, quantity: { value: motion.z, dim: LENGTH } }] : []),
       ],
     };
   });

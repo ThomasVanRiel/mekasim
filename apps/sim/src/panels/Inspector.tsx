@@ -87,6 +87,9 @@ const JOINT_NAMES = {
   belt: "Belt",
   cam: "Cam",
   spherical: "Ball joint",
+  universal: "Universal joint",
+  cylindrical: "Sleeve",
+  "point-plane": "Point on a face",
 } as const;
 
 /** Buttons that add a chart of something to the model. */
@@ -373,7 +376,15 @@ export function Inspector() {
               ? `${named[1]} rides on a cam centred on ${named[0]}.`
               : joint.type === "distance"
                 ? `Holds ${named[0]} and ${named[1]} a fixed distance apart.`
-                : `Ties the turning of the bodies centred on ${named[0]} and ${named[1]}.`}
+                : joint.type === "spherical"
+                  ? `Holds ${named[0]} and ${named[1]} together; each body turns freely about them.`
+                  : joint.type === "universal"
+                    ? `Joins ${named[0]} and ${named[1]} through a cross with two pins.`
+                    : joint.type === "cylindrical"
+                      ? `Keeps ${named[1]} on a line through ${named[0]}, sliding along it and turning about it.`
+                      : joint.type === "point-plane"
+                        ? `Keeps ${named[3]} on the face through ${named[0]}, ${named[1]} and ${named[2]}.`
+                        : `Ties the turning of the bodies centred on ${named[0]} and ${named[1]}.`}
       </p>
 
       {(joint.type === "revolute" || joint.type === "weld") && (

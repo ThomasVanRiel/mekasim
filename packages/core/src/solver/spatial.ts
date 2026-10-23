@@ -239,6 +239,28 @@ export function pointMotionAt(
   };
 }
 
+/**
+ * How fast a body turns, as a vector in the world, when the coordinates change at the
+ * rates `qd`: `2 E(p) pd` for a body in space, and the rate of its angle about the
+ * normal for a body in the plane. It is linear in the rates, and `E(pd) pd` is 0 for
+ * a unit quaternion, so with the accelerations in their place it gives the angular
+ * acceleration.
+ */
+export function turningRate(q: Float64Array, qd: Float64Array, body: SpatialBody): Vec3 {
+  const { at, plane } = body;
+  if (at < 0) return [0, 0, 0];
+  if (plane) {
+    const w = qd[at + 2];
+    return [w * plane.normal[0], w * plane.normal[1], w * plane.normal[2]];
+  }
+  const p = params(q, at);
+  const pd = params(qd, at);
+  const e: Vec3 = [p[1], p[2], p[3]];
+  const d: Vec3 = [pd[1], pd[2], pd[3]];
+  const c = cross(e, d);
+  return [0, 1, 2].map((i) => 2 * (p[0] * d[i] - pd[0] * e[i] + c[i])) as Vec3;
+}
+
 /** How fast a point of the body in space at `at` moves when the coordinates change at the rates `qd`. */
 export function pointRate(q: Float64Array, qd: Float64Array, at: number, s: Vec3): Vec3 {
   return state(q, qd, { at }, s, true).v;

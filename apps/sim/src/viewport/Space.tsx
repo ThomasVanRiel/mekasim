@@ -79,17 +79,60 @@ function Joint({
 }) {
   const colors = useColors();
   const color = selected ? colors.dye : joint.driven ? colors.red : colors.brass;
-  return joint.kind === "spherical" ? (
-    <mesh>
-      <sphereGeometry args={[radius * 2, 20, 14]} />
-      <meshLambertMaterial color={color} />
-    </mesh>
-  ) : (
-    <mesh>
-      <cylinderGeometry args={[radius * 1.8, radius * 1.8, radius * 6, 24]} />
-      <meshLambertMaterial color={color} />
-    </mesh>
-  );
+  const material = <meshLambertMaterial color={color} />;
+  // Each stands along its group's y, which is turned to the joint's axis.
+  switch (joint.kind) {
+    case "revolute":
+      return (
+        <mesh>
+          <cylinderGeometry args={[radius * 1.8, radius * 1.8, radius * 6, 24]} />
+          {material}
+        </mesh>
+      );
+    case "cylindrical":
+      return (
+        <mesh>
+          <cylinderGeometry args={[radius * 1.8, radius * 1.8, radius * 10, 24]} />
+          {material}
+        </mesh>
+      );
+    case "slider":
+      return (
+        <mesh>
+          <boxGeometry args={[radius * 3.2, radius * 8, radius * 3.2]} />
+          {material}
+        </mesh>
+      );
+    case "universal":
+      // The cross: a ball, and the pin that turns in the first body.
+      return (
+        <>
+          <mesh>
+            <sphereGeometry args={[radius * 1.8, 20, 14]} />
+            {material}
+          </mesh>
+          <mesh>
+            <cylinderGeometry args={[radius * 0.8, radius * 0.8, radius * 8, 16]} />
+            {material}
+          </mesh>
+        </>
+      );
+    case "point-plane":
+      // A small pad lying on the face.
+      return (
+        <mesh>
+          <cylinderGeometry args={[radius * 3, radius * 3, radius * 0.8, 24]} />
+          {material}
+        </mesh>
+      );
+    default:
+      return (
+        <mesh>
+          <sphereGeometry args={[radius * 2, 20, 14]} />
+          {material}
+        </mesh>
+      );
+  }
 }
 
 /** What moves in space: its bodies as rods between their points, and its joints. */

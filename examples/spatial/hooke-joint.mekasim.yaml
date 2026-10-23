@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=../../packages/core/schema/mekasim-1.schema.json
+# A Hooke's joint: two shafts meeting at an angle, joined by a cross whose two pins
+# turn in yokes on either shaft. The output turns once for each turn of the input,
+# but not evenly: faster and slower twice a turn, by more the sharper the bend.
+mekasim: 1
+meta:
+  name: Hooke's joint
+
+params:
+  rpm: 60
+  bend: 30 deg
+  shaft: 60 mm
+  yoke: 20 mm
+
+bodies:
+  ground:
+    points:
+      I: [-shaft, 0, 0]
+      J: [shaft * cos(bend), shaft * sin(bend), 0]
+      K: [2 * shaft * cos(bend), 2 * shaft * sin(bend), 0]
+  input:
+    spatial: true
+    points: { O: [0, 0, 0], E: [-shaft, 0, 0], Y: [0, yoke, 0] }
+  output:
+    spatial: true
+    points: { O: [0, 0, 0], F: [shaft, 0, 0], Y: [0, 0, yoke] }
+
+joints:
+  in_bearing: { type: revolute, connect: [ground.I, input.E], axis: [1, 0, 0] }
+  # The first pin turns in the input's yoke, the second in the output's.
+  cross: { type: universal, connect: [input.O, output.O], pins: [[0, 1, 0], [0, 0, 1]] }
+  # The far end of the output shaft runs in a bearing that lets it slide a little.
+  out_bearing: { type: pin-slot, axis: [ground.J, ground.K], point: output.F }
+
+drivers:
+  motor: { joint: in_bearing, speed: rpm }
+
+pose:
+  output: { at: [0, 0, 0], axis: [0, 0, 1], angle: bend }
+
+traces: [output.Y]
+
+measures:
+  # How fast the output turns for each turn of the input: its yoke's end moves at the
+  # yoke's length times the output's turning speed.
+  speed_ratio: v(output.Y) / (yoke * omega(in_bearing))
+  slowest: min(speed_ratio)
+  fastest: max(speed_ratio)
+  # The textbook answer: between cos(bend) and 1 / cos(bend).
+  expected_slowest: cos(bend)
+  expected_fastest: 1 / cos(bend)
+
+plots:
+  speed_ratio: speed_ratio
+  input_angle: angle(in_bearing)

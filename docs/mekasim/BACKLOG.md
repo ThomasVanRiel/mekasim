@@ -80,7 +80,12 @@ steps, each leaving the example baseline unchanged until a model uses something 
    measures, traces and frames of bodies in space; `z(p)`, angles between axes, and
    a meaning (or another name) for `angle(body)` on a spatial body. Done so far:
    the point measures (`x`, `y`, `z`, their rates, `v`, `a`, `dist`) of points off
-   the sheet, in the world.
+   the sheet, in the world; `universal`, `cylindrical` and `point-plane` joints, and
+   `slider` and `pin-slot` in space (prismatic, and point on a line), with
+   `examples/spatial/hooke-joint.mekasim.yaml`; traces of points off the sheet;
+   `angle()`, `omega()` and `alpha()` of hinges, which is what a body in space has
+   in place of an angle, and an unsigned `angle(p, q, r)` in space. Still to come:
+   the jerk of points off the sheet, and frames on bodies in space.
 5. **The view.** Spatial bodies drawn as rods with ball and fork ends, picking in
    3D, sketching on a chosen plane with the 2D tools; truly spatial parts written
    in the source and the inspector first, a gizmo for placing points in 3D last.

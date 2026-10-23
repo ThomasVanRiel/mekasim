@@ -477,9 +477,12 @@ export function buildScene(simulation: Simulation): Scene | undefined {
 
   const traces = compiled.traces.map((ref): DrawTrace => {
     const motion = pointMotion(compiled, cycle, ref);
-    const z = locate(ref).z + sizes.thickness + margin;
     const points: [number, number, number][] = [];
-    for (let k = 0; k < cycle.count; k++) points.push([motion.x[k], motion.y[k], z]);
+    // A point off the sheet is drawn where it is; one on the sheet just above its body.
+    const deep = motion.z;
+    const z = deep ? 0 : locate(ref).z + sizes.thickness + margin;
+    for (let k = 0; k < cycle.count; k++)
+      points.push([motion.x[k], motion.y[k], deep ? (deep[k] as number) : z]);
     return { ref, points };
   });
 

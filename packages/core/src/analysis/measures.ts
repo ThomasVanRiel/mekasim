@@ -3,7 +3,16 @@ import { type EvalContext, evaluate, type Quantity } from "../expr/evaluate.ts";
 import { ExprError, type Node } from "../expr/parse.ts";
 import { ANGLE, type Dim, describeDim, isPure, LENGTH, TIME } from "../expr/units.ts";
 import type { Registry } from "../registry.ts";
-import { pointMotionAt, SHEET, type SpatialPoint, type Vec3 } from "../solver/spatial.ts";
+import {
+  cross,
+  dot,
+  pointMotionAt,
+  SHEET,
+  type SpatialPoint,
+  turn,
+  turningRate,
+  type Vec3,
+} from "../solver/spatial.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
 import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
 import { gapsOf, type MeasuredGap } from "./gaps.ts";
@@ -103,8 +112,13 @@ export function centreOf(body: CompiledBody): { u: number; v: number } | undefin
   return { u, v };
 }
 
-/** The motion of a point given as `body.point`, or of the centre of a body given as `body`. */
+/**
+ * The motion of a point given as `body.point`, or of the centre of a body given as
+ * `body`. A point off the sheet comes with its z, in the world.
+ */
 export function pointMotion(compiled: Compiled, cycle: Cycle, ref: string): PointMotion {
+  const off = spacePoint(compiled, ref);
+  if (off) return spaceMotion(cycle, off);
   const [bodyId, name] = splitRef(ref);
   const body = compiled.bodies.get(bodyId);
   const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
@@ -302,9 +316,12 @@ export function evaluateMeasures(
     return node.name;
   }
   function unknownBody(id: string, pos: number): ExprError {
+    const hinge = compiled.spatialJoints.find(
+      (joint) => joint.hinge && joint.points.some((ref) => ref.startsWith(`${id}.`)),
+    );
     return new ExprError(
       compiled.spatial.has(id)
-        ? `"${id}" moves in space, and measures of bodies in space are not there yet`
+        ? `"${id}" moves in space, so it has no one angle: ask for the angle of one of its hinges, such as angle(${hinge?.id ?? "hinge"}), or of three of its points`
         : compiled.planeBodies.has(id)
           ? `"${id}" is on the plane "${compiled.planeBodies.get(id)?.plane}", and measures of bodies off the sheet are not there yet`
           : `Unknown body "${id}"`,
@@ -376,11 +393,73 @@ export function evaluateMeasures(
     return result;
   }
 
-  function body(node: Node | undefined, fn: Node): CompiledBody {
+  /**
+   * How far a hinge has turned, and how fast: the second body's angle from the
+   * first's. In the plane it is the difference of their angles; in space it is
+   * counted from where they start, as a driver of the hinge counts it.
+   */
+  function hingeTurning(id: string): Turning | undefined {
+    const flat = [...compiled.joints, ...compiled.planeJoints].find(
+      (joint) => joint.id === id && joint.type === "revolute",
+    );
+    if (flat) {
+      const [a, b] = flat.points.map((ref) => {
+        const bodyId = splitRef(ref)[0];
+        return (compiled.bodies.get(bodyId) ?? compiled.planeBodies.get(bodyId)) as CompiledBody;
+      }) as [CompiledBody, CompiledBody];
+      const difference = (of: Float64Array): Float64Array => {
+        const from = coordinate(of, a, 2);
+        return coordinate(of, b, 2).map((value, k) => value - (from[k] as number));
+      };
+      return { angle: difference(cycle.q), w: difference(cycle.qd), alpha: difference(cycle.qdd) };
+    }
+    const hinge = compiled.spatialJoints.find((joint) => joint.id === id)?.hinge;
+    if (!hinge) return undefined;
+    const angle = new Float64Array(n);
+    const w = new Float64Array(n);
+    const alpha = new Float64Array(n);
+    const { width } = cycle;
+    for (let k = 0; k < n; k++) {
+      const slice = (of: Float64Array): Float64Array => of.subarray(k * width, (k + 1) * width);
+      const q = slice(cycle.q);
+      const h = turn(q, hinge.a, hinge.axis);
+      const fa = turn(q, hinge.a, hinge.fa);
+      const fb = turn(q, hinge.b, hinge.fb);
+      angle[k] = Math.atan2(dot(cross(h, fa), fb), dot(fa, fb));
+      // The second body turns about the axis relative to the first.
+      const relative = (rates: Float64Array): number => {
+        const wa = turningRate(q, rates, hinge.a);
+        const wb = turningRate(q, rates, hinge.b);
+        return dot([wb[0] - wa[0], wb[1] - wa[1], wb[2] - wa[2]], h);
+      };
+      w[k] = relative(slice(cycle.qd));
+      alpha[k] = relative(slice(cycle.qdd));
+    }
+    return { angle: unwrap(angle), w, alpha };
+  }
+
+  /** The angle of a body, or of a hinge, and its rates. */
+  function turningOfRef(node: Node | undefined, fn: Node): Turning {
     const ref = refName(node, fn);
-    const found = compiled.bodies.get(ref);
-    if (!found) throw unknownBody(ref, (node as Node).pos);
-    return found;
+    const found = compiled.bodies.get(ref) ?? compiled.planeBodies.get(ref);
+    if (!found) {
+      const hinge = hingeTurning(ref);
+      if (hinge) return hinge;
+      const joint = [...compiled.joints, ...compiled.planeJoints, ...compiled.spatialJoints].find(
+        (j) => j.id === ref,
+      );
+      if (joint)
+        throw new ExprError(
+          `"${ref}" is a ${joint.type} joint; only hinges (revolute joints) have an angle`,
+          (node as Node).pos,
+        );
+      throw unknownBody(ref, (node as Node).pos);
+    }
+    return {
+      angle: coordinate(cycle.q, found, 2),
+      w: coordinate(cycle.qd, found, 2),
+      alpha: coordinate(cycle.qdd, found, 2),
+    };
   }
 
   /** One coordinate of a body over the cycle: 0 = x, 1 = y, 2 = angle. */
@@ -598,13 +677,12 @@ export function evaluateMeasures(
       }
       case "omega":
         one();
-        return { value: coordinate(cycle.qd, body(args[0], fn), 2), dim: ANGULAR_SPEED };
+        return { value: turningOfRef(args[0], fn).w, dim: ANGULAR_SPEED };
       case "alpha":
         one();
-        return { value: coordinate(cycle.qdd, body(args[0], fn), 2), dim: ANGULAR_ACCELERATION };
+        return { value: turningOfRef(args[0], fn).alpha, dim: ANGULAR_ACCELERATION };
       case "angle": {
-        if (args.length === 1)
-          return { value: coordinate(cycle.q, body(args[0], fn), 2), dim: ANGLE };
+        if (args.length === 1) return { value: turningOfRef(args[0], fn).angle, dim: ANGLE };
         if (args.length === 2) {
           // Direction of the line from the first point to the second.
           const p = motion(args[0], fn);
@@ -617,6 +695,20 @@ export function evaluateMeasures(
           const p = motion(args[0], fn);
           const o = motion(args[1], fn);
           const q = motion(args[2], fn);
+          if (p.z || o.z || q.z) {
+            // In space there is no side to turn towards, so the angle has no sign.
+            const arm = (m: PointMotion, k: number): Vec3 => [
+              m.x[k] - o.x[k],
+              m.y[k] - o.y[k],
+              (m.z?.[k] ?? 0) - (o.z?.[k] ?? 0),
+            ];
+            const value = signal((k) => {
+              const u = arm(p, k);
+              const v = arm(q, k);
+              return Math.atan2(Math.hypot(...cross(u, v)), dot(u, v));
+            });
+            return { value, dim: ANGLE };
+          }
           const value = signal((k) => {
             const ux = p.x[k] - o.x[k];
             const uy = p.y[k] - o.y[k];

@@ -34,10 +34,14 @@ import {
 import type { SolverModel } from "../solver/solve.ts";
 import {
   cross,
+  cylindrical,
   dot,
   hingeAngle,
   type Plane,
   perpendiculars,
+  pointOnPlane,
+  pointOnSpatialLine,
+  prismatic,
   quaternion,
   revolute,
   SHEET,
@@ -45,8 +49,10 @@ import {
   type SpatialBody,
   type SpatialPoint,
   spherical,
+  turn,
   unit,
   unitQuaternion,
+  universal,
   unturn,
   type Vec3,
 } from "../solver/spatial.ts";
@@ -90,7 +96,7 @@ export interface CompiledMeasure {
 
 export interface CompiledJoint {
   id: string;
-  type: Exclude<Joint["type"], "spherical">;
+  type: Exclude<Joint["type"], SpaceOnly>;
   /**
    * The points involved, each as `body.point`: the two connected points of a
    * revolute, weld, distance, gear or belt; the two axis points and then the pin of a
@@ -109,17 +115,47 @@ export interface CompiledJoint {
       };
 }
 
-/** A joint between bodies in space, or between one of them and the ground. */
+/** The joints that only work in space. */
+type SpaceOnly = "spherical" | "universal" | "cylindrical" | "point-plane";
+
+/** A joint between bodies in space, or between bodies on different planes. */
 export interface CompiledSpatialJoint {
   id: string;
-  type: "revolute" | "spherical";
-  /** The two points it connects, each as `body.point`. */
+  type: SpaceOnly | "revolute" | "slider" | "pin-slot";
+  /**
+   * The points involved, each as `body.point`: the two it connects, or the points
+   * of the line or plane and then the point kept on it.
+   */
   points: string[];
-  /** Its first point, as the solver places it: where the joint is. */
+  /** Where it is drawn, as the solver places it: the point it holds, or that rides on its line or plane. */
   at: SpatialPoint;
-  /** For a hinge, its axis: a direction in the frame of its first point's body. */
+  /**
+   * A direction to draw it along, in the frame of a body: a hinge's axis, a universal
+   * joint's first pin, the line of a slider, or the normal of a plane.
+   */
   axis?: SpatialBody & { a: Vec3 };
+  /** For a hinge, what its angle is read from. */
+  hinge?: SpaceHinge;
 }
+
+/**
+ * A hinge in space: its two bodies, its axis in the first body's frame, and a
+ * direction square to it in each body's frame, where the two lie together at the start.
+ */
+export interface SpaceHinge {
+  a: SpatialBody;
+  b: SpatialBody;
+  axis: Vec3;
+  fa: Vec3;
+  fb: Vec3;
+}
+
+const SPACE_ONLY: ReadonlySet<string> = new Set<SpaceOnly>([
+  "spherical",
+  "universal",
+  "cylindrical",
+  "point-plane",
+]);
 
 export interface CompiledDriver {
   id: string;
@@ -641,6 +677,135 @@ function compileExpanded(
     waiting = waiting.filter((item) => !batch.includes(item));
   }
 
+  /**
+   * The equations of a joint in space, pushed onto `constraints`, and what is drawn of
+   * it. `axis` is a hinge's own axis, and `frame` the plane all its bodies in the plane
+   * share, if they do.
+   */
+  function spaceJoint(
+    id: string,
+    joint: Joint,
+    path: Path,
+    axis: Vec3 | undefined,
+    frame: Plane | undefined,
+  ): CompiledSpatialJoint | undefined {
+    const differ = (a: SpatialPoint, b: SpatialPoint, at: Path, message: string): void => {
+      if (a.at === b.at) throw fail(message, at);
+    };
+    /** A direction given in the world at the start, in the frame of a point's body. */
+    const local = (p: SpatialPoint, a: Vec3): Vec3 => unturn(q0, p, a);
+
+    if (
+      joint.type === "spherical" ||
+      joint.type === "revolute" ||
+      joint.type === "universal" ||
+      joint.type === "cylindrical"
+    ) {
+      const a = spacePoint(joint.connect[0], [...path, "connect", 0]);
+      const b = spacePoint(joint.connect[1], [...path, "connect", 1]);
+      differ(a, b, [...path, "connect"], "A joint must connect two different bodies");
+      const points = [...joint.connect];
+      if (joint.type === "spherical") {
+        constraints.push(spherical(id, a, b));
+        return { id, type: joint.type, points, at: a };
+      }
+      if (joint.type === "universal") {
+        const first = direction(joint.pins[0], [...path, "pins", 0]);
+        const second = direction(joint.pins[1], [...path, "pins", 1]);
+        if (Math.abs(dot(first, second)) > 1e-6)
+          throw fail("The two pins of the cross must be square to each other", [...path, "pins"]);
+        const ha = local(a, first);
+        constraints.push(universal(id, a, b, ha, local(b, second)));
+        return { id, type: joint.type, points, at: a, axis: { at: a.at, plane: a.plane, a: ha } };
+      }
+      if (joint.type === "cylindrical") {
+        const along = direction(joint.axis, [...path, "axis"]);
+        const ha = local(a, along);
+        constraints.push(cylindrical(id, a, b, ha, local(b, along)));
+        return { id, type: joint.type, points, at: b, axis: { at: a.at, plane: a.plane, a: ha } };
+      }
+      // Left out, a hinge turns about the normal of the plane its bodies are on.
+      const along = axis ?? frame?.normal;
+      if (!along)
+        throw fail(
+          "Its bodies are on different planes, so give the hinge an axis: which way it points",
+          path,
+        );
+      const [f] = perpendiculars(along);
+      const ha = local(a, along);
+      constraints.push(revolute(id, a, b, ha, local(b, along)));
+      const hinge = { a, b, axis: ha, fa: local(a, f), fb: local(b, f) };
+      spaceHinges.set(id, hinge);
+      return {
+        id,
+        type: joint.type,
+        points,
+        at: a,
+        axis: { at: a.at, plane: a.plane, a: ha },
+        hinge,
+      };
+    }
+
+    if (joint.type === "slider" || joint.type === "pin-slot") {
+      const from = spacePoint(joint.axis[0], [...path, "axis", 0]);
+      const to = spacePoint(joint.axis[1], [...path, "axis", 1]);
+      const pin = spacePoint(joint.point, [...path, "point"]);
+      if (from.at !== to.at)
+        throw fail("Both axis points must be on the same body", [...path, "axis"]);
+      differ(from, pin, [...path, "point"], "The point must be on a different body than the axis");
+      const d: Vec3 = [to.s[0] - from.s[0], to.s[1] - from.s[1], to.s[2] - from.s[2]];
+      if (Math.hypot(...d) < 1e-12)
+        throw fail("The two axis points coincide, so they define no direction", [...path, "axis"]);
+      const ha = unit(d);
+      const points = [...joint.axis, joint.point];
+      const drawn = { at: pin, axis: { at: from.at, plane: from.plane, a: ha } };
+      if (joint.type === "pin-slot") {
+        constraints.push(pointOnSpatialLine(id, from, ha, pin));
+        return { id, type: joint.type, points, ...drawn };
+      }
+      if (joint.angle !== undefined)
+        throw fail("In space a slider keeps the turning it starts with, so leave out its angle", [
+          ...path,
+          "angle",
+        ]);
+      // The sliding body keeps the turning it starts with, relative to the axis's body.
+      const world = turn(q0, from, ha);
+      const [f] = perpendiculars(world);
+      constraints.push(
+        prismatic(id, from, pin, ha, local(pin, world), local(from, f), local(pin, f)),
+      );
+      return { id, type: joint.type, points, ...drawn };
+    }
+
+    if (joint.type === "point-plane") {
+      const [p, q, r] = joint.surface.map((ref, i) => spacePoint(ref, [...path, "surface", i])) as [
+        SpatialPoint,
+        SpatialPoint,
+        SpatialPoint,
+      ];
+      const pin = spacePoint(joint.point, [...path, "point"]);
+      if (q.at !== p.at || r.at !== p.at)
+        throw fail("The three points of the plane must be on the same body", [...path, "surface"]);
+      differ(p, pin, [...path, "point"], "The point must be on a different body than the plane");
+      const n = cross(
+        [q.s[0] - p.s[0], q.s[1] - p.s[1], q.s[2] - p.s[2]],
+        [r.s[0] - p.s[0], r.s[1] - p.s[1], r.s[2] - p.s[2]],
+      );
+      if (Math.hypot(...n) < 1e-12)
+        throw fail("The three points lie on one line, so they make no plane", [...path, "surface"]);
+      const normal = unit(n);
+      constraints.push(pointOnPlane(id, p, normal, pin));
+      return {
+        id,
+        type: joint.type,
+        points: [...joint.surface, joint.point],
+        at: pin,
+        axis: { at: p.at, plane: p.plane, a: normal },
+      };
+    }
+    throw fail(`A ${joint.type} joint stays in the plane`, path);
+  }
+
   const constraints: Constraint[] = [];
   for (const { id, at } of spatial.values()) constraints.push(unitQuaternion(id, at));
   /** Bodies joined by each revolute joint, for drivers to act on. */
@@ -650,10 +815,7 @@ function compileExpanded(
    * bodies, the hinge's axis in the first body's frame, and a direction square to it
    * in each body's frame, where the two lie together at the start.
    */
-  const spaceHinges = new Map<
-    string,
-    { a: SpatialBody; b: SpatialBody; axis: Vec3; fa: Vec3; fb: Vec3 }
-  >();
+  const spaceHinges = new Map<string, SpaceHinge>();
   const joints: CompiledJoint[] = [];
   const planeJoints: CompiledJoint[] = [];
   const spatialJoints: CompiledSpatialJoint[] = [];
@@ -665,9 +827,11 @@ function compileExpanded(
       const refs =
         joint.type === "slider" || joint.type === "pin-slot"
           ? [...joint.axis, joint.point]
-          : joint.type === "cam"
-            ? [joint.cam, joint.follower]
-            : joint.connect;
+          : joint.type === "point-plane"
+            ? [...joint.surface, joint.point]
+            : joint.type === "cam"
+              ? [joint.cam, joint.follower]
+              : joint.connect;
       const sides = refs.map((ref) => ref.split(".")[0] as string);
       if ((joint.type === "gear" || joint.type === "belt") && joint.carrier !== undefined)
         sides.push(joint.carrier);
@@ -680,11 +844,26 @@ function compileExpanded(
         joint.type === "revolute" && joint.axis
           ? direction(joint.axis, [...path, "axis"])
           : undefined;
+      /** A point of the ground that is not on the joint's plane. */
+      const offPlane = (ref: string): boolean => {
+        const [side, name] = ref.split(".") as [string, string];
+        const world = side === GROUND ? groundWorld.get(name) : undefined;
+        if (!world || !frame) return false;
+        const d: Vec3 = [
+          world[0] - frame.origin[0],
+          world[1] - frame.origin[1],
+          world[2] - frame.origin[2],
+        ];
+        return Math.abs(dot(d, frame.normal)) > 1e-9;
+      };
+      const either =
+        joint.type === "revolute" || joint.type === "slider" || joint.type === "pin-slot";
       const inSpace =
-        joint.type === "spherical" ||
-        (joint.type === "revolute" &&
+        SPACE_ONLY.has(joint.type) ||
+        (either &&
           (sides.some((side) => spatial.has(side)) ||
             !onOnePlane ||
+            (flat.length > 0 && refs.some(offPlane)) ||
             (axis !== undefined &&
               frame !== undefined &&
               Math.abs(Math.abs(dot(axis, frame.normal)) - 1) > 1e-9)));
@@ -693,40 +872,8 @@ function compileExpanded(
       const flatPoint = (ref: string, at: Path): BodyPoint => point(ref, at, plane, true);
 
       if (inSpace) {
-        const a = spacePoint(joint.connect[0], [...path, "connect", 0]);
-        const b = spacePoint(joint.connect[1], [...path, "connect", 1]);
-        if (a.at === b.at)
-          throw fail("A joint must connect two different bodies", [...path, "connect"]);
-        let hinge: CompiledSpatialJoint["axis"];
-        if (joint.type === "spherical") {
-          constraints.push(spherical(id, a, b));
-        } else {
-          // Left out, a hinge turns about the normal of the plane its bodies are on.
-          const along = axis ?? (onOnePlane ? frame?.normal : undefined);
-          if (!along)
-            throw fail(
-              "Its bodies are on different planes, so give the hinge an axis: which way it points",
-              path,
-            );
-          const [f] = perpendiculars(along);
-          const ha = unturn(q0, a, along);
-          hinge = { at: a.at, plane: a.plane, a: ha };
-          constraints.push(revolute(id, a, b, ha, unturn(q0, b, along)));
-          spaceHinges.set(id, {
-            a,
-            b,
-            axis: ha,
-            fa: unturn(q0, a, f),
-            fb: unturn(q0, b, f),
-          });
-        }
-        spatialJoints.push({
-          id,
-          type: joint.type,
-          points: [...joint.connect],
-          at: a,
-          ...(hinge && { axis: hinge }),
-        });
+        const placed = spaceJoint(id, joint, path, axis, onOnePlane ? frame : undefined);
+        if (placed) spatialJoints.push(placed);
         return;
       }
 
@@ -826,6 +973,8 @@ function compileExpanded(
         return;
       }
 
+      // The joints that only work in space went there above.
+      if (joint.type !== "slider" && joint.type !== "pin-slot") return;
       const from = flatPoint(joint.axis[0], [...path, "axis", 0]);
       const to = flatPoint(joint.axis[1], [...path, "axis", 1]);
       const pin = flatPoint(joint.point, [...path, "point"]);
@@ -886,7 +1035,11 @@ function compileExpanded(
   const traces: string[] = [];
   (doc.traces ?? []).forEach((ref, i) => {
     attempt(() => {
-      point(ref, ["traces", i]);
+      // A point off the sheet is traced where it is in the world.
+      const bodyId = ref.split(".")[0] as string;
+      if (spatial.has(bodyId) || bodies.get(bodyId)?.plane !== undefined)
+        spacePoint(ref, ["traces", i]);
+      else point(ref, ["traces", i]);
       traces.push(ref);
     });
   });

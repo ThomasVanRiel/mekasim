@@ -787,7 +787,7 @@
                 "description": "Point on the sliding body that stays on the axis"
               },
               "angle": {
-                "description": "Angle of the sliding body relative to the axis body; default 0",
+                "description": "Angle of the sliding body relative to the axis body; default 0. In space a slider keeps the turning it starts with and takes no angle",
                 "type": [
                   "number",
                   "string"
@@ -1111,6 +1111,217 @@
             "required": [
               "type",
               "connect"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "universal"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "The two points held together at the cross"
+              },
+              "pins": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "A direction as [x, y, z]; only which way it points matters"
+                  },
+                  {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      },
+                      {
+                        "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                        "type": [
+                          "number",
+                          "string"
+                        ]
+                      }
+                    ],
+                    "items": false,
+                    "minItems": 3,
+                    "maxItems": 3,
+                    "description": "A direction as [x, y, z]; only which way it points matters"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "Which way the two pins of the cross point, in the world at the start: the first turns in the first body, the second in the second; square to each other"
+              }
+            },
+            "required": [
+              "type",
+              "connect",
+              "pins"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "cylindrical"
+              },
+              "connect": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 2,
+                "maxItems": 2,
+                "description": "A point of the first body that the line goes through, and the point of the second body that stays on it"
+              },
+              "axis": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  },
+                  {
+                    "description": "A number or an expression over parameters, optionally with units: 40, 40 mm, 2 * r",
+                    "type": [
+                      "number",
+                      "string"
+                    ]
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Which way the line points, in the world at the start; the second body slides along it and turns about it"
+              }
+            },
+            "required": [
+              "type",
+              "connect",
+              "axis"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "point-plane"
+              },
+              "surface": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                    "description": "A point on a body, written as body.point"
+                  }
+                ],
+                "items": false,
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "Three points of one body that the plane goes through"
+              },
+              "point": {
+                "type": "string",
+                "pattern": "^[A-Za-z_][A-Za-z0-9_]*\\.[A-Za-z_][A-Za-z0-9_]*$",
+                "description": "Point of another body that stays on the plane; its body turns freely"
+              }
+            },
+            "required": [
+              "type",
+              "surface",
+              "point"
             ],
             "additionalProperties": false
           }

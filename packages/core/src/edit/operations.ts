@@ -72,6 +72,7 @@ function bodyOf(ref: string): string {
 /** The points a joint refers to, each as `body.point`. */
 export function jointRefs(joint: NonNullable<Document["joints"]>[string]): string[] {
   if ("connect" in joint) return [...joint.connect];
+  if ("surface" in joint) return [...joint.surface, joint.point];
   return "axis" in joint ? [...joint.axis, joint.point] : [joint.cam, joint.follower];
 }
 

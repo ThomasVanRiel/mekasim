@@ -34,6 +34,7 @@ export function toCsv(simulation: Simulation): string {
     const motion = pointMotion(compiled, cycle, ref);
     add(`${ref}.x`, units.length, motion.x, length);
     add(`${ref}.y`, units.length, motion.y, length);
+    if (motion.z) add(`${ref}.z`, units.length, motion.z, length);
   }
   const series = [
     ...simulation.measures.map((m) => ({ name: m.id, quantity: m.quantity })),

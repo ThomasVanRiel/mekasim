@@ -146,6 +146,36 @@ const Spherical = z.strictObject({
     .describe("The two points held together; each body turns freely about them"),
 });
 
+const Universal = z.strictObject({
+  type: z.literal("universal"),
+  connect: z.tuple([PointRef, PointRef]).describe("The two points held together at the cross"),
+  pins: z
+    .tuple([Direction, Direction])
+    .describe(
+      "Which way the two pins of the cross point, in the world at the start: the first turns in the first body, the second in the second; square to each other",
+    ),
+});
+
+const Cylindrical = z.strictObject({
+  type: z.literal("cylindrical"),
+  connect: z
+    .tuple([PointRef, PointRef])
+    .describe(
+      "A point of the first body that the line goes through, and the point of the second body that stays on it",
+    ),
+  axis: Direction.describe(
+    "Which way the line points, in the world at the start; the second body slides along it and turns about it",
+  ),
+});
+
+const PointPlane = z.strictObject({
+  type: z.literal("point-plane"),
+  surface: z
+    .tuple([PointRef, PointRef, PointRef])
+    .describe("Three points of one body that the plane goes through"),
+  point: PointRef.describe("Point of another body that stays on the plane; its body turns freely"),
+});
+
 const Weld = z.strictObject({
   type: z.literal("weld"),
   connect: z.tuple([PointRef, PointRef]).describe("The two points held together"),
@@ -160,7 +190,9 @@ const Slider = z.strictObject({
   type: z.literal("slider"),
   axis: Axis,
   point: PointRef.describe("Point on the sliding body that stays on the axis"),
-  angle: Expr.optional().describe("Angle of the sliding body relative to the axis body; default 0"),
+  angle: Expr.optional().describe(
+    "Angle of the sliding body relative to the axis body; default 0. In space a slider keeps the turning it starts with and takes no angle",
+  ),
 });
 
 const PinSlot = z.strictObject({
@@ -203,7 +235,20 @@ const Cam = z.strictObject({
   roller: Expr.optional().describe("Radius of the follower's roller, for drawing; default 0"),
 });
 
-const JOINTS = [Revolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam, Spherical] as const;
+const JOINTS = [
+  Revolute,
+  Weld,
+  Slider,
+  PinSlot,
+  Distance,
+  Gear,
+  Belt,
+  Cam,
+  Spherical,
+  Universal,
+  Cylindrical,
+  PointPlane,
+] as const;
 /** The joints of a format built on mekasim, which stays in the plane. */
 const PLANAR_JOINTS = [PlanarRevolute, Weld, Slider, PinSlot, Distance, Gear, Belt, Cam] as const;
 

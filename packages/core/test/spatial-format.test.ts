@@ -106,9 +106,9 @@ describe("the RSSR example", () => {
     expect(Math.max(...z) - Math.min(...z)).toBeGreaterThan(0.005);
   });
 
-  it("is told that the angle of a body in space is not there yet", () => {
+  it("is told that a body in space has no one angle", () => {
     expect(messages(`${RSSR}\nmeasures:\n  turned: angle(rocker)\n`)).toEqual([
-      '"rocker" moves in space, and measures of bodies in space are not there yet',
+      '"rocker" moves in space, so it has no one angle: ask for the angle of one of its hinges, such as angle(rock), or of three of its points',
     ]);
   });
 });
@@ -144,18 +144,15 @@ describe("bodies in space in the format", () => {
     }
   });
 
-  it("keeps bodies in space and points off the sheet out of what is in the plane", () => {
+  it("takes joints that reach off the sheet into space", () => {
     expect(
       messages(`${BASE}joints:\n  j: { type: slider, axis: [ground.O, arm.A], point: link.O }\n`),
-    ).toEqual(['"arm" moves in space, and only bodies in the plane can be used here so far']);
+    ).toEqual(["Both axis points must be on the same body"]);
+    // A pin off the sheet makes a hinge in space, which a body on the sheet cannot reach.
     expect(
       messages(`${BASE}joints:\n  j: { type: revolute, connect: [ground.U, link.O] }\n`),
-    ).toEqual([
-      '"ground.U" is off the sheet, and only points on the sheet can be used here so far',
-    ]);
-    expect(messages(`${BASE}traces: [arm.A]\n`)).toEqual([
-      '"arm" moves in space, and only bodies in the plane can be used here so far',
-    ]);
+    ).toEqual(['The mechanism cannot be assembled from its starting position; cannot close "j"']);
+    expect(messages(`${BASE}traces: [arm.A]\n`)).toEqual([]);
   });
 
   it("joins a body in space to a point of the ground off the sheet", () => {

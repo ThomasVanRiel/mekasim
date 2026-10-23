@@ -352,27 +352,38 @@ use them. See `examples/spatial/rssr.mekasim.yaml`, and for a helicopter's rotor
 its swash plate tilted by `cyclic` and raised by `collective`,
 `examples/spatial/swash-plate.mekasim.yaml`.
 
-Two joints work in space, between any bodies: bodies in space, the ground, and bodies
-in the plane, whatever plane they are on.
+These joints work in space, between any bodies: bodies in space, the ground, and
+bodies in the plane, whatever plane they are on. Directions are `[x, y, z]`, in the
+world at the start; only which way they point matters.
 
 | Type | Fields | Effect |
 |---|---|---|
 | `spherical` | `connect: [a.P, b.Q]` | A ball joint: holds the two points together, and each body turns freely about them |
-| `revolute` | `connect: [a.P, b.Q]`, `axis` | A hinge: holds the two points together, and the bodies turn about one another only about `axis`, which way it points in the world at the start. Left out, it is the normal of the plane the bodies in the plane are on, `[0, 0, 1]` on the sheet; bodies on different planes need one |
+| `revolute` | `connect: [a.P, b.Q]`, `axis` | A hinge: holds the two points together, and the bodies turn about one another only about `axis`. Left out, it is the normal of the plane the bodies in the plane are on, `[0, 0, 1]` on the sheet; bodies on different planes need one |
+| `universal` | `connect: [a.P, b.Q]`, `pins: [first, second]` | A cross with two pins, square to each other: the first turns in `a`, the second in `b`. The two points are held together |
+| `cylindrical` | `connect: [a.P, b.Q]`, `axis` | A sleeve: `b.Q` stays on the line through `a.P` along `axis`, and `b` slides along it and turns about it |
+| `slider` | `axis: [a.P, a.R]`, `point: b.Q` | `b.Q` stays on the line through the two points of `a`, and `b` keeps the turning it starts with; in space it takes no `angle` |
+| `pin-slot` | `axis: [a.P, a.R]`, `point: b.Q` | `b.Q` stays on the line through the two points of `a`, and `b` turns freely about it |
+| `point-plane` | `surface: [a.P, a.R, a.S]`, `point: b.Q` | `b.Q` stays on the face through three points of `a`, and `b` turns freely about it |
 
-A `revolute` between bodies on one plane, with no `axis` or one square to the plane,
-is the pin it has always been. Any other joint between bodies in the plane needs
-them all on one plane.
+A `revolute`, `slider` or `pin-slot` between bodies on one plane, with no `axis` or
+one square to the plane, and with the points of the ground it uses on that plane, is
+the joint it has always been. Otherwise it is a joint in space. Only `revolute`
+joints can be driven. Any other joint between bodies in the plane needs them all on
+one plane. See `examples/spatial/hooke-joint.mekasim.yaml`, two shafts at an angle
+joined by a `universal` joint, whose output runs faster and slower twice a turn.
 
 A rod between two ball joints can spin about its own line without moving any of its
 points. Such a turning is reported, and not counted as a degree of freedom.
 
 Bodies in space are drawn in the view as rods from their first point to each of the
-others, with a ball at each point; ball joints are drawn as brass balls and hinges as
-brass barrels along their axes. Measures of their points are taken in the world, with
-`z(p)` for the height off the sheet (see Measures). `angle()`, `omega()`, `alpha()`
-and the jerk of them, traces and frames are not there yet, and they cannot be picked
-or dragged in the view.
+others, with a ball at each point. Joints are drawn in brass: ball joints as balls,
+hinges as barrels along their axes, sleeves as longer barrels, sliders as blocks,
+universal joints as a ball with the first pin, and a point on a face as a pad.
+Measures of their points are taken in the world, with `z(p)` for the height off the
+sheet, and their points can be traced. A body in space has no one angle: its hinges
+have, `angle(hinge)` (see Measures), and so has a corner of three of its points,
+`angle(p, q, r)`. The jerk of their points and frames on them are not there yet.
 
 ## Planes
 
@@ -518,7 +529,7 @@ traces: [coupler.P, rocker.B]
 ```
 
 Points whose paths are recorded over the cycle. They are written to the CSV output
-as x and y columns.
+as x and y columns, and z for a point off the sheet.
 
 ## Measures
 
@@ -547,10 +558,11 @@ and give a value at every sample of the cycle:
 | `dist(p, q)` | Distance between two points |
 | `gap(a, b)` | Smallest distance between the shapes of two bodies; less than nothing where they run into each other, by how deep |
 | `moved(p)` | How far a point is from where it started, whichever way it went |
-| `angle(body)` | Angle of a body |
-| `angle(p, q)` | Direction of the line from `p` to `q` |
-| `angle(p, q, r)` | Angle at `q`, turning from `p` to `r` |
-| `omega(body)`, `alpha(body)` | Angular velocity and acceleration of a body |
+| `angle(body)` | Angle of a body; of a body on a plane, its angle in that plane |
+| `angle(hinge)` | How far a `revolute` joint is turned: the angle of its second body less that of its first. In space, where a body has no one angle, it is counted from where they start, as a driver counts it |
+| `angle(p, q)` | Direction of the line from `p` to `q`, seen on the sheet |
+| `angle(p, q, r)` | Angle at `q`, turning from `p` to `r`; in space, where there is no side to turn to, between 0 and 180° |
+| `omega(body)`, `alpha(body)` | Angular velocity and acceleration of a body, or of a hinge |
 | `t` | Time |
 
 Wherever a function takes a point it also takes a body, written without a point:
