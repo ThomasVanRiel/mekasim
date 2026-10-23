@@ -7,6 +7,8 @@ import {
   addPoint,
   addRevolute,
   type BodyPoint,
+  blocks,
+  type Compiled,
   docFactor,
   dragTo,
   driversOf,
@@ -18,6 +20,7 @@ import {
   removeBody,
   removeJoint,
   removePoint,
+  type SpacePose,
   setPose,
   tidy,
   toggleTrace,
@@ -620,12 +623,29 @@ export function release(scene: Scene, held: Grab): void {
   const state = useStore.getState();
   const compiled = state.shown?.compiled;
   scene.override = undefined;
-  if (!compiled) return;
+  if (compiled) keepPose(compiled, held.q);
+}
+
+/** Write the positions `q` of every moving body into the model as its pose. */
+export function keepPose(compiled: Compiled, q: Float64Array): void {
   const scale = unit();
   const angle = compiled.units.angle === "deg" ? 180 / Math.PI : 1;
-  const poses: Record<string, [number, number, number]> = {};
-  compiled.model.bodies.forEach((id, i) => {
-    poses[id] = [held.q[3 * i] / scale, held.q[3 * i + 1] / scale, held.q[3 * i + 2] * angle];
-  });
-  state.apply(setPose(poses));
+  const poses: Record<string, [number, number, number] | SpacePose> = {};
+  for (const block of blocks(compiled.model)) {
+    const { id, at } = block;
+    if (block.size === 3) {
+      poses[id] = [q[at] / scale, q[at + 1] / scale, q[at + 2] * angle];
+      continue;
+    }
+    // Euler parameters (e0, e): turned by 2 acos(e0) about e.
+    const e0 = Math.min(Math.max(q[at + 3], -1), 1);
+    const e: [number, number, number] = [q[at + 4], q[at + 5], q[at + 6]];
+    const size = Math.hypot(...e);
+    poses[id] = {
+      at: [q[at] / scale, q[at + 1] / scale, q[at + 2] / scale],
+      axis: size > 1e-12 ? (e.map((value) => value / size) as [number, number, number]) : [0, 0, 1],
+      angle: 2 * Math.acos(e0) * angle,
+    };
+  }
+  useStore.getState().apply(setPose(poses));
 }

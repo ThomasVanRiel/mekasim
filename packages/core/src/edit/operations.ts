@@ -222,9 +222,22 @@ export function removeBody(doc: Document, id: string): Edit[] {
 }
 
 /** Record where bodies are, as `[x, y, angle]` in document units. */
-export function setPose(poses: Record<string, [number, number, number]>): Edit[] {
+/** A pose in space: where a body's origin is, and the axis and angle it is turned by. */
+export interface SpacePose {
+  at: [number, number, number];
+  axis: [number, number, number];
+  angle: number;
+}
+
+export function setPose(poses: Record<string, [number, number, number] | SpacePose>): Edit[] {
   return Object.entries(poses).map(
-    ([id, pose]): Edit => ({ op: "set", path: ["pose", id], value: pose.map(tidy) }),
+    ([id, pose]): Edit => ({
+      op: "set",
+      path: ["pose", id],
+      value: Array.isArray(pose)
+        ? pose.map(tidy)
+        : { at: pose.at.map(tidy), axis: pose.axis.map(tidy), angle: tidy(pose.angle) },
+    }),
   );
 }
 

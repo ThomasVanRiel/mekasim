@@ -24,6 +24,8 @@ export interface DrawSpaceBody {
   poses: Float64Array;
   /** Names written beside its points, and its own at the middle of them, in its own frame. */
   labels: { text: string; body: boolean; s: Vec3 }[];
+  /** Where the solver keeps it, to place it from coordinates of its own while it is posed. */
+  place: SpatialBody;
 }
 
 /** A joint in space, drawn where it is in the world. */
@@ -35,6 +37,9 @@ export interface DrawSpaceJoint {
   at: Float64Array;
   /** Which way it is drawn along at every sample: see `CompiledSpatialJoint.axis`. */
   axis?: Float64Array;
+  /** The point it is drawn at, and the axis, as the solver places them. */
+  point: SpatialPoint;
+  along?: CompiledSpatialJoint["axis"];
 }
 
 export interface SpaceScene {
@@ -65,6 +70,33 @@ function quaternionOf(c0: Vec3, c1: Vec3, c2: Vec3): [number, number, number, nu
   }
   const s = 2 * Math.sqrt(1 + m22 - m00 - m11);
   return [(m02 + m20) / s, (m12 + m21) / s, 0.25 * s, (m10 - m01) / s];
+}
+
+/** Where a body is for coordinates `q`: its origin into `out` at `at`, and its turning `[x, y, z, w]` returned. */
+function poseOf(
+  body: SpatialBody,
+  q: Float64Array,
+  out: Float64Array,
+  at: number,
+): [number, number, number, number] {
+  out.set(placeInSpace(q, { ...body, s: [0, 0, 0] }), at);
+  return quaternionOf(turn(q, body, [1, 0, 0]), turn(q, body, [0, 1, 0]), turn(q, body, [0, 0, 1]));
+}
+
+/** Where a body in space is for coordinates of its own, as `spacePoseAt` gives it from the cycle. */
+export function spacePoseOf(body: DrawSpaceBody, q: Float64Array, out: Float64Array): void {
+  out.set(poseOf(body.place, q, out, 0), 3);
+}
+
+/** Where a joint in space is for coordinates of its own, and which way its axis points. */
+export function spaceJointOf(
+  joint: DrawSpaceJoint,
+  q: Float64Array,
+  at: Float64Array,
+  axis?: Float64Array,
+): void {
+  at.set(placeInSpace(q, joint.point));
+  if (axis && joint.along) axis.set(turn(q, joint.along, joint.along.a));
 }
 
 /** What is drawn in space, from a compiled model and its solved cycle. */
@@ -108,17 +140,12 @@ export function buildSpace(compiled: Compiled, cycle: Cycle): SpaceScene | undef
     let previous: [number, number, number, number] | undefined;
     for (let k = 0; k < count; k++) {
       const q = sample(k);
-      const origin = placeInSpace(q, { ...body, s: [0, 0, 0] });
-      const turned = quaternionOf(
-        turn(q, body, [1, 0, 0]),
-        turn(q, body, [0, 1, 0]),
-        turn(q, body, [0, 0, 1]),
-      );
+      const turned = poseOf(body, q, poses, 7 * k);
       // Keep each turning on the same side as the last, so that it can be blended.
       if (previous && turned.reduce((sum, value, j) => sum + value * (previous?.[j] ?? 0), 0) < 0)
         for (let j = 0; j < 4; j++) turned[j] = -(turned[j] as number);
       previous = turned;
-      poses.set([...origin, ...turned], 7 * k);
+      poses.set(turned, 7 * k + 3);
       for (const { s } of points) reach(placeInSpace(q, { ...body, s }));
     }
     const [hub, ...ends] = points;
@@ -139,6 +166,7 @@ export function buildSpace(compiled: Compiled, cycle: Cycle): SpaceScene | undef
       rods: hub ? ends.map(({ s }): [Vec3, Vec3] => [hub.s, s]) : [],
       poses,
       labels,
+      place: body,
     };
   });
 
@@ -159,6 +187,8 @@ export function buildSpace(compiled: Compiled, cycle: Cycle): SpaceScene | undef
       driven: driven.has(joint.id),
       at,
       ...(axis && { axis }),
+      point: joint.at as SpatialPoint,
+      ...(joint.axis && { along: joint.axis }),
     };
   });
   return { bodies, joints, min, max };

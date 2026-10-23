@@ -89,6 +89,7 @@ export {
   removeBody,
   removeJoint,
   removePoint,
+  type SpacePose,
   setPose,
   tidy,
   toggleTrace,

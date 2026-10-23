@@ -1,19 +1,23 @@
+import { dragPointTo, placeInSpace, type SpatialPoint } from "@mekasim/core";
 import {
   bodyColor,
   type DrawSpaceBody,
   type DrawSpaceJoint,
   type Scene,
   spaceJointAt,
+  spaceJointOf,
   spacePath,
   spacePoseAt,
+  spacePoseOf,
   toSpaceLocal,
   useColors,
 } from "@mekasim/ui";
 import { type ThreeEvent, useFrame, useThree } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
-import { type Group, Quaternion, Vector3 } from "three";
+import { type Group, Plane, Quaternion, Raycaster, Vector2, Vector3 } from "three";
 import { useStore } from "../store.ts";
 import { type Hit, nearestStep } from "./pick.ts";
+import { keepPose } from "./tools.ts";
 
 type Vec3 = [number, number, number];
 
@@ -205,19 +209,58 @@ export function Space({ scene }: { scene: Scene }) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const controls = useThree((s) => s.controls) as { enabled: boolean } | null;
-  /** A part held to scrub the cycle: where it is on the screen at every sample. */
-  const held = useRef<{ xs: Float64Array; ys: Float64Array; x: number; y: number; moved: boolean }>(
-    undefined,
-  );
+  /**
+   * A part held by the pointer. A driven mechanism is scrubbed through its cycle, by
+   * where the part is on the screen at every sample; a free one is posed, the part
+   * pulled across the view through the place where it was taken hold of.
+   */
+  const held = useRef<
+    | { mode: "scrub"; xs: Float64Array; ys: Float64Array; x: number; y: number; moved: boolean }
+    | {
+        mode: "pose";
+        point: SpatialPoint;
+        q: Float64Array;
+        across: Plane;
+        x: number;
+        y: number;
+        moved: boolean;
+      }
+  >(undefined);
 
-  /** Take hold of a part whose place in the world at every sample is `path`. */
-  function hold(event: ThreeEvent<PointerEvent>, path: () => Float64Array): void {
+  /**
+   * Take hold of a part: `point` is the place held, and `path` where it is in the
+   * world at every sample.
+   */
+  function hold(
+    event: ThreeEvent<PointerEvent>,
+    point: () => SpatialPoint,
+    path: () => Float64Array,
+  ): void {
     const state = useStore.getState();
     if (event.button !== 0 || state.tool !== "select") return;
     // The nearest part takes the press, not the ones behind it.
     event.stopPropagation();
     const driven = (state.shown?.compiled?.drivers.length ?? 0) > 0 && scene.cycle.count > 1;
-    if (!driven) return;
+    if (!driven) {
+      const { cycle } = scene;
+      const k = Math.min(Math.max(Math.floor(state.step), 0), cycle.count - 1) * cycle.width;
+      const q = Float64Array.from(scene.override ?? cycle.q.subarray(k, k + cycle.width));
+      const place = point();
+      const at = new Vector3(...placeInSpace(q, place));
+      const facing = camera.getWorldDirection(new Vector3());
+      const across = new Plane().setFromNormalAndCoplanarPoint(facing, at);
+      held.current = {
+        mode: "pose",
+        point: place,
+        q,
+        across,
+        x: event.clientX,
+        y: event.clientY,
+        moved: false,
+      };
+      if (controls) controls.enabled = false;
+      return;
+    }
     const places = path();
     const box = gl.domElement.getBoundingClientRect();
     const count = places.length / 3;
@@ -230,7 +273,7 @@ export function Space({ scene }: { scene: Scene }) {
       xs[k] = ((v.x + 1) / 2) * box.width;
       ys[k] = ((1 - v.y) / 2) * box.height;
     }
-    held.current = { xs, ys, x: event.clientX, y: event.clientY, moved: false };
+    held.current = { mode: "scrub", xs, ys, x: event.clientX, y: event.clientY, moved: false };
     // Holding a part must not also turn the view.
     if (controls) controls.enabled = false;
   }
@@ -245,6 +288,30 @@ export function Space({ scene }: { scene: Scene }) {
       const box = gl.domElement.getBoundingClientRect();
       const state = useStore.getState();
       state.setPlaying(false);
+      if (part.mode === "pose") {
+        const model = state.shown?.compiled?.model;
+        if (!model) return;
+        const ray = new Raycaster();
+        ray.setFromCamera(
+          new Vector2(
+            ((event.clientX - box.left) / box.width) * 2 - 1,
+            1 - ((event.clientY - box.top) / box.height) * 2,
+          ),
+          camera,
+        );
+        const target = ray.ray.intersectPlane(part.across, new Vector3());
+        if (!target) return;
+        const { direction } = ray.ray;
+        dragPointTo(
+          model,
+          part.q,
+          part.point,
+          [target.x, target.y, target.z],
+          [direction.x, direction.y, direction.z],
+        );
+        scene.override = part.q;
+        return;
+      }
       state.setStep(
         nearestStep(
           part.xs,
@@ -257,9 +324,16 @@ export function Space({ scene }: { scene: Scene }) {
       );
     }
     function onUp(): void {
-      if (!held.current) return;
+      const part = held.current;
+      if (!part) return;
       held.current = undefined;
       if (controls) controls.enabled = true;
+      // A posed mechanism keeps where it was left by having it written into the model.
+      if (part.mode === "pose" && part.moved) {
+        scene.override = undefined;
+        const compiled = useStore.getState().shown?.compiled;
+        if (compiled) keepPose(compiled, part.q);
+      }
     }
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
@@ -269,15 +343,17 @@ export function Space({ scene }: { scene: Scene }) {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [gl, controls, periodic]);
+  }, [gl, controls, periodic, camera, scene]);
 
   useFrame(() => {
     if (!space) return;
     const { step } = useStore.getState();
+    const { override } = scene;
     for (const body of space.bodies) {
       const group = bodies.current.get(body.id);
       if (!group) continue;
-      spacePoseAt(body, step, periodic, pose.current);
+      if (override) spacePoseOf(body, override, pose.current);
+      else spacePoseAt(body, step, periodic, pose.current);
       const p = pose.current;
       group.position.set(p[0] as number, p[1] as number, p[2] as number);
       group.quaternion.set(p[3] as number, p[4] as number, p[5] as number, p[6] as number);
@@ -285,7 +361,8 @@ export function Space({ scene }: { scene: Scene }) {
     for (const joint of space.joints) {
       const group = joints.current.get(joint.id);
       if (!group) continue;
-      spaceJointAt(joint, step, periodic, at.current, joint.axis && axis.current);
+      if (override) spaceJointOf(joint, override, at.current, joint.axis && axis.current);
+      else spaceJointAt(joint, step, periodic, at.current, joint.axis && axis.current);
       const a = at.current;
       group.position.set(a[0] as number, a[1] as number, a[2] as number);
       if (joint.axis) {
@@ -312,17 +389,23 @@ export function Space({ scene }: { scene: Scene }) {
             if (group) bodies.current.set(body.id, group);
             else bodies.current.delete(body.id);
           }}
-          onPointerDown={(event) =>
-            hold(event, () => {
-              // A point is followed as it is; a rod at the place on it that was pressed.
-              const name = event.object.userData.point as string | undefined;
+          onPointerDown={(event) => {
+            // A point is held as it is; a rod at the place on it that was pressed.
+            const name = event.object.userData.point as string | undefined;
+            const place = () => {
               const { step } = useStore.getState();
-              const s =
+              const world: [number, number, number] = [event.point.x, event.point.y, event.point.z];
+              return (
                 body.points.find((p) => p.name === name)?.s ??
-                toSpaceLocal(body, step, periodic, [event.point.x, event.point.y, event.point.z]);
-              return spacePath(body, s);
-            })
-          }
+                toSpaceLocal(body, step, periodic, world)
+              );
+            };
+            hold(
+              event,
+              () => ({ ...body.place, s: place() }),
+              () => spacePath(body, place()),
+            );
+          }}
         >
           <Body
             body={body}
@@ -340,7 +423,13 @@ export function Space({ scene }: { scene: Scene }) {
             if (group) joints.current.set(joint.id, group);
             else joints.current.delete(joint.id);
           }}
-          onPointerDown={(event) => hold(event, () => joint.at)}
+          onPointerDown={(event) =>
+            hold(
+              event,
+              () => joint.point,
+              () => joint.at,
+            )
+          }
         >
           <Joint joint={joint} radius={radius} selected={joint.id === selectedJoint} />
         </group>

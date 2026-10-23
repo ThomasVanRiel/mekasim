@@ -2,7 +2,14 @@ import { readFileSync } from "node:fs";
 import { placeInSpace, simulate } from "@mekasim/core";
 import { describe, expect, it } from "vitest";
 import { buildScene, type Scene } from "./scene.ts";
-import { spaceJointAt, spacePath, spacePoseAt, toSpaceLocal } from "./space.ts";
+import {
+  spaceJointAt,
+  spaceJointOf,
+  spacePath,
+  spacePoseAt,
+  spacePoseOf,
+  toSpaceLocal,
+} from "./space.ts";
 
 function example(name: string): { scene: Scene; simulation: ReturnType<typeof simulate> } {
   const url = new URL(`../../../examples/spatial/${name}.mekasim.yaml`, import.meta.url);
@@ -128,6 +135,36 @@ describe("following a point in space", () => {
   const blade = scene.space?.bodies.find((body) => body.id === "blade_1");
   const compiled = simulation.compiled;
   const cycle = simulation.cycle;
+
+  it("places bodies and joints from coordinates of their own as the cycle does", () => {
+    const space = scene.space;
+    if (!space) throw new Error("nothing in space");
+    const { cycle } = scene;
+    const k = 5;
+    const q = cycle.q.slice(k * cycle.width, (k + 1) * cycle.width);
+    const a = new Float64Array(7);
+    const b = new Float64Array(7);
+    for (const body of space.bodies) {
+      spacePoseAt(body, k, scene.periodic, a);
+      spacePoseOf(body, q, b);
+      // The same turning may come out negated, which is the same pose.
+      const sign = a[6] * b[6] + a[3] * b[3] + a[4] * b[4] + a[5] * b[5] < 0 ? -1 : 1;
+      for (let i = 0; i < 7; i++)
+        expect((i < 3 ? 1 : sign) * (b[i] as number)).toBeCloseTo(a[i] as number, 9);
+    }
+    for (const joint of space.joints) {
+      const at = new Float64Array(3);
+      const there = new Float64Array(3);
+      const axis = new Float64Array(3);
+      const along = new Float64Array(3);
+      spaceJointAt(joint, k, scene.periodic, at, axis);
+      spaceJointOf(joint, q, there, along);
+      for (let i = 0; i < 3; i++) {
+        expect(there[i]).toBeCloseTo(at[i] as number, 9);
+        if (joint.axis) expect(along[i]).toBeCloseTo(axis[i] as number, 9);
+      }
+    }
+  });
 
   it("gives where a point of a body is at every sample", () => {
     if (!blade || !compiled || !cycle) throw new Error("no blade");

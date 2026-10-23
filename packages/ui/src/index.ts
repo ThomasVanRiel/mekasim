@@ -57,8 +57,10 @@ export {
   type DrawSpaceJoint,
   type SpaceScene,
   spaceJointAt,
+  spaceJointOf,
   spacePath,
   spacePoseAt,
+  spacePoseOf,
   toSpaceLocal,
 } from "./space.ts";
 export { Tabs } from "./Tabs.tsx";

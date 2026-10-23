@@ -99,10 +99,10 @@ steps, each leaving the example baseline unchanged until a model uses something 
    space are named and can be picked by a click in either view (three.js ray
    picking in `Space.tsx`, beside the sheet's own picking in `pick.ts`); traces of
    points off the sheet are drawn where they are. Dragging a part in space scrubs
-   a driven mechanism's cycle, by where each sample is on the screen. Still to come:
-   posing a free mechanism in space by dragging (`dragPointTo` in `drag.ts` is
-   built and tested; left is wiring it into `Space.tsx`, drawing from `q` while
-   posing, and writing poses back as `{ at, axis, angle }`), forks, sketching on a chosen plane and a
+   a driven mechanism's cycle, by where each sample is on the screen. A free mechanism
+   in space is posed by dragging (`dragPointTo` in `drag.ts`, across the view
+   through the place held), and its pose written back as `{ at, axis, angle }`.
+   Still to come: forks, sketching on a chosen plane and a
    gizmo for points.
 
 ## Ideas
