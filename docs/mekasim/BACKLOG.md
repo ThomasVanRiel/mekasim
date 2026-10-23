@@ -94,7 +94,11 @@ steps, each leaving the example baseline unchanged until a model uses something 
    space or on another plane its pose at every sample, and `apps/sim`'s
    `viewport/Space.tsx` draws them as rods with balls at their points, ball joints
    as balls and hinges as barrels. The spatial examples are in the app's list.
-   Picking, dragging, labels and forks are still to come.
+   Each kind of joint in space has a shape of its own; bodies, points and joints in
+   space are named and can be picked by a click in either view (three.js ray
+   picking in `Space.tsx`, beside the sheet's own picking in `pick.ts`); traces of
+   points off the sheet are drawn where they are. Dragging in 3D, forks, sketching
+   on a chosen plane and a gizmo for points are still to come.
 
 ## Ideas
 

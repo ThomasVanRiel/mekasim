@@ -9,6 +9,7 @@ import {
   turn,
   type Vec3,
 } from "@mekasim/core";
+import { label } from "./names.ts";
 
 /** A body drawn in space: a body in space, or a body on a plane other than the sheet. */
 export interface DrawSpaceBody {
@@ -21,6 +22,8 @@ export interface DrawSpaceBody {
   rods: [Vec3, Vec3][];
   /** Where it is at every sample: `[x, y, z, qx, qy, qz, qw]`, its origin and its turning. */
   poses: Float64Array;
+  /** Names written beside its points, and its own at the middle of them, in its own frame. */
+  labels: { text: string; body: boolean; s: Vec3 }[];
 }
 
 /** A joint in space, drawn where it is in the world. */
@@ -90,6 +93,15 @@ export function buildSpace(compiled: Compiled, cycle: Cycle): SpaceScene | undef
   };
   const sample = (k: number): Float64Array => cycle.q.subarray(k * width, (k + 1) * width);
 
+  // Two points held together are named once, by the first.
+  const unnamed = new Set(
+    compiled.spatialJoints
+      .filter(
+        (joint) =>
+          joint.type === "spherical" || joint.type === "revolute" || joint.type === "universal",
+      )
+      .map((joint) => joint.points[1] as string),
+  );
   const first = compiled.bodies.size;
   const bodies = placed.map(({ id, body, points }, i): DrawSpaceBody => {
     const poses = new Float64Array(7 * count);
@@ -110,12 +122,23 @@ export function buildSpace(compiled: Compiled, cycle: Cycle): SpaceScene | undef
       for (const { s } of points) reach(placeInSpace(q, { ...body, s }));
     }
     const [hub, ...ends] = points;
+    const labels: DrawSpaceBody["labels"] = points
+      .filter(({ name }) => !unnamed.has(`${id}.${name}`))
+      .map(({ name, s }) => ({ text: label(name), body: false, s }));
+    if (points.length > 1) {
+      const middle: Vec3 = [0, 0, 0];
+      for (const { s } of points)
+        for (let j = 0; j < 3; j++)
+          middle[j] = (middle[j] as number) + (s[j] as number) / points.length;
+      labels.push({ text: label(id), body: true, s: middle });
+    }
     return {
       id,
       index: first + i,
       points,
       rods: hub ? ends.map(({ s }): [Vec3, Vec3] => [hub.s, s]) : [],
       poses,
+      labels,
     };
   });
 

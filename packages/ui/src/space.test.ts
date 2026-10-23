@@ -95,3 +95,30 @@ describe("what moves in space", () => {
     expect(planes.bodies.map((body) => body.id)).toEqual(["crank"]);
   });
 });
+
+describe("the names in space", () => {
+  it("names each point once where two are held together, and each body at its middle", () => {
+    const space = example("rssr").scene.space;
+    const names = (id: string): string[] =>
+      space?.bodies.find((body) => body.id === id)?.labels.map((label) => label.text) ?? [];
+    // crank.O and rocker.R are pinned to the ground, coupler.A to crank.A, rocker.B to coupler.B.
+    expect(names("crank")).toEqual(["A", "Crank"]);
+    expect(names("coupler")).toEqual(["B", "Coupler"]);
+    expect(names("rocker")).toEqual(["Rocker"]);
+    const coupler = space?.bodies.find((body) => body.id === "coupler");
+    expect(coupler?.labels.at(-1)?.s).toEqual([0.0475, 0, 0]);
+  });
+
+  it("draws a trace of a point in space where it is", () => {
+    const { scene, simulation } = example("hooke-joint");
+    const trace = scene.traces.find((found) => found.ref === "output.Y");
+    const output = simulation.compiled?.spatial.get("output");
+    const cycle = simulation.cycle;
+    if (!trace || !output || !cycle) throw new Error("no trace");
+    const q = cycle.q.subarray(50 * cycle.width, 51 * cycle.width);
+    const at = placeInSpace(q, { at: output.at, s: [0, 0, 0.02] });
+    trace.points[50]?.forEach((value, i) => {
+      expect(value).toBeCloseTo(at[i] as number, 12);
+    });
+  });
+});

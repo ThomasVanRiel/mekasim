@@ -380,6 +380,8 @@ Bodies in space are drawn in the view as rods from their first point to each of 
 others, with a ball at each point. Joints are drawn in brass: ball joints as balls,
 hinges as barrels along their axes, sleeves as longer barrels, sliders as blocks,
 universal joints as a ball with the first pin, and a point on a face as a pad.
+Their points and bodies are named in the view, and a click on a body, a point or a
+joint selects it, in either view; they cannot be dragged yet.
 Measures of their points are taken in the world, with `z(p)` for the height off the
 sheet, and their points can be traced. A body in space has no one angle: its hinges
 have, `angle(hinge)` (see Measures), and so has a corner of three of its points,

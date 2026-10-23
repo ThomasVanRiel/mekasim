@@ -7,17 +7,55 @@ import {
   spacePoseAt,
   useColors,
 } from "@mekasim/ui";
-import { useFrame } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { type ThreeEvent, useFrame } from "@react-three/fiber";
+import { type ReactNode, useMemo, useRef } from "react";
 import { type Group, Quaternion, Vector3 } from "three";
 import { useStore } from "../store.ts";
+import type { Hit } from "./pick.ts";
 
 type Vec3 = [number, number, number];
 
 const UP = new Vector3(0, 1, 0);
+/** Pointer travel below this is a click rather than turning the view, in pixels. */
+const CLICK_PX = 4;
+
+/**
+ * What a click on a part in space selects, and the pointer to show over it. The
+ * nearest part under the pointer takes the click, so a joint, drawn larger, wins over
+ * the point it sits on.
+ */
+function picks(hit: Hit) {
+  return {
+    onClick(event: ThreeEvent<MouseEvent>) {
+      event.stopPropagation();
+      const state = useStore.getState();
+      if (event.delta > CLICK_PX || state.tool !== "select") return;
+      state.select(hit);
+    },
+    onPointerOver(event: ThreeEvent<PointerEvent>) {
+      event.stopPropagation();
+      if (useStore.getState().tool === "select") document.body.style.cursor = "pointer";
+    },
+    onPointerOut() {
+      document.body.style.cursor = "";
+    },
+  };
+}
 
 /** A rod from one point to another, as a cylinder; three.js stands a cylinder along y. */
-function Rod({ from, to, radius, color }: { from: Vec3; to: Vec3; radius: number; color: string }) {
+function Rod({
+  from,
+  to,
+  radius,
+  color,
+  hit,
+}: {
+  from: Vec3;
+  to: Vec3;
+  radius: number;
+  color: string;
+  hit: Hit;
+}) {
   const { middle, length, turn } = useMemo(() => {
     const a = new Vector3(...from);
     const b = new Vector3(...to);
@@ -29,7 +67,7 @@ function Rod({ from, to, radius, color }: { from: Vec3; to: Vec3; radius: number
   }, [from, to]);
   if (length === 0) return null;
   return (
-    <mesh position={middle} quaternion={turn}>
+    <mesh position={middle} quaternion={turn} {...picks(hit)}>
       <cylinderGeometry args={[radius, radius, length, 16]} />
       <meshLambertMaterial color={color} />
     </mesh>
@@ -40,13 +78,17 @@ function Body({
   body,
   radius,
   selected,
+  point,
 }: {
   body: DrawSpaceBody;
   radius: number;
   selected: boolean;
+  /** The name of its point that is selected, if one is. */
+  point?: string;
 }) {
   const colors = useColors();
   const color = selected ? colors.dye : bodyColor(colors, body.index);
+  const hit: Hit = { kind: "body", id: body.id };
   return (
     <>
       {body.rods.map(([from, to]) => (
@@ -56,12 +98,13 @@ function Body({
           to={to}
           radius={radius}
           color={color}
+          hit={hit}
         />
       ))}
       {body.points.map(({ name, s }) => (
-        <mesh key={name} position={s}>
-          <sphereGeometry args={[radius * 1.25, 16, 12]} />
-          <meshLambertMaterial color={color} />
+        <mesh key={name} position={s} {...picks({ kind: "point", ref: `${body.id}.${name}` })}>
+          <sphereGeometry args={[radius * (name === point ? 1.7 : 1.25), 16, 12]} />
+          <meshLambertMaterial color={name === point ? colors.dye : color} />
         </mesh>
       ))}
     </>
@@ -80,8 +123,15 @@ function Joint({
   const colors = useColors();
   const color = selected ? colors.dye : joint.driven ? colors.red : colors.brass;
   const material = <meshLambertMaterial color={color} />;
+  return (
+    <group {...picks({ kind: "joint", id: joint.id })}>{shape(joint.kind, radius, material)}</group>
+  );
+}
+
+/** The shape of a joint, standing along y. */
+function shape(kind: DrawSpaceJoint["kind"], radius: number, material: ReactNode) {
   // Each stands along its group's y, which is turned to the joint's axis.
-  switch (joint.kind) {
+  switch (kind) {
     case "revolute":
       return (
         <mesh>
@@ -175,6 +225,8 @@ export function Space({ scene }: { scene: Scene }) {
   const radius = sizes.half * 0.35;
   const selectedBody = selection?.kind === "body" ? selection.id : undefined;
   const selectedJoint = selection?.kind === "joint" ? selection.id : undefined;
+  const [pointBody, pointName] =
+    selection?.kind === "point" ? (selection.ref.split(".") as [string, string]) : [];
   return (
     <>
       {space.bodies.map((body) => (
@@ -185,7 +237,12 @@ export function Space({ scene }: { scene: Scene }) {
             else bodies.current.delete(body.id);
           }}
         >
-          <Body body={body} radius={radius} selected={body.id === selectedBody} />
+          <Body
+            body={body}
+            radius={radius}
+            selected={body.id === selectedBody}
+            point={body.id === pointBody ? pointName : undefined}
+          />
         </group>
       ))}
       {space.joints.map((joint) => (

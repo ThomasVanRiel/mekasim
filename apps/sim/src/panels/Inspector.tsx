@@ -269,13 +269,16 @@ function LinkActions({ id }: { id: string }) {
 }
 
 /** What can be plotted and measured of a point: where it is and how fast it goes. */
-function PointActions({ point }: { point: string }) {
+function PointActions({ point, deep = false }: { point: string; deep?: boolean }) {
   const coordinates = useCoordinates();
   const base = point.replace(".", "_");
+  const height: PlotChoice[] = deep
+    ? [{ label: "height", name: `${base}_height`, series: [`z(${point})`] }]
+    : [];
   return (
     <>
       <CoordinatePicker />
-      <PlotButtons plots={motionPlots(point, base, coordinates)} />
+      <PlotButtons plots={[...motionPlots(point, base, coordinates), ...height]} />
       <MeasureButtons
         measures={[
           positionMeasures(point, base, coordinates),
@@ -307,12 +310,13 @@ export function Inspector() {
     const body = doc.bodies[selection.id];
     if (!body) return <ComponentSection doc={doc} id={selection.id} />;
     const ground = selection.id === GROUND;
+    const offSheet = body.spatial === true || body.plane !== undefined;
     return (
       <Section title={ground ? "Ground" : titled("Link", selection.id)} removable={!ground}>
         {Object.entries(body.points).map(([name, point]) => (
           <PointRow key={name} body={selection.id} name={name} point={point} />
         ))}
-        {!ground && (
+        {!ground && !offSheet && (
           <Field
             label="Layer"
             path={["bodies", selection.id, "layer"]}
@@ -321,7 +325,14 @@ export function Inspector() {
             hint="0"
           />
         )}
-        {!ground && <LinkActions id={selection.id} />}
+        {!ground && !offSheet && <LinkActions id={selection.id} />}
+        {offSheet && (
+          <p className="text-ink-soft text-sm">
+            {body.spatial
+              ? "This link moves in space. Pick one of its points to chart how it moves, or measure one of its hinges, as in angle(hinge), for how far it turns."
+              : `This link moves on the plane "${body.plane}". Pick one of its points to chart how it moves.`}
+          </p>
+        )}
       </Section>
     );
   }
@@ -348,7 +359,12 @@ export function Inspector() {
             {traced ? "Stop recording its path" : "Record its path"}
           </button>
         )}
-        {bodyId !== GROUND && <PointActions point={selection.ref} />}
+        {bodyId !== GROUND && (
+          <PointActions
+            point={selection.ref}
+            deep={doc.bodies[bodyId]?.spatial === true || doc.bodies[bodyId]?.plane !== undefined}
+          />
+        )}
       </Section>
     );
   }
