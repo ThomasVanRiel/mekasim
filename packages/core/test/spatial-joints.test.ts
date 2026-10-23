@@ -304,15 +304,86 @@ describe("the jerk of a point in space", () => {
       }
     }
   });
+});
 
-  it("is not seen from a frame yet", () => {
-    const text = `${HOOKE}frames:\n  f: { origin: ground.I }\n`.replace(
-      "measures:",
-      "measures:\n  seen: x(output.Y, f)",
+describe("frames in space", () => {
+  /** The Hooke's joint with frames and measures added. */
+  function withFrames(frames: string, measures: Record<string, string>) {
+    const lines = Object.entries(measures)
+      .map(([id, source]) => `\n  ${id}: ${source}`)
+      .join("");
+    return simulate(`${HOOKE.replace("measures:", `measures:${lines}`)}frames:\n${frames}`);
+  }
+
+  it("sees a point of a body in space stand still from a frame on that body", () => {
+    const simulation = withFrames("  out: { origin: output.O, body: output }\n", {
+      ...Object.fromEntries(
+        ["x", "y", "z", "vx", "vy", "vz", "ax", "ay", "az", "jx", "jy", "jz"].map((f) => [
+          `${f}_seen`,
+          `${f}(output.Y, out)`,
+        ]),
+      ),
+    });
+    for (const [f, expected] of [
+      ["x", 0],
+      ["y", 0],
+      ["z", 0.02],
+    ] as const) {
+      for (const value of measure(simulation, `${f}_seen`) as Float64Array)
+        expect(value).toBeCloseTo(expected, 9);
+    }
+    for (const f of ["vx", "vy", "vz", "ax", "ay", "az", "jx", "jy", "jz"])
+      expect(maxAbs(measure(simulation, `${f}_seen`) as Float64Array)).toBeLessThan(1e-6);
+  });
+
+  it("gives rates seen from a frame turning in space that agree with how the positions change", () => {
+    const fns = ["", "v", "a", "j"];
+    const measures: Record<string, string> = {};
+    for (const f of fns)
+      for (const axis of ["x", "y", "z"]) measures[`${f}${axis}_in`] = `${f}${axis}(input.Y, out)`;
+    const simulation = withFrames(
+      "  out: { origin: output.F, body: output, angle: 20 deg }\n",
+      measures,
     );
-    const found = simulate(text).measures.find((m) => m.id === "seen");
-    expect(found?.error).toBe(
-      "A point off the sheet cannot be seen from a frame yet; frames are on the sheet",
+    const t = simulation.cycle?.t as Float64Array;
+    const dt = (t[1] as number) - (t[0] as number);
+    for (let order = 1; order < fns.length; order++) {
+      const scale = Math.max(
+        ...["x", "y", "z"].map((axis) =>
+          maxAbs(measure(simulation, `${fns[order]}${axis}_in`) as Float64Array),
+        ),
+      );
+      for (const axis of ["x", "y", "z"]) {
+        const lower = measure(simulation, `${fns[order - 1]}${axis}_in`) as Float64Array;
+        const rate = measure(simulation, `${fns[order]}${axis}_in`) as Float64Array;
+        for (let k = 1; k < rate.length - 1; k += 7) {
+          const step = ((lower[k + 1] as number) - (lower[k - 1] as number)) / (2 * dt);
+          expect(Math.abs((rate[k] as number) - step)).toBeLessThan(2e-3 * scale);
+        }
+      }
+    }
+  });
+
+  it("sees a point in space from a frame on the sheet, keeping its height", () => {
+    const simulation = withFrames("  turned: { origin: ground.I, angle: 90 deg }\n", {
+      x_seen: "x(output.Y, turned)",
+      y_seen: "y(output.Y, turned)",
+      z_seen: "z(output.Y, turned)",
+      x_world: "x(output.Y)",
+      y_world: "y(output.Y)",
+      z_world: "z(output.Y)",
+    });
+    const get = (id: string) => measure(simulation, id) as Float64Array;
+    get("x_seen").forEach((value, k) => {
+      expect(value).toBeCloseTo(get("y_world")[k] as number, 9);
+      expect(get("y_seen")[k]).toBeCloseTo(-((get("x_world")[k] as number) + 0.06), 9);
+      expect(get("z_seen")[k]).toBeCloseTo(get("z_world")[k] as number, 9);
+    });
+  });
+
+  it("does not point a frame along points off the sheet", () => {
+    expect(errors(`${HOOKE}frames:\n  f: { along: [output.O, output.F] }\n`)).toContain(
+      "A frame can point along two points on the sheet only; off the sheet, let it follow a body with body:",
     );
   });
 });

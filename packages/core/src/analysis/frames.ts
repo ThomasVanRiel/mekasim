@@ -135,3 +135,127 @@ export function seenFrom(point: Path, origin?: Path, turning?: Turning): Path {
   }
   return seen;
 }
+
+/**
+ * How a frame in space is turned at every sample: its three axes in the world, and
+ * how fast it turns, as vectors in the world. Three numbers a sample for each rate,
+ * nine for the axes (x, then y, then z).
+ */
+export interface SpaceTurning {
+  axes: Float64Array;
+  w: Float64Array;
+  alpha: Float64Array;
+  beta?: Float64Array;
+}
+
+/** A frame that turns about the sheet's z axis, as a frame in space. */
+export function sheetTurning(turning: Turning | undefined, n: number): SpaceTurning {
+  const out: SpaceTurning = {
+    axes: new Float64Array(9 * n),
+    w: new Float64Array(3 * n),
+    alpha: new Float64Array(3 * n),
+    beta: !turning || turning.beta ? new Float64Array(3 * n) : undefined,
+  };
+  for (let k = 0; k < n; k++) {
+    const c = Math.cos(turning?.angle[k] ?? 0);
+    const s = Math.sin(turning?.angle[k] ?? 0);
+    out.axes.set([c, s, 0, -s, c, 0, 0, 0, 1], 9 * k);
+    out.w[3 * k + 2] = turning?.w[k] ?? 0;
+    out.alpha[3 * k + 2] = turning?.alpha[k] ?? 0;
+    if (out.beta) out.beta[3 * k + 2] = turning?.beta?.[k] ?? 0;
+  }
+  return out;
+}
+
+type V = [number, number, number];
+
+function crossOf(a: V, b: V): V {
+  return [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+}
+
+/** a - b - c - ..., for vectors. */
+function less(a: V, ...rest: V[]): V {
+  const out: V = [...a];
+  for (const b of rest) for (let i = 0; i < 3; i++) out[i] = (out[i] as number) - b[i];
+  return out;
+}
+
+function scale(a: V, by: number): V {
+  return [a[0] * by, a[1] * by, a[2] * by];
+}
+
+/**
+ * The motion of a point in the coordinates of a frame that may turn any way in
+ * space, as `seenFrom` gives it for a frame on the sheet. A vector `u` of the world
+ * seen in the frame changes as `u' - w × u`, which taken again and again gives each
+ * rate.
+ */
+export function seenFromSpace(point: Path, origin: Path | undefined, turning: SpaceTurning): Path {
+  const n = point.x.length;
+  const has = (path: Path): boolean => Boolean(path.jx && path.jy);
+  const jerk = has(point) && (!origin || has(origin)) && turning.beta !== undefined;
+  const make = (): Float64Array => new Float64Array(n);
+  const seen: Path = {
+    x: make(),
+    y: make(),
+    z: make(),
+    vx: make(),
+    vy: make(),
+    vz: make(),
+    ax: make(),
+    ay: make(),
+    az: make(),
+    jx: jerk ? make() : undefined,
+    jy: jerk ? make() : undefined,
+    jz: jerk ? make() : undefined,
+  };
+  const vec = (path: Path, xs: "x" | "vx" | "ax" | "jx", k: number): V => {
+    const ys = xs.replace("x", "y") as "y" | "vy" | "ay" | "jy";
+    const zs = xs.replace("x", "z") as "z" | "vz" | "az" | "jz";
+    return [path[xs]?.[k] ?? 0, path[ys]?.[k] ?? 0, path[zs]?.[k] ?? 0];
+  };
+  const from = (xs: "x" | "vx" | "ax" | "jx", k: number): V =>
+    less(vec(point, xs, k), origin ? vec(origin, xs, k) : [0, 0, 0]);
+  const at = (of: Float64Array, k: number): V => [
+    of[3 * k] as number,
+    of[3 * k + 1] as number,
+    of[3 * k + 2] as number,
+  ];
+  for (let k = 0; k < n; k++) {
+    const axes = turning.axes.subarray(9 * k, 9 * k + 9);
+    /** Put a vector of the world into the frame, as the k-th sample of three series. */
+    const put = (u: V, xs: Float64Array, ys: Float64Array, zs: Float64Array): void => {
+      for (const [i, into] of [xs, ys, zs].entries())
+        into[k] =
+          u[0] * (axes[3 * i] as number) +
+          u[1] * (axes[3 * i + 1] as number) +
+          u[2] * (axes[3 * i + 2] as number);
+    };
+    const w = at(turning.w, k);
+    const alpha = at(turning.alpha, k);
+    const d = from("x", k);
+    const dv = from("vx", k);
+    const da = from("ax", k);
+    // e1 is the velocity seen in the frame, e2 the acceleration, both still in the
+    // world's axes; d1 is how fast e1 changes in the world.
+    const e1 = less(dv, crossOf(w, d));
+    const d1 = less(da, crossOf(alpha, d), crossOf(w, dv));
+    const e2 = less(d1, crossOf(w, e1));
+    put(d, seen.x, seen.y, seen.z as Float64Array);
+    put(e1, seen.vx, seen.vy, seen.vz as Float64Array);
+    put(e2, seen.ax, seen.ay, seen.az as Float64Array);
+    if (jerk && turning.beta && seen.jx && seen.jy && seen.jz) {
+      const beta = at(turning.beta, k);
+      const d2 = less(
+        from("jx", k),
+        crossOf(beta, d),
+        scale(crossOf(alpha, dv), 2),
+        crossOf(w, da),
+        crossOf(alpha, e1),
+        crossOf(w, d1),
+      );
+      put(less(d2, crossOf(w, e2)), seen.jx, seen.jy, seen.jz);
+    }
+  }
+  return seen;
+}

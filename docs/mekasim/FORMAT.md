@@ -387,8 +387,8 @@ cannot be posed by dragging yet.
 Measures of their points are taken in the world, with `z(p)` for the height off the
 sheet, and their points can be traced. A body in space has no one angle: its hinges
 have, `angle(hinge)` (see Measures), and so has a corner of three of its points,
-`angle(p, q, r)`. Frames are on the sheet: a point off the sheet cannot be seen from
-one yet.
+`angle(p, q, r)`. A frame can follow a body in space, so its points can be seen
+from it (see Frames).
 
 ## Planes
 
@@ -553,7 +553,7 @@ and give a value at every sample of the cycle:
 |---|---|
 | `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
 | `r(p)`, `theta(p)` | The same position as a radius and an angle: how far the point is from the origin, and in which direction |
-| `z(p)`, `vz(p)`, `az(p)`, `jz(p)` | How far a point is off the sheet, and how fast that changes; 0 on the sheet |
+| `z(p)`, `vz(p)`, `az(p)`, `jz(p)` | How far a point is off the sheet, and how fast that changes; 0 on the sheet. Like `x`, they take a frame to see the point from |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `vr(p)`, `vt(p)` | Velocity along the radius, and across it |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |
@@ -675,6 +675,14 @@ function of one point: `x(p, frame)`, `vr(p, frame)`, `moved(p, frame)`.
 | `body` | A body. The x axis is that of the body's own frame and turns with it, and `angle` turns it on from there |
 
 Give `along` or `body`, not both. Without either the axes keep to the sheet.
+
+Frames work in space too. A point off the sheet, seen from a frame on the sheet,
+keeps its height as `z(p, frame)`, since the frame turns about the sheet's z axis. A
+frame whose `body` is in space, or on a plane other than the sheet, takes all three
+of that body's axes, its x turned on by `angle` about its own z, and sees the
+motion as it turns with it: `z(p, frame)` is then along the body's z. The sizes
+`v`, `a` and `j` seen from a frame take in its z as well. `along` takes two points on
+the sheet only, since off it a line alone does not say which way is up.
 
 A frame may stand still or move. With its origin on a point of a moving body, or
 turning with one, it shows the motion as seen from there: the velocity is the rate

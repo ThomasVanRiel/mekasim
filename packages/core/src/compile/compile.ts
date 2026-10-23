@@ -1048,16 +1048,29 @@ function compileExpanded(
   for (const [id, frame] of Object.entries(doc.frames ?? {})) {
     const path = ["frames", id];
     attempt(() => {
-      if (frame.origin !== undefined) point(frame.origin, [...path, "origin"]);
+      if (frame.origin !== undefined) {
+        const bodyId = frame.origin.split(".")[0] as string;
+        if (spatial.has(bodyId) || bodies.get(bodyId)?.plane !== undefined)
+          spacePoint(frame.origin, [...path, "origin"]);
+        else point(frame.origin, [...path, "origin"]);
+      }
       if (frame.along && frame.body !== undefined)
         throw fail("A frame follows either two points or a body, not both", [...path, "body"]);
       if (frame.along) {
+        frame.along.forEach((ref, i) => {
+          const bodyId = ref.split(".")[0] as string;
+          if (spatial.has(bodyId) || bodies.get(bodyId)?.plane !== undefined)
+            throw fail(
+              "A frame can point along two points on the sheet only; off the sheet, let it follow a body with body:",
+              [...path, "along", i],
+            );
+        });
         const from = point(frame.along[0], [...path, "along", 0]);
         const to = point(frame.along[1], [...path, "along", 1]);
         if (from.body === to.body && Math.hypot(to.u - from.u, to.v - from.v) < 1e-12)
           throw fail("The two points coincide, so they define no direction", [...path, "along"]);
       }
-      if (frame.body !== undefined && !bodies.has(frame.body))
+      if (frame.body !== undefined && !bodies.has(frame.body) && !spatial.has(frame.body))
         throw fail(`Unknown body "${frame.body}"`, [...path, "body"]);
       frames.set(id, {
         id,

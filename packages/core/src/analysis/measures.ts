@@ -9,13 +9,22 @@ import {
   pointJerkAt,
   pointMotionAt,
   SHEET,
+  type SpatialBody,
   type SpatialPoint,
   turn,
   turningRate,
   type Vec3,
 } from "../solver/spatial.ts";
 import { type Cycle, cycleJerk } from "./cycle.ts";
-import { lineTurning, type Path, seenFrom, type Turning } from "./frames.ts";
+import {
+  lineTurning,
+  type Path,
+  type SpaceTurning,
+  seenFrom,
+  seenFromSpace,
+  sheetTurning,
+  type Turning,
+} from "./frames.ts";
 import { gapsOf, type MeasuredGap } from "./gaps.ts";
 
 const SPEED: Dim = [1, -1, 0, 0];
@@ -541,6 +550,53 @@ export function evaluateMeasures(
     return { angle: new Float64Array(n).fill(frame.angle), w: still, alpha: still, beta: still };
   }
 
+  /** A body in space or on a plane other than the sheet, as the solver places it. */
+  function offSheetBody(id: string): SpatialBody | undefined {
+    const inSpace = compiled.spatial.get(id);
+    if (inSpace) return { at: inSpace.at };
+    const flat = compiled.planeBodies.get(id);
+    if (!flat) return undefined;
+    const plane = flat.plane === undefined ? SHEET : compiled.planes.get(flat.plane);
+    return plane && { at: 3 * flat.index, plane };
+  }
+
+  /** How a frame on a body off the sheet is turned, its x axis turned `angle` about the body's z. */
+  function spaceTurning(body: SpatialBody, angle: number, withJerk: boolean): SpaceTurning {
+    if (withJerk) qddd ??= cycleJerk(compiled.model, cycle);
+    const out: SpaceTurning = {
+      axes: new Float64Array(9 * n),
+      w: new Float64Array(3 * n),
+      alpha: new Float64Array(3 * n),
+      beta: withJerk ? new Float64Array(3 * n) : undefined,
+    };
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const { width } = cycle;
+    for (let k = 0; k < n; k++) {
+      const slice = (of: Float64Array): Float64Array => of.subarray(k * width, (k + 1) * width);
+      const q = slice(cycle.q);
+      const qd = slice(cycle.qd);
+      const qdd = slice(cycle.qdd);
+      out.axes.set(
+        [...turn(q, body, [c, s, 0]), ...turn(q, body, [-s, c, 0]), ...turn(q, body, [0, 0, 1])],
+        9 * k,
+      );
+      out.w.set(turningRate(q, qd, body), 3 * k);
+      // With a unit quaternion p, the angular acceleration is 2 E(p) p''.
+      out.alpha.set(turningRate(q, qdd, body), 3 * k);
+      if (out.beta && qddd) {
+        const third = turningRate(q, slice(qddd), body);
+        // Off a plane, E(p) itself changes: its rate adds 2 E(p') p''.
+        const more = body.plane ? [0, 0, 0] : turningRate(qd, qdd, body);
+        out.beta.set(
+          third.map((value, i) => value + (more[i] as number)),
+          3 * k,
+        );
+      }
+    }
+    return out;
+  }
+
   /**
    * The motion of the point a function is given, on the sheet or, when a frame is
    * named after the point, as seen from that frame.
@@ -563,17 +619,17 @@ export function evaluateMeasures(
         named.pos,
       );
     }
-    if (world.z)
-      throw new ExprError(
-        "A point off the sheet cannot be seen from a frame yet; frames are on the sheet",
-        named.pos,
-      );
     const key = `${refName(args[0], call)} ${frame.id} ${withJerk}`;
     const known = views.get(key);
     if (known) return known;
     const origin =
       frame.origin === undefined ? undefined : framePoint(frame.origin, named, call, withJerk);
-    const view = seenFrom(world, origin, turningOf(frame, named, call, withJerk));
+    const body = frame.body === undefined ? undefined : offSheetBody(frame.body);
+    const view = body
+      ? seenFromSpace(world, origin, spaceTurning(body, frame.angle, withJerk))
+      : world.z || origin?.z
+        ? seenFromSpace(world, origin, sheetTurning(turningOf(frame, named, call, withJerk), n))
+        : seenFrom(world, origin, turningOf(frame, named, call, withJerk));
     views.set(key, view);
     return view;
   }
@@ -615,20 +671,14 @@ export function evaluateMeasures(
       if (args.length !== 1) throw wrongArity(call, "1 argument");
     };
     if (name === "jz") {
-      if (args.length !== 1) throw wrongArity(call, "a point");
-      return { value: jerk(args[0], call).jz ?? new Float64Array(n), dim: JERK };
+      // A point on the sheet, seen from the sheet, stays at z = 0.
+      return { value: seen(call, true).jz ?? new Float64Array(n), dim: JERK };
     }
     if (name === "z" || name === "vz" || name === "az") {
-      if (args.length !== 1) throw wrongArity(call, "a point");
-      const m = motion(args[0], call);
       const dim = name === "z" ? LENGTH : name === "vz" ? SPEED : ACCELERATION;
-      // A point on the sheet stays at z = 0.
-      return { value: m[name] ?? new Float64Array(n), dim };
+      return { value: seen(call)[name] ?? new Float64Array(n), dim };
     }
     if (OF_POINT.has(name)) {
-      // Off the sheet and seen from the world, a size takes in z too.
-      const deep = (axis: "vz" | "az"): Float64Array | undefined =>
-        call.args.length === 1 ? motion(call.args[0], call)[axis] : undefined;
       const size = (xs: Float64Array, ys: Float64Array, zs?: Float64Array): Float64Array =>
         signal((k) => Math.hypot(xs[k], ys[k], zs?.[k] ?? 0));
       const part = name.endsWith("r") ? "radial" : "transverse";
@@ -659,7 +709,7 @@ export function evaluateMeasures(
           return { value: seen(call)[name], dim: SPEED };
         case "v": {
           const m = seen(call);
-          return { value: size(m.vx, m.vy, deep("vz")), dim: SPEED };
+          return { value: size(m.vx, m.vy, m.vz), dim: SPEED };
         }
         case "vr":
         case "vt": {
@@ -671,7 +721,7 @@ export function evaluateMeasures(
           return { value: seen(call)[name], dim: ACCELERATION };
         case "a": {
           const m = seen(call);
-          return { value: size(m.ax, m.ay, deep("az")), dim: ACCELERATION };
+          return { value: size(m.ax, m.ay, m.az), dim: ACCELERATION };
         }
         case "ar":
         case "at": {
@@ -683,8 +733,7 @@ export function evaluateMeasures(
           const m = seen(call, true);
           const { jx, jy, jz } = m as Path & PointJerk;
           if (name === "jx" || name === "jy") return { value: name === "jx" ? jx : jy, dim: JERK };
-          if (name === "j")
-            return { value: size(jx, jy, call.args.length === 1 ? jz : undefined), dim: JERK };
+          if (name === "j") return { value: size(jx, jy, jz), dim: JERK };
           return { value: polar(m, jx, jy, part), dim: JERK };
         }
       }
