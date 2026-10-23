@@ -188,7 +188,7 @@ export {
   pointOnLine,
   relativeAngle,
 } from "./solver/constraints.ts";
-export { dragTo } from "./solver/drag.ts";
+export { dragPointTo, dragTo } from "./solver/drag.ts";
 export {
   type Mat,
   mat,

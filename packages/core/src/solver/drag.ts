@@ -1,6 +1,7 @@
 import type { BodyPoint } from "./constraints.ts";
 import { mat, maxAbs, pinvSolve, RANK_TOLERANCE, svd } from "./linalg.ts";
-import { jacobian, type SolverModel, solvePosition } from "./solve.ts";
+import { blocks, jacobian, type SolverModel, solvePosition } from "./solve.ts";
+import { dot, placePoint, type SpatialPoint, unit, type Vec3 } from "./spatial.ts";
 
 /** World position of a body point, and its offset from the body origin rotated into the world. */
 function locate(q: Float64Array, p: BodyPoint): { x: number; y: number; bx: number; by: number } {
@@ -73,6 +74,98 @@ export function dragTo(
       if (!solvePosition(joints, trial, 0).ok) continue;
       const reached = locate(trial, point);
       const remaining = Math.hypot(x - reached.x, y - reached.y);
+      if (remaining < distance - 1e-12) {
+        q.set(trial);
+        distance = remaining;
+        moved = true;
+        break;
+      }
+    }
+    if (!moved) break;
+  }
+  return distance;
+}
+
+/**
+ * Pull a point of a mechanism that may move in space towards a target in the
+ * world, as `dragTo` does on the sheet. `across`, when given, is the way the view
+ * looks: how far the point is along it does not count, so the point follows the
+ * pointer without being pulled towards or away from the eye.
+ *
+ * Updates `q` in place and returns the remaining distance to the target.
+ */
+export function dragPointTo(
+  model: SolverModel,
+  q: Float64Array,
+  point: SpatialPoint,
+  target: Vec3,
+  across?: Vec3,
+): number {
+  const joints: SolverModel = { ...model, constraints: model.constraints.filter((c) => !c.driver) };
+  const n = q.length;
+  const look = across && unit(across);
+  /** What is left to go, with the part along the view taken out. */
+  const flatten = (d: Vec3): Vec3 => {
+    if (!look) return d;
+    const along = dot(d, look);
+    return [d[0] - along * look[0], d[1] - along * look[1], d[2] - along * look[2]];
+  };
+  const gap = (at: Float64Array): Vec3 => {
+    const x = placePoint(at, point);
+    return flatten([target[0] - x[0], target[1] - x[1], target[2] - x[2]]);
+  };
+  const size = (d: Vec3): number => Math.hypot(d[0], d[1], d[2]);
+  let distance = size(gap(q));
+  if (point.at < 0 || n === 0) return distance;
+  const layout = blocks(model);
+
+  for (let iteration = 0; iteration < 25 && distance > 1e-9; iteration++) {
+    const decomposition = svd(jacobian(joints, q));
+    const cutoff = joints.constraints.length > 0 ? maxAbs(decomposition.s) * RANK_TOLERANCE : -1;
+    const free: number[] = [];
+    decomposition.s.forEach((sigma, j) => {
+      if (sigma <= cutoff || joints.constraints.length === 0) free.push(j);
+    });
+    if (free.length === 0) break;
+
+    // How the point moves for each free motion, across the view.
+    const h = 1e-6;
+    const reach = mat(3, free.length);
+    free.forEach((j, k) => {
+      const ahead = q.map((value, i) => value + h * decomposition.v.data[i * n + j]);
+      const behind = q.map((value, i) => value - h * decomposition.v.data[i * n + j]);
+      const a = placePoint(ahead, point);
+      const b = placePoint(behind, point);
+      const rate = flatten([
+        (a[0] - b[0]) / (2 * h),
+        (a[1] - b[1]) / (2 * h),
+        (a[2] - b[2]) / (2 * h),
+      ]);
+      for (let row = 0; row < 3; row++) reach.data[row * free.length + k] = rate[row] as number;
+    });
+    const amounts = pinvSolve(svd(reach), Float64Array.from(gap(q)));
+    const step = new Float64Array(n);
+    free.forEach((j, k) => {
+      for (let i = 0; i < n; i++) step[i] += amounts[k] * decomposition.v.data[i * n + j];
+    });
+
+    // Turn no body too far in one step: a planar angle, or twice the change of a
+    // body's Euler parameters, which is about the angle it turns through.
+    let turned = 0;
+    for (const block of layout) {
+      if (block.size === 3) turned = Math.max(turned, Math.abs(step[block.at + 2]));
+      else {
+        const p = step.subarray(block.at + 3, block.at + 7);
+        turned = Math.max(turned, 2 * Math.hypot(...p));
+      }
+    }
+    let scale = turned > MAX_TURN ? MAX_TURN / turned : 1;
+
+    let moved = false;
+    for (let attempt = 0; attempt < 6; attempt++, scale /= 2) {
+      const trial = q.map((value, i) => value + scale * step[i]);
+      if (!solvePosition(joints, trial, 0).ok) continue;
+      const remaining = size(gap(trial));
       if (remaining < distance - 1e-12) {
         q.set(trial);
         distance = remaining;
