@@ -383,7 +383,8 @@ universal joints as a ball with the first pin, and a point on a face as a pad.
 Measures of their points are taken in the world, with `z(p)` for the height off the
 sheet, and their points can be traced. A body in space has no one angle: its hinges
 have, `angle(hinge)` (see Measures), and so has a corner of three of its points,
-`angle(p, q, r)`. The jerk of their points and frames on them are not there yet.
+`angle(p, q, r)`. Frames are on the sheet: a point off the sheet cannot be seen from
+one yet.
 
 ## Planes
 
@@ -548,7 +549,7 @@ and give a value at every sample of the cycle:
 |---|---|
 | `x(p)`, `y(p)` | Position of a point, or of the centre of a body |
 | `r(p)`, `theta(p)` | The same position as a radius and an angle: how far the point is from the origin, and in which direction |
-| `z(p)`, `vz(p)`, `az(p)` | How far a point is off the sheet, and how fast that changes; 0 on the sheet |
+| `z(p)`, `vz(p)`, `az(p)`, `jz(p)` | How far a point is off the sheet, and how fast that changes; 0 on the sheet |
 | `vx(p)`, `vy(p)`, `v(p)` | Velocity components and speed of a point |
 | `vr(p)`, `vt(p)` | Velocity along the radius, and across it |
 | `ax(p)`, `ay(p)`, `a(p)` | Acceleration components and magnitude of a point |

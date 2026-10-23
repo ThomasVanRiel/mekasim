@@ -261,6 +261,40 @@ export function turningRate(q: Float64Array, qd: Float64Array, body: SpatialBody
   return [0, 1, 2].map((i) => 2 * (p[0] * d[i] - pd[0] * e[i] + c[i])) as Vec3;
 }
 
+/**
+ * The jerk of a point: how fast its acceleration changes, from the coordinates and
+ * their first three rates. `A(p) s` is quadratic in `p`, so its third derivative is
+ * `3 B(pd, s) pdd + B(p, s) pddd`; on a plane it is the planar jerk in the plane's axes.
+ */
+export function pointJerkAt(
+  q: Float64Array,
+  qd: Float64Array,
+  qdd: Float64Array,
+  qddd: Float64Array,
+  point: SpatialPoint,
+): Vec3 {
+  const { at, plane, s } = point;
+  if (at < 0) return [0, 0, 0];
+  if (plane) {
+    const c = Math.cos(q[at + 2]);
+    const sn = Math.sin(q[at + 2]);
+    const bx = s[0] * c - s[1] * sn;
+    const by = s[0] * sn + s[1] * c;
+    const w = qd[at + 2];
+    const alpha = qdd[at + 2];
+    const beta = qddd[at + 2];
+    return inPlane(
+      plane,
+      qddd[at] - (beta - w ** 3) * by - 3 * alpha * w * bx,
+      qddd[at + 1] + (beta - w ** 3) * bx - 3 * alpha * w * by,
+      0,
+    );
+  }
+  const turned = times(bMatrix(params(qd, at), s), params(qdd, at));
+  const pushed = times(bMatrix(params(q, at), s), params(qddd, at));
+  return [0, 1, 2].map((i) => qddd[at + i] + 3 * turned[i] + pushed[i]) as Vec3;
+}
+
 /** How fast a point of the body in space at `at` moves when the coordinates change at the rates `qd`. */
 export function pointRate(q: Float64Array, qd: Float64Array, at: number, s: Vec3): Vec3 {
   return state(q, qd, { at }, s, true).v;

@@ -84,8 +84,9 @@ steps, each leaving the example baseline unchanged until a model uses something 
    `slider` and `pin-slot` in space (prismatic, and point on a line), with
    `examples/spatial/hooke-joint.mekasim.yaml`; traces of points off the sheet;
    `angle()`, `omega()` and `alpha()` of hinges, which is what a body in space has
-   in place of an angle, and an unsigned `angle(p, q, r)` in space. Still to come:
-   the jerk of points off the sheet, and frames on bodies in space.
+   in place of an angle, and an unsigned `angle(p, q, r)` in space; the jerk of
+   points off the sheet, with `jz`. Still to come: frames in space, to see a point
+   from a body in space.
 5. **The view.** Spatial bodies drawn as rods with ball and fork ends, picking in
    3D, sketching on a chosen plane with the 2D tools; truly spatial parts written
    in the source and the inspector first, a gizmo for placing points in 3D last.

@@ -287,3 +287,32 @@ measures:
     }
   });
 });
+
+describe("the jerk of a point in space", () => {
+  it("is how fast its acceleration changes", () => {
+    const text = `${HOOKE.replace("measures:", "measures:\n  jx_y: jx(output.Y)\n  jy_y: jy(output.Y)\n  jz_y: jz(output.Y)\n  ax_y: ax(output.Y)\n  ay_y: ay(output.Y)\n  az_y: az(output.Y)\n  j_y: j(output.Y)")}`;
+    const simulation = simulate(text);
+    const t = simulation.cycle?.t as Float64Array;
+    const dt = (t[1] as number) - (t[0] as number);
+    for (const axis of ["x", "y", "z"]) {
+      const jerk = measure(simulation, `j${axis}_y`) as Float64Array;
+      const acceleration = measure(simulation, `a${axis}_y`) as Float64Array;
+      const scale = Math.max(...(measure(simulation, "j_y") as Float64Array));
+      for (let k = 1; k < jerk.length - 1; k += 11) {
+        const rate = ((acceleration[k + 1] as number) - (acceleration[k - 1] as number)) / (2 * dt);
+        expect(Math.abs((jerk[k] as number) - rate)).toBeLessThan(1e-3 * scale);
+      }
+    }
+  });
+
+  it("is not seen from a frame yet", () => {
+    const text = `${HOOKE}frames:\n  f: { origin: ground.I }\n`.replace(
+      "measures:",
+      "measures:\n  seen: x(output.Y, f)",
+    );
+    const found = simulate(text).measures.find((m) => m.id === "seen");
+    expect(found?.error).toBe(
+      "A point off the sheet cannot be seen from a frame yet; frames are on the sheet",
+    );
+  });
+});

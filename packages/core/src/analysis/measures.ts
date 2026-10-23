@@ -6,6 +6,7 @@ import type { Registry } from "../registry.ts";
 import {
   cross,
   dot,
+  pointJerkAt,
   pointMotionAt,
   SHEET,
   type SpatialPoint,
@@ -90,6 +91,8 @@ function spaceMotion(cycle: Cycle, point: SpatialPoint): PointMotion {
 export interface PointJerk {
   jx: Float64Array;
   jy: Float64Array;
+  /** Off the sheet, as for `PointMotion`. */
+  jz?: Float64Array;
 }
 
 function splitRef(ref: string): [body: string, point: string | undefined] {
@@ -167,12 +170,25 @@ export function pointJerk(
   qddd: Float64Array,
   ref: string,
 ): PointJerk {
+  const n = cycle.count;
+  const off = spacePoint(compiled, ref);
+  if (off) {
+    const out = { jx: new Float64Array(n), jy: new Float64Array(n), jz: new Float64Array(n) };
+    const { width } = cycle;
+    for (let k = 0; k < n; k++) {
+      const slice = (of: Float64Array): Float64Array => of.subarray(k * width, (k + 1) * width);
+      const j = pointJerkAt(slice(cycle.q), slice(cycle.qd), slice(cycle.qdd), slice(qddd), off);
+      out.jx[k] = j[0];
+      out.jy[k] = j[1];
+      out.jz[k] = j[2];
+    }
+    return out;
+  }
   const [bodyId, name] = splitRef(ref);
   const body = compiled.bodies.get(bodyId);
   const local = body && (name === undefined ? centreOf(body) : body.points.get(name));
   if (!body || !local) throw new Error(`Unknown point "${ref}"`);
 
-  const n = cycle.count;
   const jerk: PointJerk = { jx: new Float64Array(n), jy: new Float64Array(n) };
   if (body.index < 0) return jerk;
 
@@ -275,7 +291,18 @@ const OF_POINT = new Set([
 ]);
 
 /** Kinematic functions take bodies and points, not values, as arguments. */
-const KINEMATIC = new Set([...OF_POINT, "z", "vz", "az", "dist", "gap", "angle", "omega", "alpha"]);
+const KINEMATIC = new Set([
+  ...OF_POINT,
+  "z",
+  "vz",
+  "az",
+  "jz",
+  "dist",
+  "gap",
+  "angle",
+  "omega",
+  "alpha",
+]);
 
 /**
  * Evaluate the measures, checks and plots of a model over a solved cycle. `registry`
@@ -382,8 +409,7 @@ export function evaluateMeasures(
 
   function jerk(node: Node | undefined, fn: Node): PointJerk {
     // Checks the point, and says what is wrong with it.
-    if (motion(node, fn).z)
-      throw new ExprError("The jerk of a point off the sheet is not there yet", (node as Node).pos);
+    motion(node, fn);
     const ref = refName(node, fn);
     const known = jerks.get(ref);
     if (known) return known;
@@ -537,6 +563,11 @@ export function evaluateMeasures(
         named.pos,
       );
     }
+    if (world.z)
+      throw new ExprError(
+        "A point off the sheet cannot be seen from a frame yet; frames are on the sheet",
+        named.pos,
+      );
     const key = `${refName(args[0], call)} ${frame.id} ${withJerk}`;
     const known = views.get(key);
     if (known) return known;
@@ -583,6 +614,10 @@ export function evaluateMeasures(
     const one = (): void => {
       if (args.length !== 1) throw wrongArity(call, "1 argument");
     };
+    if (name === "jz") {
+      if (args.length !== 1) throw wrongArity(call, "a point");
+      return { value: jerk(args[0], call).jz ?? new Float64Array(n), dim: JERK };
+    }
     if (name === "z" || name === "vz" || name === "az") {
       if (args.length !== 1) throw wrongArity(call, "a point");
       const m = motion(args[0], call);
@@ -613,7 +648,9 @@ export function evaluateMeasures(
           // How far a point is from where it started, whichever way it went.
           const m = seen(call);
           return {
-            value: signal((k) => Math.hypot(m.x[k] - m.x[0], m.y[k] - m.y[0])),
+            value: signal((k) =>
+              Math.hypot(m.x[k] - m.x[0], m.y[k] - m.y[0], (m.z?.[k] ?? 0) - (m.z?.[0] ?? 0)),
+            ),
             dim: LENGTH,
           };
         }
@@ -644,9 +681,11 @@ export function evaluateMeasures(
         default: {
           // The jerk, in one of its forms.
           const m = seen(call, true);
-          const { jx, jy } = m as Path & PointJerk;
+          const { jx, jy, jz } = m as Path & PointJerk;
           if (name === "jx" || name === "jy") return { value: name === "jx" ? jx : jy, dim: JERK };
-          return { value: name === "j" ? size(jx, jy) : polar(m, jx, jy, part), dim: JERK };
+          if (name === "j")
+            return { value: size(jx, jy, call.args.length === 1 ? jz : undefined), dim: JERK };
+          return { value: polar(m, jx, jy, part), dim: JERK };
         }
       }
     }
