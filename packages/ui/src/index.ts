@@ -5,6 +5,12 @@ export { type Thumb, thumbOf } from "./drawings/thumb.ts";
 export { LIVE } from "./editor/history.ts";
 export { type EditorHandle, SourceEditor } from "./editor/SourceEditor.tsx";
 export { BESIDE_FOLD, FOLD_BUTTON, Fold } from "./Fold.tsx";
+export {
+  type AnalyticsEvent,
+  analyticsScript,
+  startAnalytics,
+  track,
+} from "./io/analytics.ts";
 export { download, fileStem } from "./io/download.ts";
 export { decodeModel, encodeModel, exampleFragment, exampleIn } from "./io/share.ts";
 export { noMiddlePaste } from "./middle.ts";

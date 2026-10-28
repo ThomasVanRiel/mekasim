@@ -1,4 +1,5 @@
 import type { RunResult } from "@mekasim/fit";
+import { track } from "@mekasim/ui";
 import { create } from "zustand";
 import { useStore } from "../store.ts";
 import { studyKey } from "./key.ts";
@@ -102,6 +103,7 @@ export const useStudies = create<StudiesState>((set, get) => {
         running: true,
       });
       set({ selected: study, tab: "study" });
+      track("Run study", { sample: plan.sample });
 
       let pending: RunResult[] = [];
       let timer: ReturnType<typeof setTimeout> | undefined;

@@ -1,4 +1,4 @@
-import { download, FOLD_BUTTON, Fold } from "@mekasim/ui";
+import { download, FOLD_BUTTON, Fold, track } from "@mekasim/ui";
 import { useCallback, useState } from "react";
 import { useLayout } from "../layout.ts";
 import { SKILL, SKILL_FILE } from "../skill/skill.ts";
@@ -20,6 +20,7 @@ export function Skill() {
     try {
       await navigator.clipboard.writeText(SKILL);
       setCopied("copied");
+      track("AI skill", { action: "copy" });
     } catch {
       setCopied("failed");
     }
@@ -44,7 +45,10 @@ export function Skill() {
           </button>
           <button
             type="button"
-            onClick={() => download(SKILL_FILE, SKILL, "text/markdown")}
+            onClick={() => {
+              download(SKILL_FILE, SKILL, "text/markdown");
+              track("AI skill", { action: "download" });
+            }}
             className={FOLD_BUTTON}
           >
             Download {SKILL_FILE}

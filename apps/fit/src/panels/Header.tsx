@@ -1,5 +1,13 @@
 import { asMekasim, keepOutlines } from "@mekasim/fit";
-import { download, encodeModel, exampleFragment, fileStem, sortFiles, useTheme } from "@mekasim/ui";
+import {
+  download,
+  encodeModel,
+  exampleFragment,
+  fileStem,
+  sortFiles,
+  track,
+  useTheme,
+} from "@mekasim/ui";
 import { useMemo, useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
 import { useStore } from "../store.ts";
@@ -35,6 +43,7 @@ export function Header() {
       const fragment = example ? exampleFragment(example.id) : await encodeModel(whole);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
+      track("Copy link", { model: example ? "example" : "own" });
     } catch {
       setShared("failed");
     }
@@ -44,6 +53,7 @@ export function Header() {
   async function openInMekasim(): Promise<void> {
     if (!plain || !MEKASIM) return;
     window.open(`${MEKASIM}${await encodeModel(plain)}`, "_blank", "noopener");
+    track("Open in mekasim");
   }
 
   return (
@@ -59,6 +69,7 @@ export function Header() {
           if (!example) return;
           useStore.getState().load(example.text, example.files);
           history.replaceState(null, "", exampleFragment(example.id));
+          track("Load example", { example: example.id });
         }}
       >
         <option value="" disabled>
@@ -104,12 +115,16 @@ export function Header() {
             picked.map(async (file) => [file.name, await file.text()] as const),
           );
           useStore.getState().attach(new Map(read));
+          if (read.length > 0) track("Open file", { model: false, drawings: read.length });
         }}
       />
       <button
         type="button"
         className={button}
-        onClick={() => download(`${fileStem(name)}.mekafit.yaml`, whole, "text/yaml")}
+        onClick={() => {
+          download(`${fileStem(name)}.mekafit.yaml`, whole, "text/yaml");
+          track("Download model");
+        }}
       >
         Download
       </button>
@@ -146,6 +161,9 @@ export function Header() {
           // A model opens with the drawings picked along with it; drawings alone join this model.
           if (model !== undefined) state.load(model, drawings);
           else if (drawings.size > 0) state.attach(drawings);
+          if (model !== undefined || drawings.size > 0) {
+            track("Open file", { model: model !== undefined, drawings: drawings.size });
+          }
         }}
       />
     </header>

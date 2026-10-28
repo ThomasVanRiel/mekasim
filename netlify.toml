@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "26"
+  # mekasim's site in Plausible; see docs/ANALYTICS.md.
+  VITE_PLAUSIBLE_SCRIPT = "https://plausible.thomasvanriel.com/js/pa-HD6LiOPWDJ-J0sQLfW7Yc.js"
 
 # The site is unlisted: keep it out of search engines.
 [[headers]]

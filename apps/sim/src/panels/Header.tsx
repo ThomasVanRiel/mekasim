@@ -1,5 +1,13 @@
 import { keepOutlines, NEW_MODEL } from "@mekasim/core";
-import { download, encodeModel, exampleFragment, fileStem, sortFiles, useTheme } from "@mekasim/ui";
+import {
+  download,
+  encodeModel,
+  exampleFragment,
+  fileStem,
+  sortFiles,
+  track,
+  useTheme,
+} from "@mekasim/ui";
 import { useRef, useState } from "react";
 import { EXAMPLES } from "../examples.ts";
 import { useStore } from "../store.ts";
@@ -29,6 +37,7 @@ export function Header() {
       const fragment = example ? exampleFragment(example.id) : await encodeModel(whole);
       await navigator.clipboard.writeText(`${location.origin}${location.pathname}${fragment}`);
       setShared("copied");
+      track("Copy link", { model: example ? "example" : "own" });
     } catch {
       setShared("failed");
     }
@@ -39,13 +48,21 @@ export function Header() {
     // Saved with the outlines of its drawings kept in it, so the one file is the whole model.
     const { text, files } = useStore.getState();
     download(`${fileStem(name)}.mekasim.yaml`, keepOutlines(text, files), "text/yaml");
+    track("Download model");
   }
 
   return (
     <header className="relative flex flex-wrap items-center gap-x-4 gap-y-2 border-rule border-b px-4 py-2">
       <span className="font-semibold text-lg tracking-tight">mekasim</span>
       <span className="min-w-0 flex-1 truncate text-ink-soft">{name ?? "Untitled model"}</span>
-      <button type="button" className={editing} onClick={() => load(NEW_MODEL)}>
+      <button
+        type="button"
+        className={editing}
+        onClick={() => {
+          load(NEW_MODEL);
+          track("New model");
+        }}
+      >
         New model
       </button>
       <select
@@ -58,6 +75,7 @@ export function Header() {
           load(example.text, example.files);
           // Show the example's own link in the address bar.
           history.replaceState(null, "", exampleFragment(example.id));
+          track("Load example", { example: example.id });
         }}
       >
         <option value="" disabled>
@@ -98,6 +116,9 @@ export function Header() {
           const { model, drawings } = sortFiles(read);
           if (model !== undefined) load(model, drawings);
           else if (drawings.size > 0) useStore.getState().attach(drawings);
+          if (model !== undefined || drawings.size > 0) {
+            track("Open file", { model: model !== undefined, drawings: drawings.size });
+          }
         }}
       />
     </header>

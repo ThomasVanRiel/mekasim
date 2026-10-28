@@ -9,7 +9,7 @@ import {
   toDxf,
   toPointsDxf,
 } from "@mekasim/core";
-import { download, fileStem, formatNumber, label } from "@mekasim/ui";
+import { download, fileStem, formatNumber, label, track } from "@mekasim/ui";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { to3mf } from "../io/3mf.ts";
 import { toStl } from "../io/stl.ts";
@@ -183,7 +183,10 @@ function Build() {
           type="button"
           className={button}
           disabled={parts.length === 0}
-          onClick={() => download(`${stem}.dxf`, toDxf(parts, units, label), "image/vnd.dxf")}
+          onClick={() => {
+            download(`${stem}.dxf`, toDxf(parts, units, label), "image/vnd.dxf");
+            track("Make", { format: "DXF" });
+          }}
         >
           Download DXF to cut
         </button>
@@ -192,7 +195,10 @@ function Build() {
           className={button}
           title="Every piece as an object of its own, by name, to move or leave out in the printing program"
           disabled={parts.length === 0}
-          onClick={() => download(`${stem}.3mf`, to3mf(parts, sizes.thickness, label), "model/3mf")}
+          onClick={() => {
+            download(`${stem}.3mf`, to3mf(parts, sizes.thickness, label), "model/3mf");
+            track("Make", { format: "3MF" });
+          }}
         >
           Download 3MF to print
         </button>
@@ -201,7 +207,10 @@ function Build() {
           className={button}
           title="All pieces as one solid"
           disabled={parts.length === 0}
-          onClick={() => download(`${stem}.stl`, toStl(parts, sizes.thickness), "model/stl")}
+          onClick={() => {
+            download(`${stem}.stl`, toStl(parts, sizes.thickness), "model/stl");
+            track("Make", { format: "STL" });
+          }}
         >
           Download STL to print
         </button>
@@ -210,7 +219,10 @@ function Build() {
           className={button}
           title="The joints at the start of the cycle, and the links as lines, for a CAD program"
           disabled={!shown.cycle?.count}
-          onClick={() => download(`${stem}-points.dxf`, toPointsDxf(shown, label), "image/vnd.dxf")}
+          onClick={() => {
+            download(`${stem}-points.dxf`, toPointsDxf(shown, label), "image/vnd.dxf");
+            track("Make", { format: "DXF of the points" });
+          }}
         >
           Download DXF of the points
         </button>

@@ -8,6 +8,7 @@ import {
   label,
   PLOT_LEFT,
   PLOT_PAD,
+  track,
 } from "@mekasim/ui";
 import { type CSSProperties, useMemo } from "react";
 import { useLayout } from "../layout.ts";
@@ -76,6 +77,7 @@ export function Plots() {
               onClick={() => {
                 if (!shown) return;
                 download(`${fileStem(shown.doc?.meta?.name)}.csv`, toCsv(shown), "text/csv");
+                track("Export CSV");
               }}
             >
               Export CSV

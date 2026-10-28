@@ -1,5 +1,5 @@
 import { docFactor, LENGTH } from "@mekasim/core";
-import { decodeModel, exampleIn, Sheet, Splitter } from "@mekasim/ui";
+import { decodeModel, exampleIn, Sheet, Splitter, track } from "@mekasim/ui";
 import { type CSSProperties, useEffect, useState } from "react";
 import { gapsWithContact } from "./contacts.ts";
 import { EXAMPLES } from "./examples.ts";
@@ -106,12 +106,14 @@ function useLinkedModel(): void {
       if (example) {
         if (useStore.getState().text !== example.text) {
           useStore.getState().load(example.text, example.files);
+          track("Open link", { model: "example", example: example.id });
         }
         return;
       }
       decodeModel(location.hash).then((packed) => {
         if (packed === undefined) return;
         useStore.getState().load(packed);
+        track("Open link", { model: "own" });
         history.replaceState(null, "", location.pathname + location.search);
       });
     }

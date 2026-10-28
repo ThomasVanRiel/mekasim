@@ -1,4 +1,4 @@
-import { BESIDE_FOLD, decodeModel, exampleIn, Geometry, Tabs } from "@mekasim/ui";
+import { BESIDE_FOLD, decodeModel, exampleIn, Geometry, Tabs, track } from "@mekasim/ui";
 import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
 import { SourceEditor } from "./editor/SourceEditor.tsx";
 import { EXAMPLES } from "./examples.ts";
@@ -110,12 +110,14 @@ function useLinkedModel(): void {
         // The link stays in the address bar, so that it can be copied from there.
         if (useStore.getState().text !== example.text) {
           useStore.getState().load(example.text, example.files);
+          track("Open link", { model: "example", example: example.id });
         }
         return;
       }
       decodeModel(location.hash).then((packed) => {
         if (packed === undefined) return;
         useStore.getState().load(packed);
+        track("Open link", { model: "own" });
         history.replaceState(null, "", location.pathname + location.search);
       });
     }
